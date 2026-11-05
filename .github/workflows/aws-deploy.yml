@@ -1,0 +1,57 @@
+name: Connect GitHub to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  connect-aws:
+    name: Build and Connect to AWS
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Frontend Dependencies
+        run: npm install --prefix frontend
+
+      - name: Build React Frontend
+        run: npm run build --prefix frontend
+
+      - name: Install Backend Dependencies
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          fi
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/GitHubActionsRole
+          aws-region: ap-south-1
+
+      - name: Verify AWS Connection
+        run: |
+          aws sts get-caller-identity
+
+      - name: AWS Connection Successful
+        run: echo "GitHub successfully connected to AWS!"

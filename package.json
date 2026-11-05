@@ -1,0 +1,25 @@
+{
+  "name": "course_2-by-ram-instruction2",
+  "version": "1.0.0",
+  "description": "College Quiz & Role Management System (Full Stack React + Flask)",
+  "scripts": {
+    "start": "python backend/app.py",
+    "dev": "python backend/app.py",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
+    "test": "python backend/test_app.py",
+    "test:buttons": "python test_all_portal_buttons.py"
+  },
+  "keywords": [
+    "quiz",
+    "react",
+    "flask",
+    "python",
+    "education",
+    "aws",
+    "github-actions"
+  ],
+  "author": "Ram",
+  "license": "ISC"
+}
