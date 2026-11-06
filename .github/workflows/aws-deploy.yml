@@ -46,8 +46,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/GitHubActionsRole
-          aws-region: ap-south-1
+           role-to-assume: arn:aws:iam::523220341693:role/GitHubActionsRole
+           aws-region: ap-southeast-2
 
       - name: Verify AWS Connection
         run: |
@@ -55,3 +55,9 @@ jobs:
 
       - name: AWS Connection Successful
         run: echo "GitHub successfully connected to AWS!"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::523220341693:role/GitHubActionsRole
+          aws-region: ap-southeast-2
