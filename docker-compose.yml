@@ -9,12 +9,11 @@ services:
     environment:
       POSTGRES_DB: ${PGDATABASE:-college_live}
       POSTGRES_USER: ${PGUSER:-postgres}
-      POSTGRES_PASSWORD: ${PGPASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?Set PGPASSWORD in your local .env file}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "${PGPORT:-5433}:5432"
+      - "127.0.0.1:${PGHOST_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres} -d ${PGDATABASE:-college_live}"]
       interval: 5s
@@ -39,13 +38,15 @@ services:
       PGHOST: db
       PGPORT: 5432
       PGUSER: ${PGUSER:-postgres}
-      PGPASSWORD: ${PGPASSWORD:-postgres}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in your local .env file}
       PGDATABASE: ${PGDATABASE:-college_live}
       PORT: 5000
-      FLASK_ENV: production
+      APP_ENV: ${APP_ENV:-development}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-development-only-change-before-deploying}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       PYTHONUNBUFFERED: "1"
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/auth/super-admin-status"]
       interval: 15s

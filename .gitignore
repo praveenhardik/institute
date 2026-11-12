@@ -12,3 +12,7 @@ __pycache__/
 *.pyc
 dist/
 build/
+/aws/
+*.db
+*.db-wal
+*.db-shm
