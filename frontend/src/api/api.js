@@ -74,14 +74,19 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       dean: "dean",
       hod: "hod",
       xavier: "hod",
+      hod_cse: "hod",
       teacher: "teacher",
       alan: "teacher",
+      tec1cse: "teacher",
       classteacher: "class_teacher",
       lovelace: "class_teacher",
+      classcse2: "class_teacher",
       student: "student",
       alex: "student",
+      stu11_cse: "student",
       classleader: "class_leader",
       leader: "class_leader",
+      leadercse1: "class_leader",
       staff: "accountant",
       accountant: "accountant",
       arthur: "accountant",
@@ -567,11 +572,15 @@ export const API = {
       const data = isJson ? await response.json().catch(() => ({})) : {};
 
       if (!response.ok || !isJson) {
-        // Fallback for standalone Vercel when remote backend is not answering or 404
-        if (response.status === 404 || response.status === 502 || response.status === 503 || response.status === 504 || !isJson) {
-          const fallback = handleLocalFallback(endpoint, options, config);
-          if (fallback !== undefined) {
-            return fallback;
+        // Fallback for standalone Vercel when remote backend is not answering or 404/405/502/504
+        if (response.status === 404 || response.status === 405 || response.status === 502 || response.status === 503 || response.status === 504 || !isJson) {
+          try {
+            const fallback = handleLocalFallback(endpoint, options, config);
+            if (fallback !== undefined) {
+              return fallback;
+            }
+          } catch (fallbackErr) {
+            throw fallbackErr;
           }
         }
         const errorMsg = data.error || data.message || `Request failed with status ${response.status}`;
@@ -580,10 +589,17 @@ export const API = {
 
       return data;
     } catch (err) {
+      if (err.message && (err.message.toLowerCase().includes("invalid") || err.message.toLowerCase().includes("password"))) {
+        throw err;
+      }
       // If network fetch fails (CORS, offline, unreachable EC2, or Vercel 404)
-      const fallback = handleLocalFallback(endpoint, options, config);
-      if (fallback !== undefined) {
-        return fallback;
+      try {
+        const fallback = handleLocalFallback(endpoint, options, config);
+        if (fallback !== undefined) {
+          return fallback;
+        }
+      } catch (fallbackErr) {
+        throw fallbackErr;
       }
       console.error(`API Error on [${options.method || "GET"} ${endpoint}]:`, err);
       throw err;
