@@ -17,18 +17,18 @@ const DEFAULT_PORTAL_USERS = [
   { id: 2, name: "Super Admin", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Chief Institutional Administrator" },
   { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
-  { id: 5, name: "Xavier", username: "hod", email: "xavier1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
-  { id: 6, name: "Alan", username: "teacher", email: "alan1@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Associate Professor" },
-  { id: 7, name: "Lovelace", username: "classteacher", email: "lovelace1@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE 1st Year)" },
-  { id: 8, name: "Alex", username: "student", email: "alex1@inpand.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026001", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
-  { id: 9, name: "Leader", username: "classleader", email: "leader1@inpand.com", role: "class_leader", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026002", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
-  { id: 10, name: "Arthur", username: "staff", email: "arthur1@inpand.com", role: "accountant", status: "active", designation: "Senior Accountant / Bursar" },
+  { id: 5, name: "HOD", username: "hod", email: "hod1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
+  { id: 6, name: "Teacher", username: "teacher", email: "teacher1@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Associate Professor" },
+  { id: 7, name: "Class Teacher", username: "classteacher", email: "classteacher1@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE 1st Year)" },
+  { id: 8, name: "Student", username: "student", email: "student1@inpand.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026001", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
+  { id: 9, name: "Class Leader", username: "classleader", email: "classleader1@inpand.com", role: "class_leader", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026002", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
+  { id: 10, name: "Accountant", username: "accountant", email: "accountant1@inpand.com", role: "accountant", status: "active", designation: "Senior Accountant / Bursar" },
   { id: 11, name: "Librarian", username: "librarian", email: "librarian1@inpand.com", role: "librarian", status: "active", designation: "Chief Librarian" },
   { id: 12, name: "Parent", username: "parent", email: "parent1@inpand.com", role: "parent", status: "active", designation: "Parent / Guardian" }
 ];
 
 const CANONICAL_DEPTS = [
-  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5, hod_name: "Xavier" },
+  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5, hod_name: "HOD" },
   { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: null, hod_name: null },
   { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: null, hod_name: null },
   { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: null, hod_name: null },
@@ -53,16 +53,31 @@ function saveStoredDepartments(depts) {
   } catch {}
 }
 
+const USERS_SCHEMA_VERSION = "v5_clean_role_names";
+
 function getStoredUsers() {
   try {
+    const ver = localStorage.getItem("portal_users_version");
+    if (ver !== USERS_SCHEMA_VERSION) {
+      localStorage.setItem("portal_users_version", USERS_SCHEMA_VERSION);
+      localStorage.setItem("portal_all_users", JSON.stringify(DEFAULT_PORTAL_USERS));
+      return [...DEFAULT_PORTAL_USERS];
+    }
     const raw = localStorage.getItem("portal_all_users");
     if (raw) {
       const parsed = JSON.parse(raw);
-      const filtered = parsed.filter(u => (u.name || '').toLowerCase() !== 'eleanor');
-      if (!filtered.some(u => u.role === 'super_admin')) {
-        filtered.unshift(DEFAULT_PORTAL_USERS[1]);
-      }
-      return filtered.length > 0 ? filtered : [...DEFAULT_PORTAL_USERS];
+      const cleaned = parsed.map(u => {
+        const lowerName = (u.name || '').toLowerCase();
+        if (lowerName === 'eleanor') return DEFAULT_PORTAL_USERS[1];
+        if (lowerName === 'xavier') return DEFAULT_PORTAL_USERS[4];
+        if (lowerName === 'alan') return DEFAULT_PORTAL_USERS[5];
+        if (lowerName === 'lovelace') return DEFAULT_PORTAL_USERS[6];
+        if (lowerName === 'alex') return DEFAULT_PORTAL_USERS[7];
+        if (lowerName === 'leader') return DEFAULT_PORTAL_USERS[8];
+        if (lowerName === 'arthur') return DEFAULT_PORTAL_USERS[9];
+        return u;
+      });
+      return cleaned.length > 0 ? cleaned : [...DEFAULT_PORTAL_USERS];
     }
   } catch {}
   return [...DEFAULT_PORTAL_USERS];
@@ -478,8 +493,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       super_admins: superAdmins,
       created_by_super_admins: [
         { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", creator_name: "Super Admin", created_at: "2026-08-02 11:00:00" },
-        { id: 5, name: "Xavier", username: "hod", email: "xavier1@inpand.com", role: "hod", status: "active", creator_name: "Super Admin", created_at: "2026-08-02 11:30:00" },
-        { id: 6, name: "Alan", username: "teacher", email: "alan1@inpand.com", role: "teacher", status: "active", creator_name: "Super Admin", created_at: "2026-08-03 09:00:00" }
+        { id: 5, name: "HOD", username: "hod", email: "hod1@inpand.com", role: "hod", status: "active", creator_name: "Super Admin", created_at: "2026-08-02 11:30:00" },
+        { id: 6, name: "Teacher", username: "teacher", email: "teacher1@inpand.com", role: "teacher", status: "active", creator_name: "Super Admin", created_at: "2026-08-03 09:00:00" }
       ],
       system_stats: {
         total_users: allUsers.length,
@@ -579,7 +594,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
         duration_seconds: 60,
         target_type: "all",
         task_number: "Task 1",
-        teacher_name: "Alan",
+        teacher_name: "Teacher",
         explanation: "In a balanced binary search tree, the height is logarithmic (log n), resulting in O(log n) search time."
       },
       {
@@ -594,7 +609,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
         duration_seconds: 45,
         target_type: "all",
         task_number: "Task 1",
-        teacher_name: "Alan",
+        teacher_name: "Teacher",
         explanation: "A Stack is a LIFO (Last In First Out) linear data structure where elements are pushed and popped from the same end."
       }
     ];
@@ -608,8 +623,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   if (path.startsWith("/api/fees/")) {
     return {
       fees: [
-        { id: 1, student_id: 8, student_name: "Alex", roll_number: "CSE2026001", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" },
-        { id: 2, student_id: 9, student_name: "Leader", roll_number: "CSE2026002", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" }
+        { id: 1, student_id: 8, student_name: "Student", roll_number: "CSE2026001", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" },
+        { id: 2, student_id: 9, student_name: "Class Leader", roll_number: "CSE2026002", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" }
       ],
       stats: { total_expected: 100000, total_collected: 100000, pending_balance: 0 }
     };
@@ -619,7 +634,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   if (path.startsWith("/api/library/")) {
     return {
       books: [
-        { id: 1, student_id: 8, student_name: "Alex", roll_number: "CSE2026001", book_name: "Introduction to Algorithms (CLRS 4th Edition)", validity_date: "2027-05-31", status: "issued" }
+        { id: 1, student_id: 8, student_name: "Student", roll_number: "CSE2026001", book_name: "Introduction to Algorithms (CLRS 4th Edition)", validity_date: "2027-05-31", status: "issued" }
       ]
     };
   }
@@ -706,7 +721,20 @@ export const API = {
   getCurrentUser() {
     try {
       const raw = sessionStorage.getItem("quiz_auth_user");
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      let user = JSON.parse(raw);
+      if (user && user.name) {
+        const lower = user.name.toLowerCase();
+        if (lower === 'eleanor') { user.name = 'Super Admin'; user.username = 'superadmin'; }
+        else if (lower === 'xavier') { user.name = 'HOD'; user.username = 'hod'; }
+        else if (lower === 'alan') { user.name = 'Teacher'; user.username = 'teacher'; }
+        else if (lower === 'lovelace') { user.name = 'Class Teacher'; user.username = 'classteacher'; }
+        else if (lower === 'alex') { user.name = 'Student'; user.username = 'student'; }
+        else if (lower === 'leader') { user.name = 'Class Leader'; user.username = 'classleader'; }
+        else if (lower === 'arthur') { user.name = 'Accountant'; user.username = 'accountant'; }
+        if (!user.username) user.username = user.name;
+      }
+      return user;
     } catch {
       return null;
     }
@@ -715,6 +743,17 @@ export const API = {
   setCurrentUser(user) {
     try {
       if (user) {
+        if (user.name) {
+          const lower = user.name.toLowerCase();
+          if (lower === 'eleanor') { user.name = 'Super Admin'; user.username = 'superadmin'; }
+          else if (lower === 'xavier') { user.name = 'HOD'; user.username = 'hod'; }
+          else if (lower === 'alan') { user.name = 'Teacher'; user.username = 'teacher'; }
+          else if (lower === 'lovelace') { user.name = 'Class Teacher'; user.username = 'classteacher'; }
+          else if (lower === 'alex') { user.name = 'Student'; user.username = 'student'; }
+          else if (lower === 'leader') { user.name = 'Class Leader'; user.username = 'classleader'; }
+          else if (lower === 'arthur') { user.name = 'Accountant'; user.username = 'accountant'; }
+          if (!user.username) user.username = user.name;
+        }
         sessionStorage.setItem("quiz_auth_user", JSON.stringify(user));
       } else {
         sessionStorage.removeItem("quiz_auth_user");

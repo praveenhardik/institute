@@ -177,7 +177,7 @@ def require_auth(allowed_roles: Optional[List[str]] = None) -> Callable:
                 return jsonify({"error": "You have been signed out. Please sign in again."}), 401
 
             # Fetch fresh user data from DB to verify user is active
-            user = query_one("SELECT id, name, email, role, status FROM users WHERE id = ?", (payload["user_id"],))
+            user = query_one("SELECT id, name, username, email, role, status FROM users WHERE id = ?", (payload["user_id"],))
             if not user:
                 return jsonify({"error": "User account no longer exists"}), 401
             

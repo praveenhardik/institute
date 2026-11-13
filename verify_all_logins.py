@@ -30,15 +30,15 @@ DEFAULT_BASE = "http://127.0.0.1:5000"
 
 accounts = [
     ("dean", "Admin@123", "dean", "Dean", "Dean Portal"),
-    ("superadmin", "Admin@123", "super_admin", "Eleanor", "Super Admin Portal"),
+    ("superadmin", "Admin@123", "super_admin", "Super Admin", "Super Admin Portal"),
     ("admin", "Admin@123", "admin", "Admin", "College Admin Portal"),
     ("principal", "Admin@123", "principal", "Principal", "Principal Portal"),
-    ("hod", "Admin@123", "hod", "Xavier", "HOD Portal (CSE)"),
-    ("teacher", "Admin@123", "teacher", "Alan", "Teacher / Faculty Portal"),
-    ("classteacher", "Admin@123", "class_teacher", "Lovelace", "Class Teacher Portal"),
-    ("student", "Admin@123", "student", "Alex", "Student Portal"),
-    ("classleader", "Admin@123", "class_leader", "Leader", "Class Leader Portal"),
-    ("staff", "Admin@123", "accountant", "Arthur", "Accountant & Fees Portal"),
+    ("hod", "Admin@123", "hod", "HOD", "HOD Portal (CSE)"),
+    ("teacher", "Admin@123", "teacher", "Teacher", "Teacher / Faculty Portal"),
+    ("classteacher", "Admin@123", "class_teacher", "Class Teacher", "Class Teacher Portal"),
+    ("student", "Admin@123", "student", "Student", "Student Portal"),
+    ("classleader", "Admin@123", "class_leader", "Class Leader", "Class Leader Portal"),
+    ("accountant", "Admin@123", "accountant", "Accountant", "Accountant & Fees Portal"),
     ("librarian", "Admin@123", "librarian", "Librarian", "Librarian Portal"),
     ("parent", "Admin@123", "parent", "Parent", "Parent Portal"),
 ]

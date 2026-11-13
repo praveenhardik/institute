@@ -107,15 +107,11 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, [fetchCollegeName, checkSession]);
 
-  // Update browser tab title dynamically with role and name
+  // Update browser tab title dynamically with role and college name
   useEffect(() => {
     if (user) {
       const roleTitle = formatRoleName(user.role);
-      if (user.role === 'super_admin' || user.name === 'Super Admin' || user.name === roleTitle) {
-        document.title = `${roleTitle} - ${collegeName || 'EduPortal'}`;
-      } else {
-        document.title = `${roleTitle} (${user.name}) - ${collegeName || 'EduPortal'}`;
-      }
+      document.title = `${roleTitle} - ${collegeName || 'EduPortal'}`;
     } else {
       document.title = `Sign In - ${collegeName || 'EduPortal'}`;
     }

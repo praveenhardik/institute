@@ -51,9 +51,9 @@ ALL_PORTIONS_ACCOUNTS = [
     },
     {
         "role": "hod",
-        "name": "Xavier",
+        "name": "HOD",
         "username": "hod",
-        "email": "xavier1@inpand.com",
+        "email": "hod1@inpand.com",
         "dept_code": "CSE",
         "designation": "Head of Department (CSE)",
         "qualification": "Ph.D in Computer Science",
@@ -61,9 +61,9 @@ ALL_PORTIONS_ACCOUNTS = [
     },
     {
         "role": "teacher",
-        "name": "Alan",
+        "name": "Teacher",
         "username": "teacher",
-        "email": "alan1@inpand.com",
+        "email": "teacher1@inpand.com",
         "dept_code": "CSE",
         "designation": "Associate Professor",
         "qualification": "M.Tech in CSE",
@@ -71,9 +71,9 @@ ALL_PORTIONS_ACCOUNTS = [
     },
     {
         "role": "class_teacher",
-        "name": "Lovelace",
+        "name": "Class Teacher",
         "username": "classteacher",
-        "email": "lovelace1@inpand.com",
+        "email": "classteacher1@inpand.com",
         "dept_code": "CSE",
         "designation": "Class Teacher (CSE Year 1)",
         "qualification": "M.Tech in CSE",
@@ -81,35 +81,35 @@ ALL_PORTIONS_ACCOUNTS = [
     },
     {
         "role": "student",
-        "name": "Alex",
+        "name": "Student",
         "username": "student",
-        "email": "alex1@inpand.com",
+        "email": "student1@inpand.com",
         "dept_code": "CSE",
         "roll_number": "CSE2026001",
         "academic_year": 1,
-        "guardian_name": "Robert Mercer",
+        "guardian_name": "Parent",
         "guardian_phone": "9876543210",
-        "guardian_email": "robert.mercer@gmail.com",
+        "guardian_email": "parent1@inpand.com",
         "portal": "Student Portal"
     },
     {
         "role": "class_leader",
-        "name": "Leader",
+        "name": "Class Leader",
         "username": "classleader",
-        "email": "leader1@inpand.com",
+        "email": "classleader1@inpand.com",
         "dept_code": "CSE",
         "roll_number": "CSE2026002",
         "academic_year": 1,
-        "guardian_name": "Sarah Leader",
+        "guardian_name": "Parent",
         "guardian_phone": "9876543211",
-        "guardian_email": "sarah.leader@gmail.com",
+        "guardian_email": "parent1@inpand.com",
         "portal": "Class Leader Portal"
     },
     {
         "role": "accountant",
-        "name": "Arthur",
-        "username": "staff",
-        "email": "arthur1@inpand.com",
+        "name": "Accountant",
+        "username": "accountant",
+        "email": "accountant1@inpand.com",
         "designation": "Senior Accountant / Bursar",
         "qualification": "Chartered Accountant (CA)",
         "portal": "Accountant & Fees Portal"
@@ -142,8 +142,8 @@ def upsert_user(acc: dict, hashed_pw: str) -> int:
     name = acc["name"]
 
     existing = query_one(
-        "SELECT id, role, username, email FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR (role = ? AND lower(name) = lower(?))",
-        (username, email, role, name)
+        "SELECT id, role, username, email FROM users WHERE role = ? OR lower(username) = lower(?) OR lower(email) = lower(?) OR lower(name) = lower(?)",
+        (role, username, email, name)
     )
 
     if existing:
@@ -170,8 +170,8 @@ def seed_database():
     print("=" * 60)
     init_db()
 
-    # Ensure any legacy Eleanor account is completely removed
-    execute_write("DELETE FROM users WHERE lower(name) = 'eleanor' OR lower(email) = 'eleanor1@inpand.com'")
+    # Ensure all legacy personal name accounts are completely removed or cleaned
+    execute_write("DELETE FROM users WHERE lower(name) IN ('eleanor', 'alan', 'xavier', 'lovelace', 'alex', 'arthur') OR lower(email) IN ('eleanor1@inpand.com', 'alan1@inpand.com', 'xavier1@inpand.com', 'lovelace1@inpand.com', 'alex1@inpand.com', 'arthur1@inpand.com')")
 
     # 1. College Name setting
     college_setting = query_one("SELECT value FROM college_settings WHERE key = 'college_name'")

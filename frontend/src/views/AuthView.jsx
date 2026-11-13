@@ -364,7 +364,7 @@ export const AuthView = () => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder={regContactType === 'email' ? 'e.g. alex1@inpand.com' : 'e.g. 9876543210 (8-15 digits)'}
+                  placeholder={regContactType === 'email' ? 'e.g. user1@inpand.com' : 'e.g. 9876543210 (8-15 digits)'}
                   value={regContact}
                   onChange={(e) => setRegContact(e.target.value)}
                   maxLength={30}

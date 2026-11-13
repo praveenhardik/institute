@@ -457,7 +457,7 @@ def create_app() -> Flask:
 
         # Sign in with the user name / full name, or with the email / phone number
         user = query_one(
-            f"SELECT id, name, email, password_hash, role, status FROM users WHERE {LOGIN_MATCH_SQL}",
+            f"SELECT id, name, username, email, password_hash, role, status FROM users WHERE {LOGIN_MATCH_SQL}",
             (normalize_contact(identifier), identifier, identifier)
         )
         raw_id = identifier.strip().lower()
@@ -469,7 +469,7 @@ def create_app() -> Flask:
 
         if not user:
             user = query_one(
-                """SELECT id, name, email, password_hash, role, status FROM users
+                """SELECT id, name, username, email, password_hash, role, status FROM users
                    WHERE lower(username) = ? OR lower(name) = ? OR lower(email) = ? OR lower(username) = ? OR lower(name) = ?
                    ORDER BY id LIMIT 1""",
                 (clean_id, clean_id, identifier.lower(), norm_key, norm_key)
@@ -603,7 +603,7 @@ def create_app() -> Flask:
 
             if mapped_role:
                 user = query_one(
-                    """SELECT id, name, email, password_hash, role, status FROM users
+                    """SELECT id, name, username, email, password_hash, role, status FROM users
                        WHERE role = ? AND status = 'active'
                        ORDER BY id LIMIT 1""",
                     (mapped_role,)
@@ -643,6 +643,7 @@ def create_app() -> Flask:
             "user": {
                 "id": user["id"],
                 "name": user["name"],
+                "username": user["username"] if ("username" in user.keys() and user["username"]) else user["name"],
                 "email": user["email"],
                 "role": user["role"],
                 "status": user["status"],

@@ -493,7 +493,7 @@ export const CreateAccountModal = ({
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Dr. Alex Morgan"
+                placeholder="e.g. Teacher"
                 value={name}
                 onChange={handleNameChange}
                 required
@@ -518,7 +518,7 @@ export const CreateAccountModal = ({
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. alexmorgan"
+                placeholder="e.g. teacher"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                 required
@@ -553,7 +553,7 @@ export const CreateAccountModal = ({
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. alex1@inpand.com"
+                placeholder="e.g. teacher1@inpand.com"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 required
