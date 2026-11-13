@@ -1,6 +1,13 @@
 import os
 import re
 import sys
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
@@ -78,7 +85,21 @@ def build_token_profile(user_id: int) -> dict:
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=FRONTEND_DIR)
-    CORS(app)
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    raw_origins = os.getenv("CORS_ORIGINS", "")
+    allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    
+    # Always allow Vercel domains, localhost, and configured origins
+    vercel_pattern = re.compile(r"^https://.*\.vercel\.app$")
+    cors_origins = list(allowed_origins)
+    if cors_origins and app_env == "production" and "*" in cors_origins:
+        cors_origins.remove("*")
+    if not cors_origins or app_env != "production":
+        cors_origins.extend(["http://localhost:5173", "http://localhost:3000", "http://localhost:80", "http://localhost", vercel_pattern])
+    else:
+        cors_origins.append(vercel_pattern)
+        
+    CORS(app, resources={r"/api/*": {"origins": cors_origins, "supports_credentials": True}})
 
     @app.teardown_appcontext
     def close_request_db_connection(exception=None):
@@ -448,6 +469,38 @@ def create_app() -> Flask:
                    ORDER BY id LIMIT 1""",
                 (clean_id, clean_id, identifier.lower())
             )
+        if not user:
+            role_aliases = {
+                "super": "super_admin",
+                "superadmin": "super_admin",
+                "eleanor": "super_admin",
+                "admin": "admin",
+                "dean": "dean",
+                "hod": "hod",
+                "xavier": "hod",
+                "teacher": "teacher",
+                "alan": "teacher",
+                "classteacher": "class_teacher",
+                "lovelace": "class_teacher",
+                "student": "student",
+                "alex": "student",
+                "classleader": "class_leader",
+                "leader": "class_leader",
+                "staff": "accountant",
+                "accountant": "accountant",
+                "arthur": "accountant",
+                "librarian": "librarian",
+                "principal": "principal",
+                "parent": "parent",
+            }
+            mapped_role = role_aliases.get(clean_id)
+            if mapped_role:
+                user = query_one(
+                    """SELECT id, name, email, password_hash, role, status FROM users
+                       WHERE role = ? AND status = 'active'
+                       ORDER BY id LIMIT 1""",
+                    (mapped_role,)
+                )
         if not user or not verify_password(password, user["password_hash"]):
             return jsonify({"error": "Invalid user name or password"}), 401
 

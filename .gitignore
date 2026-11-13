@@ -11,6 +11,8 @@ venv/
 __pycache__/
 *.pyc
 dist/
+!frontend/dist/
+!frontend/dist/**
 build/
 /aws/
 *.db
