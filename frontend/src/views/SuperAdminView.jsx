@@ -253,7 +253,7 @@ export const SuperAdminView = () => {
     } finally {
       setProfilesLoading(false);
     }
-  }, [profiles.length]);
+  }, []);
 
   useEffect(() => {
     loadDepartments();

@@ -93,19 +93,18 @@ export const DeanView = () => {
     try {
       setLoadingMonitor(true);
       const data = await API.getDeanSuperAdminMonitor();
-      setMonitorData(data);
+      setMonitorData(data || {});
     } catch (err) {
-      console.error('Failed to load Dean monitor data:', err);
-      showAlert('Failed to load Super Admin monitoring data: ' + err.message, 'danger');
+      console.warn('Could not load Dean monitor data:', err);
     } finally {
       setLoadingMonitor(false);
     }
-  }, [showAlert]);
+  }, []);
 
   // Load Profiles Directory
   const loadProfiles = useCallback(async (showLoading = false) => {
     try {
-      if (showLoading && profiles.length === 0) setProfilesLoading(true);
+      if (showLoading) setProfilesLoading(true);
       const res = await API.getUserProfiles(directoryRoleFilter, '', directorySearch);
       const users = res.users || [];
       if (!directoryRoleFilter && !directorySearch) {
@@ -113,11 +112,11 @@ export const DeanView = () => {
       }
       setProfiles(users);
     } catch (err) {
-      console.error('Failed to load profiles:', err);
+      console.warn('Could not load profiles:', err);
     } finally {
       setProfilesLoading(false);
     }
-  }, [directoryRoleFilter, directorySearch, profiles.length]);
+  }, [directoryRoleFilter, directorySearch]);
 
   useEffect(() => {
     loadMonitorData();
@@ -508,15 +507,15 @@ export const DeanView = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFeed.map(acc => (
+                    {super_admins.map(acc => (
                       <tr key={acc.id}>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acc.name}</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{formatUserId(acc.id)}</div>
                         </td>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          <span className={`user-role-pill role-${acc.role}`} style={{ fontSize: '0.72rem' }}>
-                            {formatRoleName(acc.role)}
+                          <span className={`user-role-pill role-${acc.role || 'super_admin'}`} style={{ fontSize: '0.72rem' }}>
+                            {formatRoleName(acc.role || 'super_admin')}
                           </span>
                         </td>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
@@ -530,13 +529,13 @@ export const DeanView = () => {
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                             <span style={{ color: '#fb7185', fontWeight: 600, fontSize: '0.82rem' }}>
-                              {acc.creator_name || acc.creator_username || 'Super Admin'}
+                              {acc.creator_name || acc.creator_username || 'System / Dean'}
                             </span>
                           </div>
                         </td>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            {acc.created_at ? new Date(acc.created_at).toLocaleDateString() : '—'}
+                            {acc.created_at ? new Date(acc.created_at).toLocaleDateString() : 'Active'}
                           </span>
                         </td>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>

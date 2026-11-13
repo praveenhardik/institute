@@ -1267,7 +1267,7 @@ def reject_student(student_id: int):
 def get_super_admin_monitor():
     """Endpoint for Dean to monitor Super Admin accounts, activities, accounts created, and system health."""
     super_admins = query_all("""
-        SELECT u.id, u.name, u.username, u.email, u.status, u.created_at,
+        SELECT u.id, u.name, u.username, u.email, u.role, u.status, u.created_at,
                (SELECT COUNT(*) FROM users WHERE created_by_id = u.id) as accounts_created_count,
                (SELECT COUNT(*) FROM notifications WHERE sender_id = u.id OR (sender_role = 'super_admin' AND sender_id = u.id)) as notifications_sent_count
         FROM users u

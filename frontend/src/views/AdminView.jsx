@@ -147,7 +147,7 @@ export const AdminView = () => {
     } finally {
       setProfilesLoading(false);
     }
-  }, [profiles.length]);
+  }, []);
 
   useEffect(() => {
     loadDepartments();

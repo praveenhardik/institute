@@ -16,20 +16,26 @@ export const NotificationProvider = ({ children }) => {
       return;
     }
     try {
-      setLoading(true);
       const res = await API.getNotifications();
-      setNotifications(res.notifications || []);
+      let readSet = new Set();
+      try {
+        const raw = sessionStorage.getItem('portal_session_read_ids');
+        if (raw) readSet = new Set(JSON.parse(raw));
+      } catch {}
+      const mapped = (res.notifications || []).map(n => ({
+        ...n,
+        is_read: (readSet.has(n.id) || n.is_read) ? 1 : 0
+      }));
+      setNotifications(mapped);
     } catch (e) {
       console.warn('Could not load notifications:', e);
-    } finally {
-      setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
       loadNotifications();
-      const interval = setInterval(loadNotifications, 15000); // 15s refresh
+      const interval = setInterval(loadNotifications, 30000); // 30s refresh
       return () => clearInterval(interval);
     } else {
       setNotifications([]);
@@ -40,6 +46,13 @@ export const NotificationProvider = ({ children }) => {
 
   const markRead = useCallback(async (id) => {
     if (!id) return;
+    try {
+      const raw = sessionStorage.getItem('portal_session_read_ids');
+      const set = raw ? new Set(JSON.parse(raw)) : new Set();
+      set.add(id);
+      sessionStorage.setItem('portal_session_read_ids', JSON.stringify([...set]));
+    } catch {}
+
     // Optimistic update so badge and seen status update instantly across all matching notifications
     setNotifications(prev => {
       const target = prev.find(n => n.id === id);
@@ -52,13 +65,8 @@ export const NotificationProvider = ({ children }) => {
     });
     try {
       await API.markNotificationRead(id);
-      // Synchronize with server to ensure all users/lists reflect the updated read status
-      const res = await API.getNotifications();
-      if (res && res.notifications) {
-        setNotifications(res.notifications);
-      }
     } catch (e) {
-      console.warn('Failed to mark read:', e);
+      console.warn('Failed to mark read on server:', e);
     }
   }, []);
 

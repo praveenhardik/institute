@@ -74,6 +74,27 @@ function saveStoredUsers(users) {
   } catch {}
 }
 
+const DEFAULT_NOTIFICATIONS = [
+  { id: 1, title: "Welcome to EduPortal", message: "Your institutional portal is active and ready across all portions.", created_at: "2026-08-01 09:00:00", is_read: 0, sender_name: "Administration", sender_role: "admin", type: "broadcast" }
+];
+
+function getStoredNotifications() {
+  try {
+    const raw = localStorage.getItem("portal_notifications");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [...DEFAULT_NOTIFICATIONS];
+}
+
+function saveStoredNotifications(notifs) {
+  try {
+    localStorage.setItem("portal_notifications", JSON.stringify(notifs));
+  } catch {}
+}
+
 function handleLocalFallback(endpoint, options = {}, config = {}) {
   const method = (options.method || config.method || "GET").toUpperCase();
   const [path] = endpoint.split("?");
@@ -339,20 +360,35 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 19. /api/admin/dean/super-admin-monitor
   if (path === "/api/admin/dean/super-admin-monitor") {
+    const allUsers = getStoredUsers();
+    const superAdmins = allUsers.filter(u => u.role === "super_admin");
+    const admins = allUsers.filter(u => u.role === "admin");
+    const teachers = allUsers.filter(u => ["teacher", "class_teacher"].includes(u.role));
+    const students = allUsers.filter(u => ["student", "class_leader"].includes(u.role));
+    const hods = allUsers.filter(u => u.role === "hod");
+
     return {
-      super_admins: [],
+      super_admins: superAdmins,
       created_by_super_admins: [
-        { id: 3, name: "Admin", role: "admin", status: "active", created_at: "2026-08-02 11:00:00" }
+        { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", creator_name: "Super Admin", created_at: "2026-08-02 11:00:00" },
+        { id: 5, name: "Xavier", username: "hod", email: "xavier1@inpand.com", role: "hod", status: "active", creator_name: "Super Admin", created_at: "2026-08-02 11:30:00" },
+        { id: 6, name: "Alan", username: "teacher", email: "alan1@inpand.com", role: "teacher", status: "active", creator_name: "Super Admin", created_at: "2026-08-03 09:00:00" }
       ],
       system_stats: {
-        total_users: 11,
-        super_admins: 0,
-        admins: 1,
-        teachers: 2,
-        students: 2,
-        hods: 1
+        total_users: allUsers.length,
+        total_super_admins: superAdmins.length,
+        super_admins: superAdmins.length,
+        total_admins: admins.length,
+        admins: admins.length,
+        total_teachers: teachers.length,
+        teachers: teachers.length,
+        total_students: students.length,
+        students: students.length,
+        total_departments: 6,
+        total_quizzes: 2,
+        hods: hods.length
       },
-      recent_broadcasts: []
+      recent_broadcasts: getStoredNotifications()
     };
   }
 
@@ -483,13 +519,41 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 29. /api/notifications
   if (path.startsWith("/api/notifications")) {
-    if (path.includes("/count")) return { unread_count: 1 };
-    if (method === "POST") return { message: "Notification processed successfully." };
-    return {
-      notifications: [
-        { id: 1, title: "Welcome to EduPortal", message: "Your institutional portal is active and ready across all portions.", created_at: "2026-08-01 09:00:00", is_read: 0, sender_name: "Administration" }
-      ]
-    };
+    const notifs = getStoredNotifications();
+    if (path.includes("/read") && method === "POST") {
+      const parts = path.split("/");
+      const targetId = Number(parts[parts.length - 2]);
+      notifs.forEach(n => {
+        if (!targetId || n.id === targetId) n.is_read = 1;
+      });
+      saveStoredNotifications(notifs);
+      return { message: "Notification marked as read." };
+    }
+    if (path.includes("/mark-all-read") && method === "POST") {
+      notifs.forEach(n => { n.is_read = 1; });
+      saveStoredNotifications(notifs);
+      return { message: "All notifications marked as read." };
+    }
+    if (path.includes("/count")) {
+      const unread = notifs.filter(n => !n.is_read).length;
+      return { unread_count: unread };
+    }
+    if (method === "POST") {
+      const newNotif = {
+        id: notifs.length ? Math.max(...notifs.map(n => n.id || 0)) + 1 : 1,
+        title: body.title || "Announcement",
+        message: body.message || "",
+        created_at: new Date().toISOString(),
+        is_read: 0,
+        sender_name: API.getCurrentUser()?.name || "Administration",
+        sender_role: API.getCurrentUser()?.role || "admin",
+        type: body.type || "broadcast"
+      };
+      notifs.unshift(newNotif);
+      saveStoredNotifications(notifs);
+      return { message: "Notification dispatched successfully." };
+    }
+    return { notifications: notifs };
   }
 
   // 30. /api/student/history

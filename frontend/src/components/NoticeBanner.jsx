@@ -17,6 +17,7 @@ export const NoticeBanner = () => {
   });
   const [activeModalNotice, setActiveModalNotice] = useState(null);
   const activeNoticeIdRef = useRef(null);
+  const markedIdsRef = useRef(new Set());
   const [showAll, setShowAll] = useState(false);
   const [showDispatch, setShowDispatch] = useState(false);
 
@@ -61,16 +62,20 @@ export const NoticeBanner = () => {
 
   const currentNotice = displayNotices[currentIndex] || displayNotices[0];
 
-  // Automatically mark notice as read once it is seen on screen (stays on screen without auto-cycling)
+  // Mark notice as read once it is seen on screen (prevents infinite re-triggering)
   useEffect(() => {
     if (isDismissed || !currentNotice || currentNotice.is_read || typeof currentNotice.id !== 'number') {
       return;
     }
     const noticeId = currentNotice.id;
-    // Mark as read after being seen for 1 second
+    if (markedIdsRef.current.has(noticeId)) {
+      return;
+    }
+    markedIdsRef.current.add(noticeId);
+
     const timer = setTimeout(() => {
       markRead(noticeId);
-    }, 1000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [currentIndex, isDismissed, currentNotice?.id, currentNotice?.is_read, markRead]);
