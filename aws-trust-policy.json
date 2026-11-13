@@ -5,7 +5,7 @@
       "Sid": "GitHubActionsAssumeRole",
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::523220341693:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -13,7 +13,10 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:praveenhardik/institute:*",
+            "repo:praveenhardik/school:*"
+          ]
         }
       }
     }
