@@ -67,8 +67,38 @@ export const SuperAdminView = () => {
   const [newIsClassLeader, setNewIsClassLeader] = useState(false);
   const [sectionsList, setSectionsList] = useState([]);
 
-  // Departments for dropdown
+  // Departments for dropdown & management
   const [departments, setDepartments] = useState([]);
+  const [directDeptName, setDirectDeptName] = useState('');
+  const [directDeptCode, setDirectDeptCode] = useState('');
+  const [directDeptLoading, setDirectDeptLoading] = useState(false);
+
+  const handleDirectAddDept = async (e) => {
+    e.preventDefault();
+    if (!directDeptName.trim() || !directDeptCode.trim()) {
+      showAlert('Department name and code are required.', 'danger');
+      return;
+    }
+    if (departments.length >= 10) {
+      showAlert('Maximum limit of 10 departments reached for this college.', 'warning');
+      return;
+    }
+    try {
+      setDirectDeptLoading(true);
+      const res = await API.createDepartment({
+        name: directDeptName.trim(),
+        code: directDeptCode.trim().toUpperCase()
+      });
+      showAlert(res.message || 'Academic Department added successfully!', 'success');
+      setDirectDeptName('');
+      setDirectDeptCode('');
+      loadDepartments();
+    } catch (err) {
+      showAlert(err.message || 'Failed to add department.', 'danger');
+    } finally {
+      setDirectDeptLoading(false);
+    }
+  };
 
   // Pending approvals
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -597,6 +627,12 @@ export const SuperAdminView = () => {
             Administration & Accounts
           </button>
           <button
+            className={`tab-btn ${activeSubTab === 'departments' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('departments')}
+          >
+            Academic Departments
+          </button>
+          <button
             className={`tab-btn ${activeSubTab === 'tasks' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('tasks')}
           >
@@ -619,7 +655,144 @@ export const SuperAdminView = () => {
         />
 
         <div className="portal-main-content">
-          {activeSubTab === 'setup' ? (
+          {activeSubTab === 'departments' ? (
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    Academic Departments
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+                    Super Admin Exclusive Authority: Add new academic departments and govern institutional programs.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <span style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    background: departments.length >= 10 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                    color: departments.length >= 10 ? '#ef4444' : '#4f46e5',
+                    border: `1px solid ${departments.length >= 10 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`
+                  }}>
+                    {departments.length} / 10 Departments
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={loadDepartments}
+                    style={{ padding: '6px 14px' }}
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Department Form - Super Admin Only */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '20px',
+                marginBottom: '24px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>🏛️</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Add New Academic Department
+                    </h3>
+                    <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>
+                      ✓ Super Admin Authorized Privilege
+                    </span>
+                  </div>
+                </div>
+
+                {departments.length >= 10 ? (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '6px',
+                    color: '#dc2626',
+                    fontSize: '0.85rem'
+                  }}>
+                    Maximum institutional limit of 10 academic departments reached for this college.
+                  </div>
+                ) : (
+                  <form onSubmit={handleDirectAddDept}>
+                    <div className="grid-2" style={{ marginBottom: '14px' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600 }}>Department Name <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="e.g. Artificial Intelligence and Data Science"
+                          value={directDeptName}
+                          onChange={(e) => setDirectDeptName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600 }}>Department Code <span className="req">*</span></label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="e.g. AIDS"
+                          value={directDeptCode}
+                          onChange={(e) => setDirectDeptCode(e.target.value.toUpperCase())}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={directDeptLoading}
+                      style={{ padding: '8px 22px', fontWeight: 600, background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)' }}
+                    >
+                      {directDeptLoading ? 'Adding Department...' : 'Add Department'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Departments Table */}
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>#</th>
+                      <th>Department Name</th>
+                      <th>Code</th>
+                      <th>Head of Department (HOD)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.length ? (
+                      departments.map((d, idx) => (
+                        <tr key={d.id || idx}>
+                          <td>{idx + 1}</td>
+                          <td><strong style={{ color: 'var(--text-primary)' }}>{d.name}</strong></td>
+                          <td><span className="status-pill status-pill-active">{d.code}</span></td>
+                          <td>{d.hod_name || <span style={{ color: 'var(--text-muted)' }}>Not assigned</span>}</td>
+                          <td><span style={{ color: '#10b981', fontWeight: 600 }}>Active</span></td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                          No academic departments found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeSubTab === 'setup' ? (
             <CollegeSetup canManage={true} />
           ) : activeSubTab === 'tasks' ? (
             <div className="card">

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { API } from '../api/api';
 import { useAlert } from '../context/AlertContext';
-import { formatRoleName } from '../context/AuthContext';
+import { formatRoleName, useAuth } from '../context/AuthContext';
 
 export const CollegeSetup = ({ canManage = true }) => {
+  const { user: currentUser } = useAuth();
   const { showAlert } = useAlert();
 
   const [loading, setLoading] = useState(true);
@@ -495,7 +496,23 @@ export const CollegeSetup = ({ canManage = true }) => {
         </p>
 
         {canManage && (
-          departments.length >= 10 ? (
+          currentUser?.role !== 'super_admin' ? (
+            <div style={{
+              padding: '10px 14px',
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: '6px',
+              color: 'var(--text-secondary)',
+              fontSize: '0.85rem',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>🔒</span>
+              <span>Adding new Academic Departments is restricted strictly to <strong>Super Admins</strong>.</span>
+            </div>
+          ) : departments.length >= 10 ? (
             <div style={{
               padding: '10px 14px',
               background: 'rgba(239, 68, 68, 0.12)',

@@ -14,6 +14,15 @@ DEFAULT_PASSWORD = "Admin@123"
 
 ALL_PORTIONS_ACCOUNTS = [
     {
+        "role": "super_admin",
+        "name": "Super Admin",
+        "username": "superadmin",
+        "email": "superadmin1@inpand.com",
+        "designation": "Chief Institutional Administrator",
+        "qualification": "Ph.D Educational Administration",
+        "portal": "Super Admin Portal"
+    },
+    {
         "role": "dean",
         "name": "Dean",
         "username": "dean",
@@ -161,8 +170,8 @@ def seed_database():
     print("=" * 60)
     init_db()
 
-    # Permanently remove Super Admin (Eleanor) from database as requested
-    execute_write("DELETE FROM users WHERE lower(name) = 'eleanor' OR lower(username) = 'superadmin' OR lower(username) = 'super' OR role = 'super_admin'")
+    # Ensure any legacy Eleanor account is completely removed
+    execute_write("DELETE FROM users WHERE lower(name) = 'eleanor' OR lower(email) = 'eleanor1@inpand.com'")
 
     # 1. College Name setting
     college_setting = query_one("SELECT value FROM college_settings WHERE key = 'college_name'")

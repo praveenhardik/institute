@@ -384,8 +384,10 @@ def departments_with_teachers():
 
 
 @college_bp.route("/departments", methods=["POST"])
-@require_auth(allowed_roles=SETUP_ROLES)
+@require_auth(allowed_roles=["super_admin"])
 def create_department():
+    if g.current_user.get("role") != "super_admin":
+        return jsonify({"error": "Forbidden: Only Super Admins can add an Academic Department."}), 403
     count_row = query_one("SELECT COUNT(*) AS cnt FROM departments")
     if count_row and count_row["cnt"] >= 10:
         return jsonify({"error": "Maximum limit of 10 departments reached for this college."}), 400

@@ -14,6 +14,7 @@ try {
 // --- Client-side Fallback & Mock Engine for Standalone Vercel Deployments ---
 const DEFAULT_PORTAL_USERS = [
   { id: 1, name: "Dean", username: "dean", email: "dean1@inpand.com", role: "dean", status: "active", department_name: null, department_code: null, designation: "Dean of Academic Affairs" },
+  { id: 2, name: "Super Admin", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Chief Institutional Administrator" },
   { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
   { id: 5, name: "Xavier", username: "hod", email: "xavier1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
@@ -27,20 +28,40 @@ const DEFAULT_PORTAL_USERS = [
 ];
 
 const CANONICAL_DEPTS = [
-  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5 },
-  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: null },
-  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: null },
-  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: null },
-  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: null },
-  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: null }
+  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5, hod_name: "Xavier" },
+  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: null, hod_name: null },
+  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: null, hod_name: null },
+  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: null, hod_name: null },
+  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: null, hod_name: null },
+  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: null, hod_name: null }
 ];
+
+function getStoredDepartments() {
+  try {
+    const raw = localStorage.getItem("portal_departments");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [...CANONICAL_DEPTS];
+}
+
+function saveStoredDepartments(depts) {
+  try {
+    localStorage.setItem("portal_departments", JSON.stringify(depts));
+  } catch {}
+}
 
 function getStoredUsers() {
   try {
     const raw = localStorage.getItem("portal_all_users");
     if (raw) {
       const parsed = JSON.parse(raw);
-      const filtered = parsed.filter(u => u.role !== 'super_admin' && (u.name || '').toLowerCase() !== 'eleanor');
+      const filtered = parsed.filter(u => (u.name || '').toLowerCase() !== 'eleanor');
+      if (!filtered.some(u => u.role === 'super_admin')) {
+        filtered.unshift(DEFAULT_PORTAL_USERS[1]);
+      }
       return filtered.length > 0 ? filtered : [...DEFAULT_PORTAL_USERS];
     }
   } catch {}
@@ -70,6 +91,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     const pwd = (body.password || "").trim();
 
     const roleAliases = {
+      super: "super_admin",
+      superadmin: "super_admin",
+      super_admin: "super_admin",
       admin: "admin",
       dean: "dean",
       hod: "hod",
@@ -213,7 +237,31 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 10. /api/college/departments
   if (path === "/api/college/departments") {
-    return { departments: CANONICAL_DEPTS };
+    const depts = getStoredDepartments();
+    if (method === "POST") {
+      const cur = API.getCurrentUser();
+      if (cur?.role !== "super_admin") {
+        throw new Error("Forbidden: Only Super Admins can add an Academic Department.");
+      }
+      const name = (body.name || "").trim();
+      const code = (body.code || "").trim().toUpperCase();
+      if (!name || !code) {
+        throw new Error("Department name and code are required.");
+      }
+      if (depts.length >= 10) {
+        throw new Error("Maximum limit of 10 departments reached for this college.");
+      }
+      const existing = depts.find(d => (d.name || '').toLowerCase() === name.toLowerCase() || (d.code || '').toUpperCase() === code);
+      if (existing) {
+        throw new Error(`Department '${existing.name}' already exists with this name or code.`);
+      }
+      const newId = depts.length ? Math.max(...depts.map(d => d.id || 0)) + 1 : 1;
+      const newDept = { id: newId, name, code, hod_user_id: null, hod_name: null };
+      depts.push(newDept);
+      saveStoredDepartments(depts);
+      return { message: `Department ${name} added`, id: newId, department: newDept };
+    }
+    return { departments: depts };
   }
 
   // 11. /api/college/my-departments
