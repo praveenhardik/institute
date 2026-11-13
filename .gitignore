@@ -16,3 +16,23 @@ build/
 *.db
 *.db-wal
 *.db-shm
+institute/
+.vercel
+# Local Docker Compose settings. Change both values before running locally.
+PGUSER=college_app
+PGPASSWORD=change-this-local-password
+PGDATABASE=college_live
+PGHOST_PORT=5433
+PGPORT=5433
+
+APP_ENV=development
+JWT_SECRET_KEY=change-this-local-development-secret
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://127.0.0.1:3000,https://institute-dun.vercel.app
+
+FRONTEND_PORT=3000
+
+echo .env >> .gitignore
+git rm --cached .env
+git add .gitignore
+git commit -m "Stop tracking environment file"
+git push

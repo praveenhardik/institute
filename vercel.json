@@ -4,6 +4,7 @@
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "rewrites": [
+    { "source": "/api/:match*", "destination": "http://3.27.170.60:5000/api/:match*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
