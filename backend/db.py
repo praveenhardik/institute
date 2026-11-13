@@ -1324,13 +1324,8 @@ def execute_write(query: str, args: tuple = ()) -> int:
 
 
 def ensure_default_super_admin() -> None:
-    """Default login for the Super Admin portal: user name 'superadmin', password 'Admin@123'."""
-    from werkzeug.security import generate_password_hash
-    exists = query_one("SELECT id FROM users WHERE username = 'superadmin' OR email = 'superadmin1@inpand.com' OR email = 'superadmin@inpand.in'")
-    if exists is None:
-        execute_write(
-            "INSERT INTO users (name, email, password_hash, role, status, username) VALUES (?, ?, ?, 'super_admin', 'active', 'superadmin')",
-            ("Super Admin", "superadmin1@inpand.com", generate_password_hash("Admin@123")))
+    """Super Admin role has been removed from the system."""
+    pass
 
 
 def department_name_of_user(user_id) -> Optional[str]:

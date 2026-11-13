@@ -23,15 +23,6 @@ ALL_PORTIONS_ACCOUNTS = [
         "portal": "Dean Portal"
     },
     {
-        "role": "super_admin",
-        "name": "Eleanor",
-        "username": "superadmin",
-        "email": "superadmin1@inpand.com",
-        "designation": "System Super Administrator",
-        "qualification": "Ph.D (Admin)",
-        "portal": "Super Admin Portal"
-    },
-    {
         "role": "admin",
         "name": "Admin",
         "username": "admin",
@@ -169,6 +160,9 @@ def seed_database():
     print("INITIALIZING DATABASE & SEEDING ALL PORTAL PORTIONS")
     print("=" * 60)
     init_db()
+
+    # Permanently remove Super Admin (Eleanor) from database as requested
+    execute_write("DELETE FROM users WHERE lower(name) = 'eleanor' OR lower(username) = 'superadmin' OR lower(username) = 'super' OR role = 'super_admin'")
 
     # 1. College Name setting
     college_setting = query_one("SELECT value FROM college_settings WHERE key = 'college_name'")

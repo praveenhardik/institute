@@ -14,7 +14,6 @@ try {
 // --- Client-side Fallback & Mock Engine for Standalone Vercel Deployments ---
 const DEFAULT_PORTAL_USERS = [
   { id: 1, name: "Dean", username: "dean", email: "dean1@inpand.com", role: "dean", status: "active", department_name: null, department_code: null, designation: "Dean of Academic Affairs" },
-  { id: 2, name: "Eleanor", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Super Administrator" },
   { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
   { id: 5, name: "Xavier", username: "hod", email: "xavier1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
@@ -39,7 +38,11 @@ const CANONICAL_DEPTS = [
 function getStoredUsers() {
   try {
     const raw = localStorage.getItem("portal_all_users");
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const filtered = parsed.filter(u => u.role !== 'super_admin' && (u.name || '').toLowerCase() !== 'eleanor');
+      return filtered.length > 0 ? filtered : [...DEFAULT_PORTAL_USERS];
+    }
   } catch {}
   return [...DEFAULT_PORTAL_USERS];
 }
@@ -67,9 +70,6 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     const pwd = (body.password || "").trim();
 
     const roleAliases = {
-      super: "super_admin",
-      superadmin: "super_admin",
-      eleanor: "super_admin",
       admin: "admin",
       dean: "dean",
       hod: "hod",
@@ -146,13 +146,13 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 2. /api/auth/me
   if (path === "/api/auth/me") {
-    const u = API.getCurrentUser() || DEFAULT_PORTAL_USERS[1];
+    const u = API.getCurrentUser() || DEFAULT_PORTAL_USERS[0];
     return { user: u };
   }
 
   // 3. /api/auth/super-admin-status
   if (path === "/api/auth/super-admin-status") {
-    return { exists: true };
+    return { exists: false };
   }
 
   // 4. /api/auth/principal-status
@@ -292,15 +292,13 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   // 19. /api/admin/dean/super-admin-monitor
   if (path === "/api/admin/dean/super-admin-monitor") {
     return {
-      super_admins: [
-        { id: 2, name: "Eleanor", email: "superadmin1@inpand.com", role: "super_admin", status: "active", created_at: "2026-08-01 10:00:00" }
-      ],
+      super_admins: [],
       created_by_super_admins: [
         { id: 3, name: "Admin", role: "admin", status: "active", created_at: "2026-08-02 11:00:00" }
       ],
       system_stats: {
-        total_users: 12,
-        super_admins: 1,
+        total_users: 11,
+        super_admins: 0,
         admins: 1,
         teachers: 2,
         students: 2,

@@ -23,17 +23,7 @@ export const AuthView = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [nameEligibilityNotice, setNameEligibilityNotice] = useState('');
-  const [superAdminExists, setSuperAdminExists] = useState(false);
-
-  useEffect(() => {
-    API.getSuperAdminStatus()
-      .then(res => {
-        if (res && res.exists) {
-          setSuperAdminExists(true);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const [regRole, setRegRole] = useState('student');
 
   // Forgot password state
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -60,24 +50,9 @@ export const AuthView = () => {
     }
   };
 
-  // 2. Submit Register (Super Admin)
+  // 2. Submit Register
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (superAdminExists) {
-      showAlert('Super Admin can only be created once. A Super Admin account already exists.', 'danger');
-      return;
-    }
-
-    try {
-      const statusRes = await API.getSuperAdminStatus();
-      if (statusRes && statusRes.exists) {
-        setSuperAdminExists(true);
-        showAlert('Super Admin can only be created once. A Super Admin account already exists.', 'danger');
-        return;
-      }
-    } catch {
-      // Proceed if network call fails
-    }
 
     if (!regName.trim() || !regContact.trim() || !regPassword.trim() || !regUsername.trim()) {
       showAlert('All fields are required', 'danger');
@@ -106,15 +81,13 @@ export const AuthView = () => {
         regName.trim(),
         regContact.trim(),
         regPassword.trim(),
-        'super_admin',
+        regRole || 'student',
         regContactType,
         regUsername.trim()
       );
       const registeredFullName = res.name || regName.trim();
-      showAlert(res.message || `Super Admin account for ${registeredFullName} created successfully! You can sign in now.`, 'success');
-      setSuperAdminExists(true);
+      showAlert(res.message || `Account for ${registeredFullName} created successfully! You can sign in now.`, 'success');
       setActiveTab('login');
-      // Show whatever was mentioned in Full Name (Single Name) * in the login form display!
       setLoginIdentifier(registeredFullName);
       setLoginPassword('');
     } catch (err) {
@@ -258,22 +231,12 @@ export const AuthView = () => {
           <form onSubmit={handleRegisterSubmit}>
             <div style={{ marginBottom: '18px', textAlign: 'center' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Create Super Admin Account
+                Create Portal Account
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600, marginTop: '4px' }}>
-                Directly activates system administration privileges
+                Join the institutional portal for quizzes & academic management
               </p>
             </div>
-
-            {superAdminExists ? (
-              <div className="alert alert-warning" style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
-                <strong>Notice:</strong> Super Admin is already active in the system. Super Admin can only be created once.
-              </div>
-            ) : (
-              <div className="alert alert-info" style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '16px' }}>
-                <strong>Super Admin:</strong> This account is active straight away. You can sign in immediately after registration.
-              </div>
-            )}
 
             <div className="form-group">
               <label className="form-label" htmlFor="reg-role">
@@ -282,17 +245,19 @@ export const AuthView = () => {
               <select
                 id="reg-role"
                 className="form-select"
-                value="super_admin"
-                onChange={() => {}}
+                value={regRole}
+                onChange={(e) => setRegRole(e.target.value)}
                 style={{
                   color: '#0284c7',
                   fontWeight: 700,
                   background: '#ffffff',
-                  borderColor: '#cbd5e1',
-                  cursor: 'default'
+                  borderColor: '#cbd5e1'
                 }}
               >
-                <option value="super_admin">Super Admin</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="parent">Parent</option>
+                <option value="class_leader">Class Leader</option>
               </select>
             </div>
 

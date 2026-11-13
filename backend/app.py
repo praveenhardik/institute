@@ -471,9 +471,6 @@ def create_app() -> Flask:
             )
         if not user:
             role_aliases = {
-                "super": "super_admin",
-                "superadmin": "super_admin",
-                "eleanor": "super_admin",
                 "admin": "admin",
                 "dean": "dean",
                 "hod": "hod",
