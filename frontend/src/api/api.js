@@ -108,36 +108,111 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   // 1. /api/auth/login
   if (path === "/api/auth/login" && method === "POST") {
     const rawId = (body.username || body.email_or_phone || body.email || body.identifier || "").trim().toLowerCase();
-    const cleanId = rawId.includes("@") ? rawId.split("@")[0] : rawId;
+    let cleanId = rawId.includes("@") ? rawId.split("@")[0] : rawId;
+    const suffixes = [" login", " portal", " account", " user", "_login", "_portal", "-login", "-portal"];
+    for (const suffix of suffixes) {
+      if (cleanId.endsWith(suffix)) {
+        cleanId = cleanId.slice(0, -suffix.length).trim();
+      }
+    }
+    const normKey = cleanId.replace(/[^a-z0-9]/g, "");
     const pwd = (body.password || "").trim();
 
     const roleAliases = {
+      // Super Admin
       super: "super_admin",
       superadmin: "super_admin",
       super_admin: "super_admin",
+      sujper: "super_admin",
+      sujperadmin: "super_admin",
+      sujper_admin: "super_admin",
+      supper: "super_admin",
+      supperadmin: "super_admin",
+      // Admin
       admin: "admin",
+      admins: "admin",
+      administrator: "admin",
+      collegeadmin: "admin",
+      // Dean
       dean: "dean",
+      deans: "dean",
+      // Principal
+      principal: "principal",
+      principals: "principal",
+      // HOD
       hod: "hod",
+      hods: "hod",
       xavier: "hod",
-      hod_cse: "hod",
+      headofdepartment: "hod",
+      hodcse: "hod",
+      hodeee: "hod",
+      hodece: "hod",
+      hodmech: "hod",
+      hodmect: "hod",
+      hodaero: "hod",
+      // Teacher
       teacher: "teacher",
+      teachers: "teacher",
+      faculty: "teacher",
       alan: "teacher",
       tec1cse: "teacher",
+      tec1eee: "teacher",
+      tecleee: "teacher",
+      teceee: "teacher",
+      teccse: "teacher",
+      tec1mech: "teacher",
+      tec1ece: "teacher",
+      tec1aero: "teacher",
+      tec1mect: "teacher",
+      teacher1: "teacher",
+      teacher2: "teacher",
+      // Class Teacher
       classteacher: "class_teacher",
+      class_teacher: "class_teacher",
       lovelace: "class_teacher",
       classcse2: "class_teacher",
+      classtec: "class_teacher",
+      // Student
       student: "student",
+      students: "student",
       alex: "student",
       stu11_cse: "student",
+      stu11cse: "student",
+      stu1: "student",
+      stucse: "student",
+      stueee: "student",
+      stumech: "student",
+      stuaero: "student",
+      stuece: "student",
+      stumect: "student",
+      student1: "student",
+      student2: "student",
+      // Class Leader
       classleader: "class_leader",
+      class_leader: "class_leader",
       leader: "class_leader",
+      leaders: "class_leader",
       leadercse1: "class_leader",
-      staff: "accountant",
+      leader1: "class_leader",
+      // Accountant
       accountant: "accountant",
+      accountants: "accountant",
+      staff: "accountant",
       arthur: "accountant",
+      accounts: "accountant",
+      account: "accountant",
+      bursar: "accountant",
+      // Librarian
       librarian: "librarian",
-      principal: "principal",
-      parent: "parent"
+      librarians: "librarian",
+      libratrian: "librarian",
+      libratrians: "librarian",
+      library: "librarian",
+      // Parent
+      parent: "parent",
+      parents: "parent",
+      guardian: "parent",
+      guardians: "parent"
     };
 
     const users = getStoredUsers();
@@ -146,11 +221,41 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       (u.email && u.email.toLowerCase() === rawId) ||
       (u.name && u.name.toLowerCase() === rawId) ||
       (u.username && u.username.toLowerCase() === cleanId) ||
-      (u.name && u.name.toLowerCase() === cleanId)
+      (u.name && u.name.toLowerCase() === cleanId) ||
+      (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === normKey) ||
+      (u.name && u.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normKey)
     );
 
-    if (!matched && roleAliases[cleanId]) {
-      const targetRole = roleAliases[cleanId];
+    let targetRole = roleAliases[cleanId] || roleAliases[normKey];
+    if (!targetRole) {
+      if (normKey.startsWith("tec") || normKey.startsWith("teach")) {
+        targetRole = "teacher";
+      } else if (normKey.startsWith("stu")) {
+        targetRole = "student";
+      } else if (normKey.startsWith("lead")) {
+        targetRole = "class_leader";
+      } else if (normKey.startsWith("classt")) {
+        targetRole = "class_teacher";
+      } else if (normKey.startsWith("libr")) {
+        targetRole = "librarian";
+      } else if (normKey.startsWith("acc")) {
+        targetRole = "accountant";
+      } else if (normKey.startsWith("sup") || normKey.startsWith("sujp")) {
+        targetRole = "super_admin";
+      } else if (normKey.startsWith("adm")) {
+        targetRole = "admin";
+      } else if (normKey.startsWith("prin")) {
+        targetRole = "principal";
+      } else if (normKey.startsWith("dean")) {
+        targetRole = "dean";
+      } else if (normKey.startsWith("hod")) {
+        targetRole = "hod";
+      } else if (normKey.startsWith("par") || normKey.startsWith("guard")) {
+        targetRole = "parent";
+      }
+    }
+
+    if (!matched && targetRole) {
       matched = users.find(u => u.role === targetRole);
     }
 
@@ -158,7 +263,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("Invalid user name or password");
     }
 
-    if (pwd && pwd !== "Admin@123" && matched.password && matched.password !== pwd) {
+    const cleanPwd = pwd.toLowerCase();
+    const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || (matched.password && matched.password === pwd);
+    if (!isValidPwd) {
       throw new Error("Invalid user name or password");
     }
 
