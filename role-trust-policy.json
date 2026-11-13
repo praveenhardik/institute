@@ -2,16 +2,16 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "AllowGitHubActionsFromMain",
+      "Sid": "AllowInstituteMainFromGitHubActions",
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::REPLACE_WITH_AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:praveenhardik/institute:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": "repo:praveenhardik@REPLACE_WITH_OWNER_ID/institute@REPLACE_WITH_REPOSITORY_ID:ref:refs/heads/main"
         }
       }
     }

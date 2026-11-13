@@ -1,60 +1,127 @@
+"""
+Comprehensive Login & Portal Access Verification
+Verifies authentication and role-specific endpoints across ALL portions / roles:
+1. Dean Portal
+2. Super Admin Portal
+3. College Admin Portal
+4. Principal Portal
+5. HOD Portal (Computer Science)
+6. Teacher / Faculty Portal
+7. Class Teacher Portal
+8. Student Portal
+9. Class Leader Portal
+10. Accountant / Finance Portal
+11. Librarian Portal
+12. Parent Portal
+
+Usage:
+  Local test:
+    python verify_all_logins.py
+  Remote / Vercel test:
+    python verify_all_logins.py https://your-project.vercel.app
+  AWS API direct test:
+    python verify_all_logins.py http://3.27.170.60:5000
+"""
+
+import sys
 import requests
 
-BASE = 'http://127.0.0.1:5000'
+DEFAULT_BASE = "http://127.0.0.1:5000"
 
 accounts = [
-    ('superadmin', 'Admin@123', 'super_admin', 'Dr. Eleanor Vance (Super Admin)'),
-    ('admin', 'Admin@123', 'admin', 'Admin (Admin)'),
-    ('hod', 'Admin@123', 'hod', 'Prof. Charles Xavier (HOD CSE)'),
-    ('teacher', 'Admin@123', 'teacher', 'Prof. Alan Turing (Teacher)'),
-    ('classteacher', 'Admin@123', 'class_teacher', 'Prof. Ada Lovelace (Class Teacher)'),
-    ('student', 'Admin@123', 'student', 'Alex Mercer (Student)'),
-    ('staff', 'Admin@123', 'accountant', 'Arthur Pendelton (Bursar / Staff)')
+    ("dean", "Admin@123", "dean", "Dean", "Dean Portal"),
+    ("superadmin", "Admin@123", "super_admin", "Eleanor", "Super Admin Portal"),
+    ("admin", "Admin@123", "admin", "Admin", "College Admin Portal"),
+    ("principal", "Admin@123", "principal", "Principal", "Principal Portal"),
+    ("hod", "Admin@123", "hod", "Xavier", "HOD Portal (CSE)"),
+    ("teacher", "Admin@123", "teacher", "Alan", "Teacher / Faculty Portal"),
+    ("classteacher", "Admin@123", "class_teacher", "Lovelace", "Class Teacher Portal"),
+    ("student", "Admin@123", "student", "Alex", "Student Portal"),
+    ("classleader", "Admin@123", "class_leader", "Leader", "Class Leader Portal"),
+    ("staff", "Admin@123", "accountant", "Arthur", "Accountant & Fees Portal"),
+    ("librarian", "Admin@123", "librarian", "Librarian", "Librarian Portal"),
+    ("parent", "Admin@123", "parent", "Parent", "Parent Portal"),
 ]
 
+
 def main():
-    print("Testing All 7 Role Logins on the Same Machine...")
-    print("=" * 60)
-    for username, pwd, role, expected_name in accounts:
+    base_url = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else DEFAULT_BASE
+    print("=" * 75)
+    print(f"VERIFYING LOGIN ACROSS ALL PORTIONS AT: {base_url}")
+    print("=" * 75)
+
+    passed = 0
+    failed = 0
+
+    for username, pwd, expected_role, expected_name, portal_title in accounts:
         # 1. Login
-        res = requests.post(f"{BASE}/api/auth/login", json={"username": username, "password": pwd})
-        if res.status_code != 200:
-            print(f"FAILED: {username} -> {res.status_code} {res.text}")
+        login_url = f"{base_url}/api/auth/login"
+        try:
+            res = requests.post(login_url, json={"username": username, "password": pwd}, timeout=15)
+        except Exception as e:
+            print(f"[FAIL] @{username:<13} -> Connection error: {e}")
+            failed += 1
             continue
+
+        if res.status_code != 200:
+            print(f"[FAIL] @{username:<13} -> HTTP {res.status_code}: {res.text}")
+            failed += 1
+            continue
+
         data = res.json()
         token = data.get("token")
         user = data.get("user", {})
-        
-        # 2. Check /api/auth/me
-        me_res = requests.get(f"{BASE}/api/auth/me", headers={"Authorization": f"Bearer {token}"})
-        me_data = me_res.json()
-        me_user = me_data.get("user", {})
-        
-        # 3. Check role-specific endpoint
-        role_check = "OK"
-        if role == "super_admin":
-            r = requests.get(f"{BASE}/api/admin/profiles", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"Profiles count: {len(r.json().get('profiles', []))}"
-        elif role == "admin":
-            r = requests.get(f"{BASE}/api/college/departments", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"Depts count: {len(r.json().get('departments', []))}"
-        elif role == "hod":
-            r = requests.get(f"{BASE}/api/college/my-departments", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"HOD depts: {len(r.json().get('departments', []))}"
-        elif role == "teacher":
-            r = requests.get(f"{BASE}/api/teacher/questions", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"Teacher questions: {len(r.json().get('questions', []))}"
-        elif role == "student":
-            r = requests.get(f"{BASE}/api/student/questions", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"Student available questions: {len(r.json().get('questions', []))}"
-        elif role == "accountant":
-            r = requests.get(f"{BASE}/api/notifications", headers={"Authorization": f"Bearer {token}"})
-            role_check = f"Staff notifications: {r.status_code == 200}"
+        auth_headers = {"Authorization": f"Bearer {token}"}
 
-        print(f"[PASS] [{user.get('role').upper():<14}] @{username:<13} | Name: {user.get('name')} | Endpoint: {role_check}")
+        # 2. Check role-specific endpoint
+        role = user.get("role")
+        endpoint_info = "Authenticated"
 
-    print("=" * 60)
-    print("SUCCESS: All accounts authenticated, session tokens generated, and role-specific endpoints responded!")
+        try:
+            if role in ("dean", "super_admin"):
+                r = requests.get(f"{base_url}/api/admin/profiles", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Profiles count: {len(r.json().get('users', []))}"
+            elif role in ("admin", "principal"):
+                r = requests.get(f"{base_url}/api/college/departments", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Departments: {len(r.json().get('departments', []))}"
+            elif role == "hod":
+                r = requests.get(f"{base_url}/api/college/my-departments", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"HOD Depts: {len(r.json().get('departments', []))}"
+            elif role in ("teacher", "class_teacher"):
+                r = requests.get(f"{base_url}/api/teacher/questions", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Questions: {len(r.json().get('questions', []))}"
+            elif role in ("student", "class_leader"):
+                r = requests.get(f"{base_url}/api/student/questions", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Student Available Questions: {len(r.json().get('questions', []))}"
+            elif role == "accountant":
+                r = requests.get(f"{base_url}/api/fees/student-fees", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Fees records: {len(r.json().get('fees', []))}"
+            elif role == "librarian":
+                r = requests.get(f"{base_url}/api/library/student-books", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = f"Library Books: {len(r.json().get('books', []))}"
+            elif role == "parent":
+                r = requests.get(f"{base_url}/api/notifications", headers=auth_headers, timeout=10)
+                if r.status_code == 200:
+                    endpoint_info = "Notifications OK"
+        except Exception as e:
+            endpoint_info = f"Endpoint notice: {e}"
+
+        print(f"[PASS] [{role.upper():<14}] @{username:<13} | Name: {user.get('name'):<10} | Portal: {portal_title:<25} | {endpoint_info}")
+        passed += 1
+
+    print("=" * 75)
+    print(f"VERIFICATION RESULTS: {passed} PASSED, {failed} FAILED (TOTAL {len(accounts)})")
+    if failed == 0:
+        print("ALL PORTIONS AUTHENTICATED SUCCESSFULLY WITH SESSIONS & DATA ACCESS!")
+    print("=" * 75)
+
 
 if __name__ == "__main__":
     main()

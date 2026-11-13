@@ -31,7 +31,7 @@ CORS_ORIGINS=https://YOUR_VERCEL_DOMAIN
 
 Use the actual RDS endpoint, URL-encode special characters in the database username/password, generate a unique JWT secret, and list the exact Vercel origin(s), comma-separated if using more than one. Never commit this value or put it in GitHub variables.
 
-Create an IAM role for GitHub OIDC using `role-trust-policy.json` and `deploy/iam-github-deployer-policy.example.json` as templates. Replace the `YOUR_*` placeholders. This deployer role does not need account-wide administrator access. Configure GitHub Actions repository variables:
+Create an IAM role for GitHub OIDC using `role-trust-policy.json` and `deploy/iam-github-deployer-policy.example.json` as templates. Replace the placeholders with your AWS account ID and the exact GitHub owner/repository IDs printed by the workflow. Restrict the trust policy to the `main` branch. This deployer role does not need account-wide administrator access. See [AWS_OIDC_FIX.md](AWS_OIDC_FIX.md) for the red ❌ troubleshooting steps. Configure GitHub Actions repository variables:
 
 | Variable | Value |
 | --- | --- |
