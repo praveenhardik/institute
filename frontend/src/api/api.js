@@ -31,6 +31,18 @@ export function resolveStudentIdentifier(s) {
   return null;
 }
 
+export function resolveClassLeaderIdentifier(s) {
+  if (!s) return null;
+  const clean = String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const m = clean.match(/^(?:cl|classleader|classlead|classlerade|classleaer|class_leader)([1-4])?(cse|eee|ece|aero|mect|mech)$/);
+  if (m) {
+    const yr = m[1] || "1";
+    const dept = m[2].toUpperCase();
+    return `class leader${yr} ${dept}`;
+  }
+  return null;
+}
+
 export function parseTeacherDeptAndYear(u) {
   if (!u) return { deptCode: null, year: null, deptName: null };
   const combined = [u.username, u.name, (u.email || '').split('@')[0]].filter(Boolean).join(' ').toLowerCase();
@@ -197,6 +209,25 @@ CANONICAL_DEPTS.forEach(d => {
   }
 });
 
+let classLeaderIdCounter = 2000;
+CANONICAL_DEPTS.forEach(d => {
+  for (let yr = 1; yr <= 4; yr++) {
+    DEFAULT_PORTAL_USERS.push({
+      id: classLeaderIdCounter++,
+      name: `Class Leader ${yr} ${d.code}`,
+      username: `class leader${yr} ${d.code}`,
+      email: `classleader${yr}_${d.code.toLowerCase()}@inpand.com`,
+      role: "class_leader",
+      status: "active",
+      department_id: d.id,
+      department_name: d.name,
+      department_code: d.code,
+      roll_number: `CL${d.code}${String(yr).padStart(2, "0")}01`,
+      academic_year: yr
+    });
+  }
+});
+
 const DEPTS_SCHEMA_VERSION = "v6_students_and_dept_hods";
 
 function getStoredDepartments() {
@@ -239,7 +270,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v11_120_dept_students_and_dept_hods";
+const USERS_SCHEMA_VERSION = "v13_120_dept_students_and_24_class_leaders";
 
 function getStoredUsers() {
   try {
@@ -489,6 +520,17 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
         matched = users.find(u =>
           (u.username && u.username.toLowerCase() === resolvedS.toLowerCase()) ||
           (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === resolvedS.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        );
+      }
+    }
+
+    if (!matched) {
+      const resolvedCL = resolveClassLeaderIdentifier(cleanId) || resolveClassLeaderIdentifier(normKey);
+      if (resolvedCL) {
+        matched = users.find(u =>
+          (u.username && u.username.toLowerCase() === resolvedCL.toLowerCase()) ||
+          (u.name && u.name.toLowerCase() === resolvedCL.toLowerCase()) ||
+          (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === resolvedCL.toLowerCase().replace(/[^a-z0-9]/g, ""))
         );
       }
     }

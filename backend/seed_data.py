@@ -176,6 +176,25 @@ for dcode, dname in DEPARTMENTS_SPECS:
 
 ALL_PORTIONS_ACCOUNTS.extend(DEPARTMENT_STUDENT_ACCOUNTS)
 
+DEPARTMENT_CLASS_LEADER_ACCOUNTS = []
+for dcode, dname in DEPARTMENTS_SPECS:
+    for yr in range(1, 5):
+        DEPARTMENT_CLASS_LEADER_ACCOUNTS.append({
+            "role": "class_leader",
+            "name": f"Class Leader {yr} {dcode}",
+            "username": f"class leader{yr} {dcode}",
+            "email": f"classleader{yr}_{dcode.lower()}@inpand.com",
+            "dept_code": dcode,
+            "roll_number": f"CL{dcode}{yr:02d}01",
+            "academic_year": yr,
+            "guardian_name": f"Guardian CL {dcode} Y{yr}",
+            "guardian_phone": f"98765{yr}9900",
+            "guardian_email": f"guardian_cl{yr}_{dcode.lower()}@inpand.com",
+            "portal": "Class Leader Portal"
+        })
+
+ALL_PORTIONS_ACCOUNTS.extend(DEPARTMENT_CLASS_LEADER_ACCOUNTS)
+
 ALL_PORTIONS_ACCOUNTS.extend([
     {
         "role": "student",
@@ -244,17 +263,19 @@ def upsert_user(acc: dict, hashed_pw: str) -> int:
         (username, email, name)
     )
 
+    yr_val = acc.get("academic_year") if role in ("student", "class_leader") else None
+
     if existing:
         user_id = existing["id"]
         execute_write(
-            "UPDATE users SET name = ?, username = ?, email = ?, password_hash = ?, role = ?, status = 'active' WHERE id = ?",
-            (name, username, email, hashed_pw, role, user_id)
+            "UPDATE users SET name = ?, username = ?, email = ?, password_hash = ?, role = ?, status = 'active', academic_year = ? WHERE id = ?",
+            (name, username, email, hashed_pw, role, yr_val, user_id)
         )
         print(f" -> Updated existing account #{user_id}: @{username} ({name}) - {role}")
     else:
         user_id = execute_write(
-            "INSERT INTO users (name, username, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?, 'active')",
-            (name, username, email, hashed_pw, role)
+            "INSERT INTO users (name, username, email, password_hash, role, status, academic_year) VALUES (?, ?, ?, ?, ?, 'active', ?)",
+            (name, username, email, hashed_pw, role, yr_val)
         )
         print(f" -> Created new account #{user_id}: @{username} ({name}) - {role}")
 

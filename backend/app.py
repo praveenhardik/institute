@@ -118,6 +118,19 @@ def resolve_student_identifier(s):
     return None
 
 
+def resolve_class_leader_identifier(s):
+    if not s:
+        return None
+    clean = re.sub(r'[^a-z0-9]', '', str(s).lower())
+    clean = re.sub(r'(classleader|classlead|classlerade|classleaer|cl)l([a-z]+)', r'\g<1>1\2', clean)
+    m = re.match(r'^(?:cl|classleader|classlead|classlerade|classleaer|class_leader)([1-4])?(cse|eee|ece|aero|mect|mech)$', clean)
+    if m:
+        yr = m.group(1) or '1'
+        dept = m.group(2).upper()
+        return f"class leader{yr} {dept}"
+    return None
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=FRONTEND_DIR)
     app_env = os.getenv("APP_ENV", "development").strip().lower()
@@ -542,6 +555,18 @@ def create_app() -> Flask:
                           OR replace(lower(username), '_', '') = ?
                        ORDER BY id LIMIT 1""",
                     (resolved_s.lower(), resolved_s.lower(), resolved_s.replace(" ", "").lower(), resolved_s.replace("_", "").lower())
+                )
+
+        if not user:
+            resolved_cl = resolve_class_leader_identifier(clean_id) or resolve_class_leader_identifier(norm_key)
+            if resolved_cl:
+                user = query_one(
+                    """SELECT id, name, username, email, password_hash, role, status FROM users
+                       WHERE lower(username) = ? OR lower(name) = ?
+                          OR replace(lower(username), ' ', '') = ?
+                          OR replace(lower(username), '_', '') = ?
+                       ORDER BY id LIMIT 1""",
+                    (resolved_cl.lower(), resolved_cl.lower(), resolved_cl.replace(" ", "").lower(), resolved_cl.replace("_", "").lower())
                 )
 
         if not user:

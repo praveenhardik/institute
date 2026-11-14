@@ -513,7 +513,8 @@ export const SuperAdminView = () => {
       if (tab === 'principal' && role !== 'principal') match = false;
       if (tab === 'teacher' && role !== 'teacher') match = false;
       if (tab === 'class_teacher' && role !== 'class_teacher') match = false;
-      if (tab === 'student' && !['student', 'class_leader'].includes(role)) match = false;
+      if (tab === 'class_leader' && role !== 'class_leader') match = false;
+      if (tab === 'student' && role !== 'student') match = false;
       if (tab === 'accountant' && role !== 'accountant') match = false;
       if (tab === 'librarian' && role !== 'librarian') match = false;
       if (!match) setSelectedUser(null);
@@ -535,7 +536,8 @@ export const SuperAdminView = () => {
     principal: scopedProfiles.filter(u => u.role === 'principal').length,
     teacher: scopedProfiles.filter(u => u.role === 'teacher').length,
     class_teacher: scopedProfiles.filter(u => u.role === 'class_teacher').length,
-    student: scopedProfiles.filter(u => ['student', 'class_leader'].includes(u.role)).length,
+    class_leader: scopedProfiles.filter(u => u.role === 'class_leader').length,
+    student: scopedProfiles.filter(u => u.role === 'student').length,
     accountant: scopedProfiles.filter(u => u.role === 'accountant').length,
     librarian: scopedProfiles.filter(u => u.role === 'librarian').length,
   };
@@ -548,7 +550,8 @@ export const SuperAdminView = () => {
     if (activeTab === 'principal' && u.role !== 'principal') return false;
     if (activeTab === 'teacher' && u.role !== 'teacher') return false;
     if (activeTab === 'class_teacher' && u.role !== 'class_teacher') return false;
-    if (activeTab === 'student' && !['student', 'class_leader'].includes(u.role)) return false;
+    if (activeTab === 'class_leader' && u.role !== 'class_leader') return false;
+    if (activeTab === 'student' && u.role !== 'student') return false;
     if (activeTab === 'accountant' && u.role !== 'accountant') return false;
     if (activeTab === 'librarian' && u.role !== 'librarian') return false;
 
@@ -660,6 +663,15 @@ export const SuperAdminView = () => {
             }}
           >
             👨‍🎓 All Enrolled Students ({tabCounts.student})
+          </button>
+          <button
+            className={`tab-btn ${activeSubTab === 'dashboard' && activeTab === 'class_leader' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveSubTab('dashboard');
+              handleTabChange('class_leader');
+            }}
+          >
+            ⭐ All Class Leaders ({tabCounts.class_leader})
           </button>
           <button
             className={`tab-btn ${activeSubTab === 'departments' ? 'active' : ''}`}
@@ -1503,6 +1515,17 @@ export const SuperAdminView = () => {
                 <button
                   type="button"
                   role="tab"
+                  aria-selected={activeTab === 'class_leader'}
+                  className={`user-tab-btn ${activeTab === 'class_leader' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('class_leader')}
+                >
+                  <span className="user-tab-label">Class Leaders</span>
+                  <span className="user-tab-badge">{tabCounts.class_leader}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
                   aria-selected={activeTab === 'accountant'}
                   className={`user-tab-btn ${activeTab === 'accountant' ? 'active' : ''}`}
                   onClick={() => handleTabChange('accountant')}
@@ -1586,7 +1609,7 @@ export const SuperAdminView = () => {
                 <span>
                   Filtered by: "<strong>{activeSearchTerm || searchQuery}</strong>" in{' '}
                   <strong style={{ textTransform: 'capitalize' }}>
-                    {activeTab === 'all' ? 'All Users' : activeTab === 'super_admin' ? 'Super Admins' : activeTab === 'class_teacher' ? 'Class Teachers' : `${activeTab}s`}
+                    {activeTab === 'all' ? 'All Users' : activeTab === 'super_admin' ? 'Super Admins' : activeTab === 'class_teacher' ? 'Class Teachers' : activeTab === 'class_leader' ? 'Class Leaders' : `${activeTab}s`}
                   </strong>{' '}
                   ({displayedProfiles.length} match{displayedProfiles.length === 1 ? '' : 'es'})
                 </span>
