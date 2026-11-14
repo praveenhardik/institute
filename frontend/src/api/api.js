@@ -835,7 +835,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     if (curUser && ["teacher", "class_teacher"].includes(curUser.role)) {
       const parsed = parseTeacherDeptAndYear(curUser);
       scopedDeptCode = parsed.deptCode;
-      scopedYear = parsed.year;
+      if (path === "/api/teacher/students") {
+        scopedYear = parsed.year;
+      }
     }
 
     const students = getStoredUsers()
@@ -866,6 +868,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 24. /api/teacher/groups
   if (path === "/api/teacher/groups") {
+    if (method === "POST") {
+      return { group_id: Date.now(), message: "Group created successfully", group: { id: Date.now(), name: body.name } };
+    }
     return { groups: [] };
   }
 

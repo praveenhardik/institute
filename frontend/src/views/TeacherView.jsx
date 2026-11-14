@@ -145,9 +145,11 @@ export const TeacherView = () => {
   const [optD, setOptD] = useState('');
   const [correctOpt, setCorrectOpt] = useState('A');
   const [durationSeconds, setDurationSeconds] = useState(60);
-  const [targetType, setTargetType] = useState('all'); // 'all' | 'batch' | 'group'
+  const [targetType, setTargetType] = useState('all'); // 'all' | 'selected_students' | 'batch' | 'group'
   const [targetGroupId, setTargetGroupId] = useState('');
   const [targetBatchId, setTargetBatchId] = useState('');
+  const [targetSelectedStudentIds, setTargetSelectedStudentIds] = useState([]);
+  const [targetStudentSearch, setTargetStudentSearch] = useState('');
   const [taskNumber, setTaskNumber] = useState('Task 1');
   const [availableTasks, setAvailableTasks] = useState(['Task 1']);
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
@@ -685,6 +687,10 @@ export const TeacherView = () => {
       showAlert('Task number is mandatory. Please select or add a task number.', 'danger');
       return;
     }
+    if (targetType === 'selected_students' && (!targetSelectedStudentIds || targetSelectedStudentIds.length === 0)) {
+      showAlert('Please select at least one student from your cohort', 'danger');
+      return;
+    }
     if (targetType === 'group' && (!targetGroupId || targetGroupId === '')) {
       showAlert('Please select a target group from the list', 'danger');
       return;
@@ -699,7 +705,13 @@ export const TeacherView = () => {
       let effectiveTargetType = targetType;
       let effectiveGroupId = targetType === 'group' ? Number(targetGroupId) : null;
 
-      if (targetType === 'batch') {
+      if (targetType === 'selected_students') {
+        const grpName = `Selected Cohort (${cleanTaskNumber}) #${Date.now().toString().slice(-6)}`;
+        const grpRes = await API.createGroup(grpName, `Cohort for ${cleanTaskNumber}`, targetSelectedStudentIds);
+        effectiveGroupId = grpRes.group_id;
+        await loadGroupsAndStudents();
+        effectiveTargetType = 'group';
+      } else if (targetType === 'batch') {
         const selectedBatch = batches.find(b => String(b.id) === String(targetBatchId));
         const batchName = selectedBatch ? selectedBatch.name : `Batch ${targetBatchId}`;
         const autoGroupName = `Batch ${batchName} Cohort`;
@@ -742,6 +754,8 @@ export const TeacherView = () => {
       setTargetType('all');
       setTargetGroupId('');
       setTargetBatchId('');
+      setTargetSelectedStudentIds([]);
+      setTargetStudentSearch('');
       if (!availableTasks.includes(cleanTaskNumber)) {
         setAvailableTasks(prev => [...prev, cleanTaskNumber]);
       }
@@ -1745,10 +1759,115 @@ export const TeacherView = () => {
                   <option value="all">
                     {teacherDeptCode && teacherYear ? `All ${teacherDeptCode} (Year ${teacherYear}) Students` : 'All Department Students'}
                   </option>
+                  <option value="selected_students">
+                    {teacherDeptCode && teacherYear ? `Specific Selected Students (${teacherDeptCode} Year ${teacherYear})` : 'Specific Selected Students'}
+                  </option>
                   <option value="batch">Batch (Academic Cohort)</option>
                   <option value="group">Specific Student Group</option>
                 </select>
               </div>
+
+              {/* Selected Students Picker */}
+              {targetType === 'selected_students' && (
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      Select Specific Students ({teacherDeptCode} Year {teacherYear || 1}) <span className="req">*</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: targetSelectedStudentIds.length ? '#4f46e5' : 'var(--text-muted)', marginLeft: '8px' }}>
+                        ({targetSelectedStudentIds.length} of {scopedApprovedStudents.length} selected)
+                      </span>
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setTargetSelectedStudentIds(scopedApprovedStudents.map(s => s.id))}
+                        style={{ padding: '3px 8px', fontSize: '0.78rem' }}
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setTargetSelectedStudentIds([])}
+                        style={{ padding: '3px 8px', fontSize: '0.78rem' }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Search students in your cohort..."
+                    value={targetStudentSearch}
+                    onChange={(e) => setTargetStudentSearch(e.target.value)}
+                    style={{ marginBottom: '8px', padding: '6px 10px', fontSize: '0.85rem' }}
+                  />
+
+                  <div style={{
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    background: '#f8fafc',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}>
+                    {scopedApprovedStudents
+                      .filter(st => {
+                        if (!targetStudentSearch.trim()) return true;
+                        const q = targetStudentSearch.toLowerCase().trim();
+                        return (
+                          (st.name && st.name.toLowerCase().includes(q)) ||
+                          (st.roll_number && st.roll_number.toLowerCase().includes(q)) ||
+                          (st.email && st.email.toLowerCase().includes(q)) ||
+                          (st.username && st.username.toLowerCase().includes(q))
+                        );
+                      })
+                      .map(st => {
+                        const isSelected = targetSelectedStudentIds.includes(st.id);
+                        return (
+                          <label
+                            key={st.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '0.88rem',
+                              cursor: 'pointer',
+                              padding: '4px 6px',
+                              borderRadius: '4px',
+                              background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'transparent'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                setTargetSelectedStudentIds(prev =>
+                                  prev.includes(st.id) ? prev.filter(x => x !== st.id) : [...prev, st.id]
+                                );
+                              }}
+                            />
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{st.name}</span>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              {st.roll_number ? `(${st.roll_number})` : ''} · {st.email || st.username}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    {scopedApprovedStudents.length === 0 && (
+                      <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', textAlign: 'center', padding: '8px' }}>
+                        No enrolled students found in {teacherDeptCode} Year {teacherYear || 1}.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Batch Selector with ADD Button */}
               {targetType === 'batch' && (

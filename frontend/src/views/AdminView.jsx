@@ -399,8 +399,9 @@ export const AdminView = () => {
   const tabCounts = {
     all: scopedProfiles.length,
     super_admin: scopedProfiles.filter(u => u.role === 'super_admin').length,
-    hod: scopedProfiles.filter(u => u.role === 'hod').length,
     admin: scopedProfiles.filter(u => u.role === 'admin').length,
+    principal: scopedProfiles.filter(u => u.role === 'principal').length,
+    hod: scopedProfiles.filter(u => u.role === 'hod').length,
     teacher: scopedProfiles.filter(u => u.role === 'teacher').length,
     class_teacher: scopedProfiles.filter(u => u.role === 'class_teacher').length,
     student: scopedProfiles.filter(u => ['student', 'class_leader'].includes(u.role)).length,
@@ -411,8 +412,9 @@ export const AdminView = () => {
   // Filtered profiles based on active tab, optional role filter, and search
   const displayedProfiles = scopedProfiles.filter(u => {
     if (activeTab === 'super_admin' && u.role !== 'super_admin') return false;
-    if (activeTab === 'hod' && u.role !== 'hod') return false;
     if (activeTab === 'admin' && u.role !== 'admin') return false;
+    if (activeTab === 'principal' && u.role !== 'principal') return false;
+    if (activeTab === 'hod' && u.role !== 'hod') return false;
     if (activeTab === 'teacher' && u.role !== 'teacher') return false;
     if (activeTab === 'class_teacher' && u.role !== 'class_teacher') return false;
     if (activeTab === 'student' && !['student', 'class_leader'].includes(u.role)) return false;
@@ -775,6 +777,28 @@ export const AdminView = () => {
                 >
                   <span className="user-tab-label">Admins</span>
                   <span className="user-tab-badge">{tabCounts.admin}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'principal'}
+                  className={`user-tab-btn ${activeTab === 'principal' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('principal')}
+                >
+                  <span className="user-tab-label">Principals</span>
+                  <span className="user-tab-badge">{tabCounts.principal}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'hod'}
+                  className={`user-tab-btn ${activeTab === 'hod' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('hod')}
+                >
+                  <span className="user-tab-label">HODs</span>
+                  <span className="user-tab-badge">{tabCounts.hod}</span>
                 </button>
 
                 <button

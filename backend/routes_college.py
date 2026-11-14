@@ -289,16 +289,13 @@ def students_by_department(dept_id: Optional[int] = None):
     caller = g.current_user
     if caller and caller.get("role") in ["class_teacher", "teacher"]:
         from backend.routes_teacher import extract_dept_and_year
-        c_dept, ct_year = extract_dept_and_year(caller)
-        if c_dept or ct_year:
+        c_dept, _ = extract_dept_and_year(caller)
+        if c_dept:
             filtered = []
             for s in res_students:
-                s_dept, s_y = extract_dept_and_year(s)
+                s_dept, _ = extract_dept_and_year(s)
                 cur_dept = s.get("dept_code") or s_dept
-                cur_year = s.get("academic_year") or s_y
-                if c_dept and cur_dept and cur_dept.upper() != c_dept.upper():
-                    continue
-                if ct_year and cur_year and int(cur_year) != int(ct_year):
+                if cur_dept and cur_dept.upper() != c_dept.upper():
                     continue
                 filtered.append(s)
             res_students = filtered
@@ -1094,16 +1091,13 @@ def list_students():
     caller = g.current_user
     if caller and caller.get("role") in ["class_teacher", "teacher"]:
         from backend.routes_teacher import extract_dept_and_year
-        c_dept, ct_year = extract_dept_and_year(caller)
-        if c_dept or ct_year:
+        c_dept, _ = extract_dept_and_year(caller)
+        if c_dept:
             filtered = []
             for s in res_students:
-                s_dept, s_y = extract_dept_and_year(s)
+                s_dept, _ = extract_dept_and_year(s)
                 cur_dept = s.get("dept_code") or s_dept
-                cur_year = s.get("academic_year") or s_y
-                if c_dept and cur_dept and cur_dept.upper() != c_dept.upper():
-                    continue
-                if ct_year and cur_year and int(cur_year) != int(ct_year):
+                if cur_dept and cur_dept.upper() != c_dept.upper():
                     continue
                 filtered.append(s)
             res_students = filtered

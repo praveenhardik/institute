@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { API } from '../api/api';
+import { API, parseTeacherDeptAndYear } from '../api/api';
 import { useAlert } from '../context/AlertContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,12 +26,14 @@ const AUDIENCES_BY_ROLE = {
     { value: 'department', label: 'Department-wise' }
   ],
   class_teacher: [
-    { value: 'teacher', label: 'All Teachers' },
-    { value: 'student', label: 'All Students' },
+    { value: 'student', label: 'All Students (My Cohort)' },
+    { value: 'selected_students', label: 'Specific Selected Students' },
+    { value: 'teacher', label: 'Teachers' },
     { value: 'department', label: 'Department' }
   ],
   teacher: [
-    { value: 'student', label: 'All Students' },
+    { value: 'student', label: 'All Students (My Cohort)' },
+    { value: 'selected_students', label: 'Specific Selected Students' },
     { value: 'department', label: 'Department' }
   ],
   class_leader: [
@@ -142,11 +144,29 @@ export const NotificationComposer = ({ compact = false, onSent }) => {
       .finally(() => setLoadingStudents(false));
   }, [isSelectedStudents, studentViewFilter]);
 
+  const isFaculty = ['teacher', 'class_teacher'].includes(user?.role);
+  const facultyDeptYear = useMemo(() => {
+    if (!isFaculty) return null;
+    return parseTeacherDeptAndYear(user);
+  }, [isFaculty, user]);
+
   // Client-side filter for student list
   const filteredStudents = useMemo(() => {
-    if (!studentSearch.trim()) return students;
+    let list = students;
+    if (isFaculty && facultyDeptYear?.deptCode) {
+      list = list.filter((s) => {
+        const sDept = (s.department_code || '').toUpperCase() || (s.dept_code || '').toUpperCase() || (s.roll_number || '').toUpperCase().slice(0, facultyDeptYear.deptCode.length);
+        if (sDept && sDept !== facultyDeptYear.deptCode) return false;
+        if (facultyDeptYear.year) {
+          const sYr = Number(s.academic_year || 1);
+          if (sYr !== Number(facultyDeptYear.year)) return false;
+        }
+        return true;
+      });
+    }
+    if (!studentSearch.trim()) return list;
     const q = studentSearch.toLowerCase().trim();
-    return students.filter(
+    return list.filter(
       (s) =>
         (s.name && s.name.toLowerCase().includes(q)) ||
         (s.roll_number && s.roll_number.toLowerCase().includes(q)) ||
@@ -154,7 +174,7 @@ export const NotificationComposer = ({ compact = false, onSent }) => {
         (s.email && s.email.toLowerCase().includes(q)) ||
         (s.department_name && s.department_name.toLowerCase().includes(q))
     );
-  }, [students, studentSearch]);
+  }, [students, studentSearch, isFaculty, facultyDeptYear]);
 
   const toggleStudentSelection = (id) => {
     setSelectedStudentIds((prev) =>
@@ -206,6 +226,21 @@ export const NotificationComposer = ({ compact = false, onSent }) => {
           null,
           'students',
           selectedStudentIds
+        );
+      } else if (isFaculty && audience === 'student') {
+        const cohortIds = filteredStudents.map((s) => s.id);
+        if (cohortIds.length === 0) {
+          showAlert('No enrolled students found in your department and year to notify.', 'warning');
+          setSending(false);
+          return;
+        }
+        res = await API.sendNotification(
+          'selected_students',
+          cleanTitle,
+          cleanMessage,
+          null,
+          'students',
+          cohortIds
         );
       } else if (isDepartment) {
         res = await API.sendNotification(
