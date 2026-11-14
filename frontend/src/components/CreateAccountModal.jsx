@@ -316,7 +316,7 @@ export const CreateAccountModal = ({
       } else if (batchId) {
         extra.batch_id = Number(batchId);
       }
-      if (['student', 'class_leader', 'class_teacher'].includes(role) && academicYear) extra.academic_year = Number(academicYear);
+      if (['student', 'class_leader'].includes(role) && academicYear) extra.academic_year = Number(academicYear);
       if (['student', 'class_leader'].includes(role)) {
         extra.section = section === 'custom' ? customSection.trim() : section;
         if (rollNumber.trim()) extra.roll_number = rollNumber.trim();
@@ -525,8 +525,8 @@ export const CreateAccountModal = ({
               />
             </div>
 
-            {/* Year dropdown: strictly for student, class leader, and class teacher only */}
-            {['student', 'class_leader', 'class_teacher'].includes(role) && (
+            {/* Year dropdown: strictly for student and class leader only */}
+            {['student', 'class_leader'].includes(role) && (
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">
                   Year <span className="req">*</span>

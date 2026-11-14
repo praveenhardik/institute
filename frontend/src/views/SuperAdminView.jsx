@@ -1758,7 +1758,7 @@ export const SuperAdminView = () => {
                               </span>
                             </td>
                             <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                              {u.academic_year ? (
+                              {['student', 'class_leader'].includes(u.role) && u.academic_year ? (
                                 <div>
                                   <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem' }}>
                                     Year {u.academic_year}

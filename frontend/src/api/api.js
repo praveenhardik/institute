@@ -75,7 +75,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v6_editable_profiles";
+const USERS_SCHEMA_VERSION = "v7_no_year_for_non_students";
 
 function getStoredUsers() {
   try {
@@ -90,13 +90,18 @@ function getStoredUsers() {
       const parsed = JSON.parse(raw);
       const cleaned = parsed.map(u => {
         const lowerName = (u.name || '').toLowerCase();
-        if (lowerName === 'eleanor') return DEFAULT_PORTAL_USERS[1];
-        if (lowerName === 'xavier') return DEFAULT_PORTAL_USERS[4];
-        if (lowerName === 'alan') return DEFAULT_PORTAL_USERS[5];
-        if (lowerName === 'lovelace') return DEFAULT_PORTAL_USERS[6];
-        if (lowerName === 'alex') return DEFAULT_PORTAL_USERS[7];
-        if (lowerName === 'leader') return DEFAULT_PORTAL_USERS[8];
-        if (lowerName === 'arthur') return DEFAULT_PORTAL_USERS[9];
+        if (lowerName === 'eleanor') u = { ...DEFAULT_PORTAL_USERS[1] };
+        else if (lowerName === 'xavier') u = { ...DEFAULT_PORTAL_USERS[4] };
+        else if (lowerName === 'alan') u = { ...DEFAULT_PORTAL_USERS[5] };
+        else if (lowerName === 'lovelace') u = { ...DEFAULT_PORTAL_USERS[6] };
+        else if (lowerName === 'alex') u = { ...DEFAULT_PORTAL_USERS[7] };
+        else if (lowerName === 'leader') u = { ...DEFAULT_PORTAL_USERS[8] };
+        else if (lowerName === 'arthur') u = { ...DEFAULT_PORTAL_USERS[9] };
+
+        if (!['student', 'class_leader'].includes(u.role)) {
+          u.academic_year = null;
+          u.previous_year = null;
+        }
         return u;
       });
       return cleaned.length > 0 ? cleaned : [...DEFAULT_PORTAL_USERS];
@@ -542,9 +547,12 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     if (singleMatch) {
       const uId = parseInt(singleMatch[1], 10);
       const user = getStoredUsers().find(u => Number(u.id) === Number(uId)) || DEFAULT_PORTAL_USERS[0];
+      const isStudent = ["student", "class_leader"].includes(user.role);
       return {
         user: {
           ...user,
+          academic_year: isStudent ? (user.academic_year || 1) : null,
+          previous_year: isStudent ? user.previous_year : null,
           can_edit: true,
           can_delete: user.role !== "super_admin",
           department_name: user.department_name || (user.department_id ? "Computer Science Engineering" : null)
@@ -553,13 +561,18 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
         can_edit: true
       };
     }
-    const users = getStoredUsers().map(u => ({
-      ...u,
-      can_edit: true,
-      can_delete: u.role !== "super_admin",
-      department_name: u.department_name || (getDepartmentNameById(u.department_id)),
-      department: u.department_name || (getDepartmentNameById(u.department_id) || "-")
-    }));
+    const users = getStoredUsers().map(u => {
+      const isStudent = ["student", "class_leader"].includes(u.role);
+      return {
+        ...u,
+        academic_year: isStudent ? (u.academic_year || 1) : null,
+        previous_year: isStudent ? u.previous_year : null,
+        can_edit: true,
+        can_delete: u.role !== "super_admin",
+        department_name: u.department_name || (getDepartmentNameById(u.department_id)),
+        department: u.department_name || (getDepartmentNameById(u.department_id) || "-")
+      };
+    });
     return { users, profiles: users };
   }
 
@@ -825,7 +838,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
           email: newEmail,
           role: newRole,
           designation: body.designation !== undefined ? body.designation : existing.designation,
-          academic_year: body.academic_year !== undefined ? body.academic_year : existing.academic_year,
+          academic_year: ["student", "class_leader"].includes(newRole) ? (body.academic_year !== undefined ? body.academic_year : existing.academic_year) : null,
+          previous_year: ["student", "class_leader"].includes(newRole) ? (body.previous_year !== undefined ? body.previous_year : existing.previous_year) : null,
           roll_number: body.roll_number !== undefined ? body.roll_number : existing.roll_number,
           section_id: body.section_id !== undefined ? body.section_id : existing.section_id,
           guardian_name: body.guardian_name !== undefined ? body.guardian_name : existing.guardian_name,

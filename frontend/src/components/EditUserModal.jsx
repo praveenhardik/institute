@@ -149,7 +149,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
         username: username.trim() || undefined,
         email_or_phone: emailOrPhone.trim() || undefined,
         designation: designation.trim() || undefined,
-        academic_year: ['student', 'class_leader', 'class_teacher'].includes(user?.role) ? Number(academicYear || 1) : null
+        academic_year: ['student', 'class_leader'].includes(user?.role) ? Number(academicYear || 1) : null
       };
 
       if (canHaveNewPassword && password.trim()) {
@@ -324,8 +324,8 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
             )}
           </div>
 
-          {/* User name & Year row (Year selection strictly for students and class teachers) */}
-          {['student', 'class_leader', 'class_teacher'].includes(user?.role) ? (
+          {/* User name & Year row (Year selection strictly for students and class leaders only) */}
+          {['student', 'class_leader'].includes(user?.role) ? (
             <div className="grid grid-2" style={{ gap: '12px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">User name</label>

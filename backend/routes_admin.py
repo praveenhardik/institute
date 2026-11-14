@@ -71,8 +71,8 @@ def get_user_profiles():
                cb.name AS created_by_name, cb.role AS created_by_role,
                eb.name AS edited_by_name, eb.role AS edited_by_role,
                st.roll_number, st.section_id, sec.name AS section_name,
-               COALESCE(st.academic_year, u.academic_year) AS academic_year,
-               COALESCE(st.previous_year, u.previous_year) AS previous_year,
+               CASE WHEN u.role IN ('student', 'class_leader') THEN COALESCE(st.academic_year, u.academic_year) ELSE NULL END AS academic_year,
+               CASE WHEN u.role IN ('student', 'class_leader') THEN COALESCE(st.previous_year, u.previous_year) ELSE NULL END AS previous_year,
                st.year_changed_at,
                st.guardian_name, st.guardian_phone, st.guardian_email,
                CASE
@@ -174,10 +174,14 @@ def get_user_profiles():
             u["department_id"] = None
             u["department_ids"] = []
 
-        if not u.get("academic_year"):
-            from backend.routes_teacher import extract_dept_and_year
-            _, ext_y = extract_dept_and_year(u)
-            u["academic_year"] = ext_y
+        if u.get("role") in ("student", "class_leader"):
+            if not u.get("academic_year"):
+                from backend.routes_teacher import extract_dept_and_year
+                _, ext_y = extract_dept_and_year(u)
+                u["academic_year"] = ext_y or 1
+        else:
+            u["academic_year"] = None
+            u["previous_year"] = None
 
         if only_created_by_me:
             if is_my_account or u["id"] == g.current_user["id"]:
@@ -954,8 +958,8 @@ def update_user_account(user_id: int):
                cb.name AS created_by_name, cb.role AS created_by_role,
                eb.name AS edited_by_name, eb.role AS edited_by_role,
                st.roll_number, st.section_id, sec.name AS section_name,
-               COALESCE(st.academic_year, u.academic_year) AS academic_year,
-               COALESCE(st.previous_year, u.previous_year) AS previous_year,
+               CASE WHEN u.role IN ('student', 'class_leader') THEN COALESCE(st.academic_year, u.academic_year) ELSE NULL END AS academic_year,
+               CASE WHEN u.role IN ('student', 'class_leader') THEN COALESCE(st.previous_year, u.previous_year) ELSE NULL END AS previous_year,
                st.year_changed_at,
                st.guardian_name, st.guardian_phone, st.guardian_email,
                sp.designation,
@@ -993,6 +997,9 @@ def update_user_account(user_id: int):
             chosen = staff["department_id"] if staff and staff["department_id"] else (stu["department_id"] if stu and stu["department_id"] else None)
             updated["department_id"] = chosen
             updated["department_ids"] = [chosen] if chosen else []
+        if updated.get("role") not in ("student", "class_leader"):
+            updated["academic_year"] = None
+            updated["previous_year"] = None
         updated["can_edit"] = True
         updated["can_delete"] = (updated["role"] != "super_admin")
     return jsonify({"message": message, "user": updated}), 200
