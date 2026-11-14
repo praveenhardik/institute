@@ -337,13 +337,8 @@ def get_available_students():
                 st_prev = st.get("previous_year")
                 if dept_code and st_dept and st_dept.upper() != dept_code.upper():
                     continue
-                # If teacher has a year:
-                # Class teacher for Year 1: sees Year 1 students AND students who were in Year 1 and changed to another year!
-                # Class teacher for Year 2: sees Year 2 students (including students who moved to Year 2)!
-                # "those students should be shown from class teacher in previous year to changed year for class teahchers and super admin also"
-                if teacher_year:
-                    if st_year != teacher_year and st_prev != teacher_year:
-                        continue
+                if teacher_year and st_year and int(st_year) != int(teacher_year):
+                    continue
                 filtered.append(st)
             students = filtered
 

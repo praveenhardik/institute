@@ -290,18 +290,17 @@ def students_by_department(dept_id: Optional[int] = None):
     if caller and caller.get("role") in ["class_teacher", "teacher"]:
         from backend.routes_teacher import extract_dept_and_year
         c_dept, ct_year = extract_dept_and_year(caller)
-        if ct_year:
+        if c_dept or ct_year:
             filtered = []
             for s in res_students:
-                s_y = s.get("academic_year")
-                s_prev = s.get("previous_year")
-                if not s_y:
-                    _, ex_y = extract_dept_and_year(s)
-                    s_y = ex_y
-                    s["academic_year"] = ex_y
-                # Class teacher sees current year students AND previous year students transferred from their year
-                if s_y == ct_year or s_prev == ct_year:
-                    filtered.append(s)
+                s_dept, s_y = extract_dept_and_year(s)
+                cur_dept = s.get("dept_code") or s_dept
+                cur_year = s.get("academic_year") or s_y
+                if c_dept and cur_dept and cur_dept.upper() != c_dept.upper():
+                    continue
+                if ct_year and cur_year and int(cur_year) != int(ct_year):
+                    continue
+                filtered.append(s)
             res_students = filtered
     return jsonify({"students": res_students, "today": today_str}), 200
 
@@ -1091,7 +1090,24 @@ def list_students():
         sql += " AND (COALESCE(sp.department_id, p.department_id) = ?)"
         params.append(dept)
     sql += " ORDER BY sp.roll_number, u.name"
-    return jsonify({"students": query_all(sql, tuple(params))}), 200
+    res_students = query_all(sql, tuple(params))
+    caller = g.current_user
+    if caller and caller.get("role") in ["class_teacher", "teacher"]:
+        from backend.routes_teacher import extract_dept_and_year
+        c_dept, ct_year = extract_dept_and_year(caller)
+        if c_dept or ct_year:
+            filtered = []
+            for s in res_students:
+                s_dept, s_y = extract_dept_and_year(s)
+                cur_dept = s.get("dept_code") or s_dept
+                cur_year = s.get("academic_year") or s_y
+                if c_dept and cur_dept and cur_dept.upper() != c_dept.upper():
+                    continue
+                if ct_year and cur_year and int(cur_year) != int(ct_year):
+                    continue
+                filtered.append(s)
+            res_students = filtered
+    return jsonify({"students": res_students}), 200
 
 
 @college_bp.route("/students/<int:user_id>/profile", methods=["PUT"])

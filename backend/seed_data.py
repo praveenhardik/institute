@@ -59,26 +59,44 @@ ALL_PORTIONS_ACCOUNTS = [
         "qualification": "Ph.D in Computer Science",
         "portal": "HOD Portal"
     },
-    {
-        "role": "teacher",
-        "name": "Teacher",
-        "username": "teacher",
-        "email": "teacher1@inpand.com",
-        "dept_code": "CSE",
-        "designation": "Associate Professor",
-        "qualification": "M.Tech in CSE",
-        "portal": "Teacher / Faculty Portal"
-    },
-    {
-        "role": "class_teacher",
-        "name": "Class Teacher",
-        "username": "classteacher",
-        "email": "classteacher1@inpand.com",
-        "dept_code": "CSE",
-        "designation": "Class Teacher (CSE Year 1)",
-        "qualification": "M.Tech in CSE",
-        "portal": "Class Teacher Portal"
-    },
+]
+
+DEPARTMENTS_SPECS = [
+    ("CSE", "Computer Science Engineering"),
+    ("EEE", "Electrical and Electronics Engineering"),
+    ("ECE", "Electrical and Communication Engineering"),
+    ("AERO", "Aeronautical Engineering"),
+    ("MECT", "Mechatronics Engineering"),
+    ("MECH", "Mechanical Engineering"),
+]
+
+TEACHER_ACCOUNTS = []
+for dcode, dname in DEPARTMENTS_SPECS:
+    for yr in range(1, 6):
+        TEACHER_ACCOUNTS.append({
+            "role": "class_teacher",
+            "name": f"class teacher{yr} {dcode}",
+            "username": f"class teacher{yr} {dcode}",
+            "email": f"classteacher{yr}{dcode.lower()}@inpand.com",
+            "dept_code": dcode,
+            "designation": f"Class Teacher ({dcode} Year {yr})",
+            "qualification": f"M.Tech in {dcode}",
+            "portal": "Class Teacher Portal"
+        })
+        TEACHER_ACCOUNTS.append({
+            "role": "teacher",
+            "name": f"teacher{yr} {dcode}",
+            "username": f"teacher{yr} {dcode}",
+            "email": f"teacher{yr}{dcode.lower()}@inpand.com",
+            "dept_code": dcode,
+            "designation": f"Teacher ({dcode} Year {yr})",
+            "qualification": f"M.Tech in {dcode}",
+            "portal": "Teacher / Faculty Portal"
+        })
+
+ALL_PORTIONS_ACCOUNTS.extend(TEACHER_ACCOUNTS)
+
+ALL_PORTIONS_ACCOUNTS.extend([
     {
         "role": "student",
         "name": "Student",
@@ -131,7 +149,7 @@ ALL_PORTIONS_ACCOUNTS = [
         "designation": "Guardian / Parent",
         "portal": "Parent Portal"
     }
-]
+])
 
 
 def upsert_user(acc: dict, hashed_pw: str) -> int:
@@ -142,8 +160,8 @@ def upsert_user(acc: dict, hashed_pw: str) -> int:
     name = acc["name"]
 
     existing = query_one(
-        "SELECT id, role, username, email FROM users WHERE role = ? OR lower(username) = lower(?) OR lower(email) = lower(?) OR lower(name) = lower(?)",
-        (role, username, email, name)
+        "SELECT id, role, username, email FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(name) = lower(?)",
+        (username, email, name)
     )
 
     if existing:
@@ -172,6 +190,9 @@ def seed_database():
 
     # Ensure all legacy personal name accounts are completely removed or cleaned
     execute_write("DELETE FROM users WHERE lower(name) IN ('eleanor', 'alan', 'xavier', 'lovelace', 'alex', 'arthur') OR lower(email) IN ('eleanor1@inpand.com', 'alan1@inpand.com', 'xavier1@inpand.com', 'lovelace1@inpand.com', 'alex1@inpand.com', 'arthur1@inpand.com')")
+    execute_write("DELETE FROM users WHERE role IN ('teacher', 'class_teacher') AND lower(username) IN ('teacher', 'classteacher')")
+    execute_write("DELETE FROM staff_profiles WHERE user_id NOT IN (SELECT id FROM users)")
+    execute_write("DELETE FROM staff_departments WHERE user_id NOT IN (SELECT id FROM users)")
 
     # 1. College Name setting
     college_setting = query_one("SELECT value FROM college_settings WHERE key = 'college_name'")

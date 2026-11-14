@@ -1,3 +1,65 @@
+
+export function resolveTeacherIdentifier(s) {
+  if (!s) return null;
+  let clean = String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  clean = clean.replace(/(tec|teacher|classteacher|classtec|ct)l([a-z]+)/g, "$11$2");
+  const m_ct = clean.match(/^(?:ct|classteacher|classtec|class_teacher|classteacher)([1-5])?(cse|eee|ece|aero|mect|mech)$/);
+  if (m_ct) {
+    const yr = m_ct[1] || '1';
+    const dept = m_ct[2].toUpperCase();
+    return `class teacher${yr} ${dept}`;
+  }
+  const m_t = clean.match(/^(?:tec|teacher|teach)([1-5])?(cse|eee|ece|aero|mect|mech)$/);
+  if (m_t) {
+    const yr = m_t[1] || '1';
+    const dept = m_t[2].toUpperCase();
+    return `teacher${yr} ${dept}`;
+  }
+  return null;
+}
+
+export function parseTeacherDeptAndYear(u) {
+  if (!u) return { deptCode: null, year: null, deptName: null };
+  const combined = [u.username, u.name, (u.email || '').split('@')[0]].filter(Boolean).join(' ').toLowerCase();
+  const cleaned = combined.replace(/^(?:tec|teacher|class(?:_teacher)?|faculty)\s*\d*\s*/, '');
+  
+  let deptCode = null;
+  const deptMap = {
+    mect: { code: 'MECT', name: 'Mechatronics Engineering' },
+    mech: { code: 'MECH', name: 'Mechanical Engineering' },
+    aero: { code: 'AERO', name: 'Aeronautical Engineering' },
+    cse: { code: 'CSE', name: 'Computer Science Engineering' },
+    eee: { code: 'EEE', name: 'Electrical and Electronics Engineering' },
+    ece: { code: 'ECE', name: 'Electrical and Communication Engineering' }
+  };
+  for (const k of ['mect', 'mech', 'aero', 'cse', 'eee', 'ece']) {
+    if (cleaned.includes(k) || combined.includes(k)) {
+      deptCode = deptMap[k].code;
+      break;
+    }
+  }
+  
+  let year = null;
+  const fields = [u.username || '', u.name || '', (u.email || '').split('@')[0]];
+  for (const f of fields) {
+    const mTeacher = f.toLowerCase().match(/(?:class\s*teacher|classteacher|teacher|tec|class)\s*([1-5])/);
+    if (mTeacher) {
+      year = Number(mTeacher[1]);
+      break;
+    }
+    const mEnd = f.trim().toLowerCase().match(/([1-5])\s*$/);
+    if (mEnd) {
+      year = Number(mEnd[1]);
+      break;
+    }
+  }
+  return {
+    deptCode,
+    year,
+    deptName: deptCode ? (deptMap[deptCode.toLowerCase()]?.name || null) : null
+  };
+}
+
 /**
  * Unified API Client for College Quiz & Role Management Portal
  */
@@ -18,8 +80,66 @@ const DEFAULT_PORTAL_USERS = [
   { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
   { id: 5, name: "HOD", username: "hod", email: "hod1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
-  { id: 6, name: "Teacher", username: "teacher", email: "teacher1@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Associate Professor" },
-  { id: 7, name: "Class Teacher", username: "classteacher", email: "classteacher1@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE 1st Year)" },
+  { id: 22, name: "class teacher1 CSE", username: "class teacher1 CSE", email: "classteacher1cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 1)" },
+  { id: 23, name: "teacher1 CSE", username: "teacher1 CSE", email: "teacher1cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 1)" },
+  { id: 24, name: "class teacher2 CSE", username: "class teacher2 CSE", email: "classteacher2cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 2)" },
+  { id: 25, name: "teacher2 CSE", username: "teacher2 CSE", email: "teacher2cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 2)" },
+  { id: 26, name: "class teacher3 CSE", username: "class teacher3 CSE", email: "classteacher3cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 3)" },
+  { id: 27, name: "teacher3 CSE", username: "teacher3 CSE", email: "teacher3cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 3)" },
+  { id: 28, name: "class teacher4 CSE", username: "class teacher4 CSE", email: "classteacher4cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 4)" },
+  { id: 29, name: "teacher4 CSE", username: "teacher4 CSE", email: "teacher4cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 4)" },
+  { id: 30, name: "class teacher5 CSE", username: "class teacher5 CSE", email: "classteacher5cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 5)" },
+  { id: 31, name: "teacher5 CSE", username: "teacher5 CSE", email: "teacher5cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 5)" },
+  { id: 32, name: "class teacher1 EEE", username: "class teacher1 EEE", email: "classteacher1eee@inpand.com", role: "class_teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Class Teacher (EEE Year 1)" },
+  { id: 33, name: "teacher1 EEE", username: "teacher1 EEE", email: "teacher1eee@inpand.com", role: "teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Teacher (EEE Year 1)" },
+  { id: 34, name: "class teacher2 EEE", username: "class teacher2 EEE", email: "classteacher2eee@inpand.com", role: "class_teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Class Teacher (EEE Year 2)" },
+  { id: 35, name: "teacher2 EEE", username: "teacher2 EEE", email: "teacher2eee@inpand.com", role: "teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Teacher (EEE Year 2)" },
+  { id: 36, name: "class teacher3 EEE", username: "class teacher3 EEE", email: "classteacher3eee@inpand.com", role: "class_teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Class Teacher (EEE Year 3)" },
+  { id: 37, name: "teacher3 EEE", username: "teacher3 EEE", email: "teacher3eee@inpand.com", role: "teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Teacher (EEE Year 3)" },
+  { id: 38, name: "class teacher4 EEE", username: "class teacher4 EEE", email: "classteacher4eee@inpand.com", role: "class_teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Class Teacher (EEE Year 4)" },
+  { id: 39, name: "teacher4 EEE", username: "teacher4 EEE", email: "teacher4eee@inpand.com", role: "teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Teacher (EEE Year 4)" },
+  { id: 40, name: "class teacher5 EEE", username: "class teacher5 EEE", email: "classteacher5eee@inpand.com", role: "class_teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Class Teacher (EEE Year 5)" },
+  { id: 41, name: "teacher5 EEE", username: "teacher5 EEE", email: "teacher5eee@inpand.com", role: "teacher", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Teacher (EEE Year 5)" },
+  { id: 42, name: "class teacher1 ECE", username: "class teacher1 ECE", email: "classteacher1ece@inpand.com", role: "class_teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Class Teacher (ECE Year 1)" },
+  { id: 43, name: "teacher1 ECE", username: "teacher1 ECE", email: "teacher1ece@inpand.com", role: "teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Teacher (ECE Year 1)" },
+  { id: 44, name: "class teacher2 ECE", username: "class teacher2 ECE", email: "classteacher2ece@inpand.com", role: "class_teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Class Teacher (ECE Year 2)" },
+  { id: 45, name: "teacher2 ECE", username: "teacher2 ECE", email: "teacher2ece@inpand.com", role: "teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Teacher (ECE Year 2)" },
+  { id: 46, name: "class teacher3 ECE", username: "class teacher3 ECE", email: "classteacher3ece@inpand.com", role: "class_teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Class Teacher (ECE Year 3)" },
+  { id: 47, name: "teacher3 ECE", username: "teacher3 ECE", email: "teacher3ece@inpand.com", role: "teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Teacher (ECE Year 3)" },
+  { id: 48, name: "class teacher4 ECE", username: "class teacher4 ECE", email: "classteacher4ece@inpand.com", role: "class_teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Class Teacher (ECE Year 4)" },
+  { id: 49, name: "teacher4 ECE", username: "teacher4 ECE", email: "teacher4ece@inpand.com", role: "teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Teacher (ECE Year 4)" },
+  { id: 50, name: "class teacher5 ECE", username: "class teacher5 ECE", email: "classteacher5ece@inpand.com", role: "class_teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Class Teacher (ECE Year 5)" },
+  { id: 51, name: "teacher5 ECE", username: "teacher5 ECE", email: "teacher5ece@inpand.com", role: "teacher", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Teacher (ECE Year 5)" },
+  { id: 52, name: "class teacher1 AERO", username: "class teacher1 AERO", email: "classteacher1aero@inpand.com", role: "class_teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Class Teacher (AERO Year 1)" },
+  { id: 53, name: "teacher1 AERO", username: "teacher1 AERO", email: "teacher1aero@inpand.com", role: "teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Teacher (AERO Year 1)" },
+  { id: 54, name: "class teacher2 AERO", username: "class teacher2 AERO", email: "classteacher2aero@inpand.com", role: "class_teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Class Teacher (AERO Year 2)" },
+  { id: 55, name: "teacher2 AERO", username: "teacher2 AERO", email: "teacher2aero@inpand.com", role: "teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Teacher (AERO Year 2)" },
+  { id: 56, name: "class teacher3 AERO", username: "class teacher3 AERO", email: "classteacher3aero@inpand.com", role: "class_teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Class Teacher (AERO Year 3)" },
+  { id: 57, name: "teacher3 AERO", username: "teacher3 AERO", email: "teacher3aero@inpand.com", role: "teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Teacher (AERO Year 3)" },
+  { id: 58, name: "class teacher4 AERO", username: "class teacher4 AERO", email: "classteacher4aero@inpand.com", role: "class_teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Class Teacher (AERO Year 4)" },
+  { id: 59, name: "teacher4 AERO", username: "teacher4 AERO", email: "teacher4aero@inpand.com", role: "teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Teacher (AERO Year 4)" },
+  { id: 60, name: "class teacher5 AERO", username: "class teacher5 AERO", email: "classteacher5aero@inpand.com", role: "class_teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Class Teacher (AERO Year 5)" },
+  { id: 61, name: "teacher5 AERO", username: "teacher5 AERO", email: "teacher5aero@inpand.com", role: "teacher", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Teacher (AERO Year 5)" },
+  { id: 62, name: "class teacher1 MECT", username: "class teacher1 MECT", email: "classteacher1mect@inpand.com", role: "class_teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Class Teacher (MECT Year 1)" },
+  { id: 63, name: "teacher1 MECT", username: "teacher1 MECT", email: "teacher1mect@inpand.com", role: "teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Teacher (MECT Year 1)" },
+  { id: 64, name: "class teacher2 MECT", username: "class teacher2 MECT", email: "classteacher2mect@inpand.com", role: "class_teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Class Teacher (MECT Year 2)" },
+  { id: 65, name: "teacher2 MECT", username: "teacher2 MECT", email: "teacher2mect@inpand.com", role: "teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Teacher (MECT Year 2)" },
+  { id: 66, name: "class teacher3 MECT", username: "class teacher3 MECT", email: "classteacher3mect@inpand.com", role: "class_teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Class Teacher (MECT Year 3)" },
+  { id: 67, name: "teacher3 MECT", username: "teacher3 MECT", email: "teacher3mect@inpand.com", role: "teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Teacher (MECT Year 3)" },
+  { id: 68, name: "class teacher4 MECT", username: "class teacher4 MECT", email: "classteacher4mect@inpand.com", role: "class_teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Class Teacher (MECT Year 4)" },
+  { id: 69, name: "teacher4 MECT", username: "teacher4 MECT", email: "teacher4mect@inpand.com", role: "teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Teacher (MECT Year 4)" },
+  { id: 70, name: "class teacher5 MECT", username: "class teacher5 MECT", email: "classteacher5mect@inpand.com", role: "class_teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Class Teacher (MECT Year 5)" },
+  { id: 71, name: "teacher5 MECT", username: "teacher5 MECT", email: "teacher5mect@inpand.com", role: "teacher", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Teacher (MECT Year 5)" },
+  { id: 72, name: "class teacher1 MECH", username: "class teacher1 MECH", email: "classteacher1mech@inpand.com", role: "class_teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Class Teacher (MECH Year 1)" },
+  { id: 73, name: "teacher1 MECH", username: "teacher1 MECH", email: "teacher1mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 1)" },
+  { id: 74, name: "class teacher2 MECH", username: "class teacher2 MECH", email: "classteacher2mech@inpand.com", role: "class_teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Class Teacher (MECH Year 2)" },
+  { id: 75, name: "teacher2 MECH", username: "teacher2 MECH", email: "teacher2mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 2)" },
+  { id: 76, name: "class teacher3 MECH", username: "class teacher3 MECH", email: "classteacher3mech@inpand.com", role: "class_teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Class Teacher (MECH Year 3)" },
+  { id: 77, name: "teacher3 MECH", username: "teacher3 MECH", email: "teacher3mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 3)" },
+  { id: 78, name: "class teacher4 MECH", username: "class teacher4 MECH", email: "classteacher4mech@inpand.com", role: "class_teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Class Teacher (MECH Year 4)" },
+  { id: 79, name: "teacher4 MECH", username: "teacher4 MECH", email: "teacher4mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 4)" },
+  { id: 80, name: "class teacher5 MECH", username: "class teacher5 MECH", email: "classteacher5mech@inpand.com", role: "class_teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Class Teacher (MECH Year 5)" },
+  { id: 81, name: "teacher5 MECH", username: "teacher5 MECH", email: "teacher5mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 5)" },
   { id: 8, name: "Student", username: "student", email: "student1@inpand.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026001", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
   { id: 9, name: "Class Leader", username: "classleader", email: "classleader1@inpand.com", role: "class_leader", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026002", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
   { id: 10, name: "Accountant", username: "accountant", email: "accountant1@inpand.com", role: "accountant", status: "active", designation: "Senior Accountant / Bursar" },
@@ -75,7 +195,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v8_students_permissions_and_library_returns";
+const USERS_SCHEMA_VERSION = "v10_60_dept_teachers_and_aliases";
 
 function getStoredUsers() {
   try {
@@ -307,6 +427,17 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === normKey) ||
       (u.name && u.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normKey)
     );
+
+    if (!matched) {
+      const resolvedT = resolveTeacherIdentifier(cleanId) || resolveTeacherIdentifier(normKey);
+      if (resolvedT) {
+        matched = users.find(u =>
+          (u.username && u.username.toLowerCase() === resolvedT.toLowerCase()) ||
+          (u.name && u.name.toLowerCase() === resolvedT.toLowerCase()) ||
+          (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === resolvedT.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        );
+      }
+    }
 
     let targetRole = roleAliases[cleanId] || roleAliases[normKey];
     if (!targetRole) {
@@ -698,8 +829,28 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 23. /api/college/students || /api/teacher/students
   if (path === "/api/college/students" || path === "/api/teacher/students" || path === "/api/college/students/by-department") {
+    const curUser = API.getCurrentUser();
+    let scopedDeptCode = null;
+    let scopedYear = null;
+    if (curUser && ["teacher", "class_teacher"].includes(curUser.role)) {
+      const parsed = parseTeacherDeptAndYear(curUser);
+      scopedDeptCode = parsed.deptCode;
+      scopedYear = parsed.year;
+    }
+
     const students = getStoredUsers()
       .filter(u => ["student", "class_leader"].includes(u.role))
+      .filter(u => {
+        if (scopedDeptCode) {
+          const deptCode = (u.department_code || "").toUpperCase() || (u.roll_number || "").toUpperCase().slice(0, scopedDeptCode.length);
+          if (deptCode && deptCode !== scopedDeptCode) return false;
+        }
+        if (scopedYear) {
+          const sYr = Number(u.academic_year || 1);
+          if (sYr !== Number(scopedYear)) return false;
+        }
+        return true;
+      })
       .map(u => ({
         ...u,
         user_id: u.id,

@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
-import { API } from '../api/api';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { API, parseTeacherDeptAndYear } from '../api/api';
 import { useAlert } from '../context/AlertContext';
 import { useAuth } from '../context/AuthContext';
 import { Pagination } from './Pagination';
@@ -7,11 +7,17 @@ import { Pagination } from './Pagination';
 export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepartment = false, showAttendance = null, showSection = null }) => {
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const isHod = user?.role === 'hod' || lockDepartment;
+  const isFaculty = ['teacher', 'class_teacher'].includes(user?.role);
+  const facultyDeptYear = useMemo(() => {
+    if (!isFaculty) return null;
+    return parseTeacherDeptAndYear(user);
+  }, [isFaculty, user]);
+
+  const isHod = user?.role === 'hod' || lockDepartment || isFaculty;
   const isAllowedToMarkAttendance = ['super_admin', 'admin', 'principal', 'class_teacher'].includes(user?.role);
   const canShowAttendance = showAttendance !== null ? showAttendance : (!isHod && isAllowedToMarkAttendance);
   const canShowSection = showSection !== null ? showSection : !isHod;
-  const effectiveDeptId = isHod ? (deptId || user?.department_id) : null;
+  const effectiveDeptId = (user?.role === 'hod' || lockDepartment) ? (deptId || user?.department_id) : null;
 
   const [departments, setDepartments] = useState([]);
   const [selectedDeptId, setSelectedDeptId] = useState(effectiveDeptId ? String(effectiveDeptId) : 'all');
@@ -90,6 +96,14 @@ export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepar
   }, [searchTerm, selectedDeptId]);
 
   const filtered = students.filter(st => {
+    if (facultyDeptYear?.deptCode) {
+      const stDeptCode = (st.department_code || '').toUpperCase() || (st.roll_number || '').toUpperCase().slice(0, facultyDeptYear.deptCode.length);
+      if (stDeptCode && stDeptCode !== facultyDeptYear.deptCode) return false;
+    }
+    if (facultyDeptYear?.year) {
+      const stYr = Number(st.academic_year || 1);
+      if (stYr !== Number(facultyDeptYear.year)) return false;
+    }
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (

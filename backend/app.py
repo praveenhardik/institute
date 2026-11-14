@@ -83,6 +83,30 @@ def build_token_profile(user_id: int) -> dict:
     return profile
 
 
+def resolve_teacher_identifier(s):
+    if not s:
+        return None
+    clean = re.sub(r'[^a-z0-9]', '', str(s).lower())
+    # Normalize 'l' to '1' when placed as a year digit: e.g. tecleee -> tec1eee, ctleee -> ct1eee
+    clean = re.sub(r'(tec|teacher|classteacher|classtec|ct)l([a-z]+)', r'\g<1>1\2', clean)
+
+    # Class teacher pattern: ct1eee, classteacher1eee, ctcse, classteachercse, etc.
+    m_ct = re.match(r'^(?:ct|classteacher|classtec|class_teacher|classteacher)([1-5])?(cse|eee|ece|aero|mect|mech)$', clean)
+    if m_ct:
+        yr = m_ct.group(1) or '1'
+        dept = m_ct.group(2).upper()
+        return f"class teacher{yr} {dept}"
+
+    # Regular teacher pattern: tecleee, tec1eee, teceee, teacher1eee, teach1eee, teachcse, etc.
+    m_t = re.match(r'^(?:tec|teacher|teach)([1-5])?(cse|eee|ece|aero|mect|mech)$', clean)
+    if m_t:
+        yr = m_t.group(1) or '1'
+        dept = m_t.group(2).upper()
+        return f"teacher{yr} {dept}"
+
+    return None
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=FRONTEND_DIR)
     app_env = os.getenv("APP_ENV", "development").strip().lower()
@@ -470,10 +494,23 @@ def create_app() -> Flask:
         if not user:
             user = query_one(
                 """SELECT id, name, username, email, password_hash, role, status FROM users
-                   WHERE lower(username) = ? OR lower(name) = ? OR lower(email) = ? OR lower(username) = ? OR lower(name) = ?
+                   WHERE lower(username) = ? OR lower(name) = ? OR lower(email) = ? 
+                      OR lower(username) = ? OR lower(name) = ?
+                      OR replace(lower(username), ' ', '') = ? OR replace(lower(name), ' ', '') = ?
                    ORDER BY id LIMIT 1""",
-                (clean_id, clean_id, identifier.lower(), norm_key, norm_key)
+                (clean_id, clean_id, identifier.lower(), norm_key, norm_key, norm_key, norm_key)
             )
+
+        if not user:
+            resolved_t = resolve_teacher_identifier(clean_id) or resolve_teacher_identifier(norm_key)
+            if resolved_t:
+                user = query_one(
+                    """SELECT id, name, username, email, password_hash, role, status FROM users
+                       WHERE lower(username) = ? OR lower(name) = ?
+                          OR replace(lower(username), ' ', '') = ?
+                       ORDER BY id LIMIT 1""",
+                    (resolved_t.lower(), resolved_t.lower(), resolved_t.replace(" ", "").lower())
+                )
 
         if not user:
             role_aliases = {
@@ -767,4 +804,4 @@ if __name__ == "__main__":
     print(f"  NOTE: Do not open just http://{local_ip} without :{port}.")
     print(f"        Always include the port: http://{local_ip}:{port}")
     print("=" * 65 + "\n")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)

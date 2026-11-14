@@ -209,19 +209,23 @@ export const TeacherView = () => {
     if (!teacherDeptCode || !teacherYear) return approvedStudents;
     return approvedStudents.filter(st => {
       const { deptCode, year } = parseStudentDeptAndYear(st);
-      const deptMatches = !deptCode || deptCode === teacherDeptCode;
-      const yearMatches = !year || Number(year) === Number(teacherYear);
-      return deptMatches && yearMatches;
+      const effectiveDept = deptCode || (st.department_code || '').toUpperCase() || (st.roll_number || '').toUpperCase().slice(0, 3);
+      const effectiveYear = year || st.academic_year || 1;
+      return effectiveDept === teacherDeptCode && Number(effectiveYear) === Number(teacherYear);
     });
   }, [approvedStudents, teacherDeptCode, teacherYear]);
 
   const departmentStudents = useMemo(() => {
     if (!teacherDeptCode) return approvedStudents;
     return approvedStudents.filter(st => {
-      const { deptCode } = parseStudentDeptAndYear(st);
-      return !deptCode || deptCode === teacherDeptCode;
+      const { deptCode, year } = parseStudentDeptAndYear(st);
+      const effectiveDept = deptCode || (st.department_code || '').toUpperCase();
+      const effectiveYear = year || st.academic_year || 1;
+      const deptMatches = effectiveDept === teacherDeptCode;
+      const yearMatches = !teacherYear || Number(effectiveYear) === Number(teacherYear);
+      return deptMatches && yearMatches;
     });
-  }, [approvedStudents, teacherDeptCode]);
+  }, [approvedStudents, teacherDeptCode, teacherYear]);
 
   const scopedPrograms = useMemo(() => {
     if (!teacherDeptCode) return programs;
