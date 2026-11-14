@@ -401,6 +401,77 @@ def create_department():
     return jsonify({"message": f"Department {name} added", "id": new_id}), 201
 
 
+@college_bp.route("/departments/<int:dept_id>", methods=["DELETE"])
+@require_auth(allowed_roles=["super_admin", "admin"])
+def delete_department(dept_id: int):
+    target_dept = query_one("SELECT id, name, code FROM departments WHERE id = ?", (dept_id,))
+    if not target_dept:
+        return jsonify({"error": "Department not found."}), 404
+
+    dept_name = target_dept["name"]
+    dept_code = target_dept["code"]
+
+    # 1. Identify all students enrolled in this department
+    # (via student_profiles.department_id, or batch -> program -> department_id)
+    students = query_all("""
+        SELECT DISTINCT u.id, u.name, u.role FROM users u
+        LEFT JOIN student_profiles sp ON sp.user_id = u.id
+        LEFT JOIN batches b ON b.id = sp.batch_id
+        LEFT JOIN programs p ON p.id = b.program_id
+        WHERE u.role IN ('student', 'class_leader')
+          AND (sp.department_id = ? OR p.department_id = ?)
+    """, (dept_id, dept_id))
+
+    student_ids = [s["id"] for s in students]
+
+    # Also check direct student_profiles
+    direct_sp_students = query_all("SELECT user_id FROM student_profiles WHERE department_id = ?", (dept_id,))
+    for r in direct_sp_students:
+        if r["user_id"] not in student_ids:
+            student_ids.append(r["user_id"])
+
+    # 2. Permanently delete all student records and user accounts for these students
+    for sid in student_ids:
+        execute_write("DELETE FROM student_fees WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM student_library_books WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM student_daily_attendance WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM attendance_records WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM submissions WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM group_students WHERE student_id = ?", (sid,))
+        execute_write("DELETE FROM notifications WHERE recipient_id = ? OR sender_id = ? OR reference_id = ?", (sid, sid, sid))
+        execute_write("DELETE FROM student_profiles WHERE user_id = ?", (sid,))
+        execute_write("DELETE FROM users WHERE id = ?", (sid,))
+
+    # 3. Clean up staff associations with this department
+    execute_write("DELETE FROM staff_departments WHERE department_id = ?", (dept_id,))
+    execute_write("UPDATE staff_profiles SET department_id = NULL WHERE department_id = ?", (dept_id,))
+    execute_write("UPDATE departments SET hod_user_id = NULL WHERE id = ?", (dept_id,))
+
+    # 4. Clean up academic tasks, questions, subjects, sections, batches, programs
+    execute_write("DELETE FROM questions WHERE target_department_id = ?", (dept_id,))
+    execute_write("DELETE FROM subjects WHERE department_id = ?", (dept_id,))
+
+    prog_rows = query_all("SELECT id FROM programs WHERE department_id = ?", (dept_id,))
+    for prog in prog_rows:
+        batch_rows = query_all("SELECT id FROM batches WHERE program_id = ?", (prog["id"],))
+        for batch in batch_rows:
+            execute_write("DELETE FROM sections WHERE batch_id = ?", (batch["id"],))
+        execute_write("DELETE FROM batches WHERE program_id = ?", (prog["id"],))
+    execute_write("DELETE FROM programs WHERE department_id = ?", (dept_id,))
+
+    # Clean up department requests
+    execute_write("DELETE FROM department_requests WHERE lower(code) = lower(?) OR lower(name) = lower(?)", (dept_code, dept_name))
+
+    # 5. Delete the department itself
+    execute_write("DELETE FROM departments WHERE id = ?", (dept_id,))
+
+    return jsonify({
+        "message": f"Department '{dept_name}' ({dept_code}) and {len(student_ids)} enrolled student(s) have been permanently deleted.",
+        "deleted_department_id": dept_id,
+        "deleted_students_count": len(student_ids)
+    }), 200
+
+
 # ---------------------------------------------------------------------------
 # New department requests (raised when a staff account is created with a new department)
 # ---------------------------------------------------------------------------

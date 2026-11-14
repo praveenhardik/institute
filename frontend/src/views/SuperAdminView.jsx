@@ -100,6 +100,29 @@ export const SuperAdminView = () => {
     }
   };
 
+  const handleDeleteDepartment = async (dept) => {
+    if (!dept || !dept.id) return;
+    const confirmMsg = `Are you sure you want to delete the department "${dept.name}" (${dept.code})?\n\nWARNING: All students enrolled in this department will also be permanently deleted. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      setDirectDeptLoading(true);
+      const res = await API.deleteDepartment(dept.id);
+      showAlert(res.message || `Department "${dept.name}" and all enrolled students have been deleted.`, 'success');
+      await loadDepartments();
+      if (typeof loadProfiles === 'function') {
+        await loadProfiles();
+      }
+    } catch (err) {
+      console.error('Delete department failed:', err);
+      showAlert(err.message || 'Failed to delete department.', 'danger');
+    } finally {
+      setDirectDeptLoading(false);
+    }
+  };
+
   // Pending approvals
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -768,6 +791,7 @@ export const SuperAdminView = () => {
                       <th>Code</th>
                       <th>Head of Department (HOD)</th>
                       <th>Status</th>
+                      <th style={{ textAlign: 'center', width: '130px' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -779,11 +803,40 @@ export const SuperAdminView = () => {
                           <td><span className="status-pill status-pill-active">{d.code}</span></td>
                           <td>{d.hod_name || <span style={{ color: 'var(--text-muted)' }}>Not assigned</span>}</td>
                           <td><span style={{ color: '#10b981', fontWeight: 600 }}>Active</span></td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleDeleteDepartment(d)}
+                              disabled={directDeptLoading}
+                              style={{
+                                background: '#ef4444',
+                                borderColor: '#dc2626',
+                                color: '#ffffff',
+                                padding: '5px 12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                              }}
+                              title={`Delete ${d.name} and all enrolled students`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                              </svg>
+                              Delete
+                            </button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
                           No academic departments found.
                         </td>
                       </tr>

@@ -158,6 +158,22 @@ export const CollegeSetup = ({ canManage = true }) => {
     }
   };
 
+  // Delete Department and cascade delete enrolled students
+  const handleDeleteDepartment = async (dept) => {
+    if (!dept || !dept.id) return;
+    const confirmMsg = `Are you sure you want to delete the department "${dept.name}" (${dept.code})?\n\nWARNING: All students enrolled in this department will also be permanently deleted. This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await API.deleteDepartment(dept.id);
+      showAlert(res.message || `Department "${dept.name}" and enrolled students deleted successfully.`, 'success');
+      loadAll();
+    } catch (err) {
+      console.error('Delete department error:', err);
+      showAlert(err.message || 'Failed to delete department.', 'danger');
+    }
+  };
+
   // Approve / Reject Department Request
   const handleDeptRequest = async (reqId, decision) => {
     try {
@@ -565,6 +581,7 @@ export const CollegeSetup = ({ canManage = true }) => {
                 <th>Code</th>
                 <th>HOD</th>
                 {canManage && <th>Assign HOD</th>}
+                {canManage && <th style={{ textAlign: 'center', width: '100px' }}>Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -598,10 +615,40 @@ export const CollegeSetup = ({ canManage = true }) => {
                         </div>
                       </td>
                     )}
+                    {canManage && (
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteDepartment(d)}
+                          style={{
+                            background: '#ef4444',
+                            borderColor: '#dc2626',
+                            color: '#ffffff',
+                            padding: '4px 10px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title={`Delete ${d.name} and all enrolled students`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No departments yet.</td></tr>
+                <tr><td colSpan={canManage ? 5 : 3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No departments yet.</td></tr>
               )}
             </tbody>
           </table>

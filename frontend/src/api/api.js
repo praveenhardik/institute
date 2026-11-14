@@ -407,6 +407,51 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return { departments: depts };
   }
 
+  // 10b. DELETE /api/college/departments/:id
+  if (path.startsWith("/api/college/departments/") && method === "DELETE") {
+    const cur = API.getCurrentUser();
+    if (cur?.role !== "super_admin" && cur?.role !== "admin") {
+      throw new Error("Forbidden: Only Super Admins can delete an Academic Department.");
+    }
+    const deptId = parseInt(path.split("/").pop(), 10);
+    const depts = getStoredDepartments();
+    const targetDept = depts.find(d => d.id === deptId);
+    if (!targetDept) {
+      throw new Error("Department not found.");
+    }
+
+    // 1. Remove department from stored list
+    const updatedDepts = depts.filter(d => d.id !== deptId);
+    saveStoredDepartments(updatedDepts);
+
+    // 2. Cascade delete all students enrolled in this department
+    const allUsers = getStoredUsers();
+    let deletedCount = 0;
+    const remainingUsers = allUsers.filter(u => {
+      const isStudent = u.role === "student" || u.role === "class_leader";
+      if (!isStudent) return true; // Keep faculty/admins
+      const matchesDept = (
+        u.department_id === deptId ||
+        (targetDept.code && (u.department_code || "").toUpperCase() === targetDept.code.toUpperCase()) ||
+        (targetDept.name && (u.department_name || "").toLowerCase() === targetDept.name.toLowerCase()) ||
+        (targetDept.code && (u.roll_number || "").toUpperCase().startsWith(targetDept.code.toUpperCase()))
+      );
+      if (matchesDept) {
+        deletedCount++;
+        return false;
+      }
+      return true;
+    });
+    saveStoredUsers(remainingUsers);
+    API.setCachedProfiles(remainingUsers);
+
+    return {
+      message: `Department '${targetDept.name}' and ${deletedCount} enrolled student(s) have been permanently deleted.`,
+      department_id: deptId,
+      deleted_students_count: deletedCount
+    };
+  }
+
   // 11. /api/college/my-departments
   if (path === "/api/college/my-departments") {
     const cur = API.getCurrentUser();
@@ -1231,6 +1276,12 @@ export const API = {
     return this.request("/api/college/departments", {
       method: "POST",
       body: JSON.stringify(data)
+    });
+  },
+
+  async deleteDepartment(deptId) {
+    return this.request(`/api/college/departments/${deptId}`, {
+      method: "DELETE"
     });
   },
 
