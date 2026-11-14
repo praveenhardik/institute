@@ -79,6 +79,12 @@ const DEFAULT_PORTAL_USERS = [
   { id: 2, name: "Super Admin", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Chief Institutional Administrator" },
   { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
+  { id: 16, name: "HOD CSE", username: "hodcse", email: "hodcse1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
+  { id: 20, name: "HOD MECH", username: "hodmech", email: "hodmech1@inpand.com", role: "hod", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Head of Department (MECH)" },
+  { id: 21, name: "HOD MECT", username: "hodmect", email: "hodmect1@inpand.com", role: "hod", status: "active", department_id: 3, department_name: "Mechatronics Engineering", department_code: "MECT", designation: "Head of Department (MECT)" },
+  { id: 82, name: "HOD AERO", username: "hodaero", email: "hodaero1@inpand.com", role: "hod", status: "active", department_id: 4, department_name: "Aeronautical Engineering", department_code: "AERO", designation: "Head of Department (AERO)" },
+  { id: 18, name: "HOD EEE", username: "hodeee", email: "hodeee1@inpand.com", role: "hod", status: "active", department_id: 5, department_name: "Electrical and Electronics Engineering", department_code: "EEE", designation: "Head of Department (EEE)" },
+  { id: 19, name: "HOD ECE", username: "hodece", email: "hodece1@inpand.com", role: "hod", status: "active", department_id: 6, department_name: "Electrical and Communication Engineering", department_code: "ECE", designation: "Head of Department (ECE)" },
   { id: 5, name: "HOD", username: "hod", email: "hod1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
   { id: 22, name: "class teacher1 CSE", username: "class teacher1 CSE", email: "classteacher1cse@inpand.com", role: "class_teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Class Teacher (CSE Year 1)" },
   { id: 23, name: "teacher1 CSE", username: "teacher1 CSE", email: "teacher1cse@inpand.com", role: "teacher", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Teacher (CSE Year 1)" },
@@ -148,22 +154,22 @@ const DEFAULT_PORTAL_USERS = [
 ];
 
 const CANONICAL_DEPTS = [
-  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5, hod_name: "HOD" },
-  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: 5, hod_name: "HOD" },
-  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: 5, hod_name: "HOD" },
-  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: 5, hod_name: "HOD" },
-  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: 5, hod_name: "HOD" },
-  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: 5, hod_name: "HOD" }
+  { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 16, hod_name: "HOD CSE" },
+  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: 20, hod_name: "HOD MECH" },
+  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: 21, hod_name: "HOD MECT" },
+  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: 82, hod_name: "HOD AERO" },
+  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: 18, hod_name: "HOD EEE" },
+  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: 19, hod_name: "HOD ECE" }
 ];
 
-const DEPTS_SCHEMA_VERSION = "v4_all_depts_hod_assigned";
+const DEPTS_SCHEMA_VERSION = "v5_dept_specific_hods";
 
 function getStoredDepartments() {
   try {
     const ver = localStorage.getItem("portal_depts_version");
     if (ver !== DEPTS_SCHEMA_VERSION) {
       localStorage.setItem("portal_depts_version", DEPTS_SCHEMA_VERSION);
-      const migrated = CANONICAL_DEPTS.map(d => ({ ...d, hod_user_id: 5, hod_name: "HOD" }));
+      const migrated = CANONICAL_DEPTS.map(d => ({ ...d }));
       localStorage.setItem("portal_departments", JSON.stringify(migrated));
       return migrated;
     }
@@ -171,15 +177,18 @@ function getStoredDepartments() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(d => ({
-          ...d,
-          hod_user_id: d.hod_user_id || 5,
-          hod_name: d.hod_name || "HOD"
-        }));
+        return parsed.map(d => {
+          const canonical = CANONICAL_DEPTS.find(c => c.id === d.id || c.code === d.code);
+          return {
+            ...d,
+            hod_user_id: d.hod_user_id || (canonical ? canonical.hod_user_id : 16),
+            hod_name: d.hod_name && d.hod_name !== "Not assigned" ? d.hod_name : (canonical ? canonical.hod_name : "HOD")
+          };
+        });
       }
     }
   } catch {}
-  return CANONICAL_DEPTS.map(d => ({ ...d, hod_user_id: 5, hod_name: "HOD" }));
+  return CANONICAL_DEPTS.map(d => ({ ...d }));
 }
 
 function saveStoredDepartments(depts) {
@@ -440,46 +449,19 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     }
 
     let targetRole = roleAliases[cleanId] || roleAliases[normKey];
-    if (!targetRole) {
-      if (normKey.startsWith("tec") || normKey.startsWith("teach")) {
-        targetRole = "teacher";
-      } else if (normKey.startsWith("stu")) {
-        targetRole = "student";
-      } else if (normKey.startsWith("lead")) {
-        targetRole = "class_leader";
-      } else if (normKey.startsWith("classt")) {
-        targetRole = "class_teacher";
-      } else if (normKey.startsWith("libr")) {
-        targetRole = "librarian";
-      } else if (normKey.startsWith("acc")) {
-        targetRole = "accountant";
-      } else if (normKey.startsWith("sup") || normKey.startsWith("sujp")) {
-        targetRole = "super_admin";
-      } else if (normKey.startsWith("adm")) {
-        targetRole = "admin";
-      } else if (normKey.startsWith("prin")) {
-        targetRole = "principal";
-      } else if (normKey.startsWith("dean")) {
-        targetRole = "dean";
-      } else if (normKey.startsWith("hod")) {
-        targetRole = "hod";
-      } else if (normKey.startsWith("par") || normKey.startsWith("guard")) {
-        targetRole = "parent";
-      }
-    }
 
     if (!matched && targetRole) {
       matched = users.find(u => u.role === targetRole);
     }
 
     if (!matched) {
-      throw new Error("Invalid user name or password");
+      throw new Error("User not registered. Please register your account or check your user name.");
     }
 
     const cleanPwd = pwd.toLowerCase();
     const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || (matched.password && matched.password === pwd);
     if (!isValidPwd) {
-      throw new Error("Invalid user name or password");
+      throw new Error("Invalid password. Please check your password and try again.");
     }
 
     let tokenPayload = {
@@ -498,9 +480,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       email: matched.email,
       role: matched.role,
       status: matched.status || "active",
-      department_id: matched.department_id || (["hod", "teacher", "class_teacher", "student", "class_leader"].includes(matched.role) ? 1 : null),
-      department_name: matched.department_name || (["hod", "teacher", "class_teacher", "student", "class_leader"].includes(matched.role) ? "Computer Science Engineering" : null),
-      department_code: matched.department_code || (["hod", "teacher", "class_teacher", "student", "class_leader"].includes(matched.role) ? "CSE" : null)
+      academic_year: ['student', 'class_leader'].includes(matched.role) ? (matched.academic_year || 1) : null,
+      roll_number: matched.roll_number || null,
+      department_id: matched.department_id || (matched.role === 'hod' ? 1 : null),
+      department_name: matched.department_name || null,
+      department_code: matched.department_code || null
     };
 
     return {
@@ -654,9 +638,30 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   if (path === "/api/college/my-departments") {
     const cur = API.getCurrentUser();
     const isHod = cur?.role === "hod";
+    const allDepts = getStoredDepartments();
+    let userDept = null;
+    if (cur?.department_id) {
+      userDept = allDepts.find(d => Number(d.id) === Number(cur.department_id));
+    }
+    if (!userDept && cur?.department_code) {
+      userDept = allDepts.find(d => (d.code || '').toLowerCase() === cur.department_code.toLowerCase());
+    }
+    if (!userDept && cur?.department_name) {
+      userDept = allDepts.find(d => (d.name || '').toLowerCase() === cur.department_name.toLowerCase());
+    }
+    if (!userDept) {
+      userDept = allDepts[0] || { id: 1, name: "Computer Science Engineering", code: "CSE" };
+    }
     return {
       departments: [
-        { id: 1, name: "Computer Science Engineering", code: "CSE", relation: isHod ? "HOD" : "Member", hod_user_id: isHod ? cur.id : 5 }
+        {
+          id: userDept.id,
+          name: userDept.name,
+          code: userDept.code,
+          relation: isHod ? "HOD" : (cur?.role === "student" ? "Student" : cur?.role === "class_leader" ? "Class Leader" : "Member"),
+          hod_user_id: userDept.hod_user_id || (isHod ? cur?.id : 16),
+          hod_name: userDept.hod_name || (isHod ? cur?.name : "HOD")
+        }
       ],
       pending: []
     };

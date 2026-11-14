@@ -319,10 +319,17 @@ def create_app() -> Flask:
             g_phone = (data.get("guardian_phone") or "").strip() or None
             g_email = (data.get("guardian_email") or "").strip() or None
 
+            st_academic_yr = 1
+            try:
+                if data.get("academic_year"):
+                    st_academic_yr = int(data.get("academic_year"))
+            except (ValueError, TypeError):
+                st_academic_yr = 1
+
             execute_write(
-                """INSERT INTO student_profiles (user_id, roll_number, department_id, section_id, guardian_name, guardian_phone, guardian_email)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (student_id, roll_num, dept_choice, resolved_sec_id, g_name, g_phone, g_email)
+                """INSERT INTO student_profiles (user_id, roll_number, department_id, section_id, guardian_name, guardian_phone, guardian_email, academic_year)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (student_id, roll_num, dept_choice, resolved_sec_id, g_name, g_phone, g_email, st_academic_yr)
             )
         elif role in ("teacher", "class_teacher", "hod", "librarian", "accountant"):
             execute_write(
@@ -518,11 +525,6 @@ def create_app() -> Flask:
                 "super": "super_admin",
                 "superadmin": "super_admin",
                 "super_admin": "super_admin",
-                "sujper": "super_admin",
-                "sujperadmin": "super_admin",
-                "sujper_admin": "super_admin",
-                "supper": "super_admin",
-                "supperadmin": "super_admin",
                 # Admin
                 "admin": "admin",
                 "admins": "admin",
@@ -537,71 +539,28 @@ def create_app() -> Flask:
                 # HOD
                 "hod": "hod",
                 "hods": "hod",
-                "xavier": "hod",
-                "headofdepartment": "hod",
-                "hodcse": "hod",
-                "hodeee": "hod",
-                "hodece": "hod",
-                "hodmech": "hod",
-                "hodmect": "hod",
-                "hodaero": "hod",
-                # Teacher
+                # Teacher generic alias
                 "teacher": "teacher",
                 "teachers": "teacher",
                 "faculty": "teacher",
-                "alan": "teacher",
-                "tec1cse": "teacher",
-                "tec1eee": "teacher",
-                "tecleee": "teacher",
-                "teceee": "teacher",
-                "teccse": "teacher",
-                "tec1mech": "teacher",
-                "tec1ece": "teacher",
-                "tec1aero": "teacher",
-                "tec1mect": "teacher",
-                "teacher1": "teacher",
-                "teacher2": "teacher",
-                # Class Teacher
+                # Class Teacher generic alias
                 "classteacher": "class_teacher",
                 "class_teacher": "class_teacher",
-                "lovelace": "class_teacher",
-                "classcse2": "class_teacher",
-                "classtec": "class_teacher",
-                # Student
+                # Student generic alias
                 "student": "student",
                 "students": "student",
-                "alex": "student",
-                "stu11_cse": "student",
-                "stu11cse": "student",
-                "stu1": "student",
-                "stucse": "student",
-                "stueee": "student",
-                "stumech": "student",
-                "stuaero": "student",
-                "stuece": "student",
-                "stumect": "student",
-                "student1": "student",
-                "student2": "student",
-                # Class Leader
+                # Class Leader generic alias
                 "classleader": "class_leader",
                 "class_leader": "class_leader",
-                "leader": "class_leader",
-                "leaders": "class_leader",
-                "leadercse1": "class_leader",
-                "leader1": "class_leader",
                 # Accountant
                 "accountant": "accountant",
                 "accountants": "accountant",
-                "staff": "accountant",
-                "arthur": "accountant",
                 "accounts": "accountant",
                 "account": "accountant",
                 "bursar": "accountant",
                 # Librarian
                 "librarian": "librarian",
                 "librarians": "librarian",
-                "libratrian": "librarian",
-                "libratrians": "librarian",
                 "library": "librarian",
                 # Parent
                 "parent": "parent",
@@ -611,33 +570,6 @@ def create_app() -> Flask:
             }
             mapped_role = role_aliases.get(clean_id) or role_aliases.get(norm_key)
 
-            # Heuristic prefix matching
-            if not mapped_role:
-                if norm_key.startswith("tec") or norm_key.startswith("teach"):
-                    mapped_role = "teacher"
-                elif norm_key.startswith("stu"):
-                    mapped_role = "student"
-                elif norm_key.startswith("lead"):
-                    mapped_role = "class_leader"
-                elif norm_key.startswith("classt"):
-                    mapped_role = "class_teacher"
-                elif norm_key.startswith("libr"):
-                    mapped_role = "librarian"
-                elif norm_key.startswith("acc"):
-                    mapped_role = "accountant"
-                elif norm_key.startswith("sup") or norm_key.startswith("sujp"):
-                    mapped_role = "super_admin"
-                elif norm_key.startswith("adm"):
-                    mapped_role = "admin"
-                elif norm_key.startswith("prin"):
-                    mapped_role = "principal"
-                elif norm_key.startswith("dean"):
-                    mapped_role = "dean"
-                elif norm_key.startswith("hod"):
-                    mapped_role = "hod"
-                elif norm_key.startswith("par") or norm_key.startswith("guard"):
-                    mapped_role = "parent"
-
             if mapped_role:
                 user = query_one(
                     """SELECT id, name, username, email, password_hash, role, status FROM users
@@ -646,16 +578,18 @@ def create_app() -> Flask:
                     (mapped_role,)
                 )
 
-        pwd_match = False
-        if user:
-            pwd_match = verify_password(password, user["password_hash"])
-            if not pwd_match:
-                clean_pw = password.strip().lower()
-                if clean_pw in ("admin@123", "admin123", "admin@1234", "admin", "admin@"):
-                    pwd_match = True
+        if not user:
+            return jsonify({"error": "User not registered. Please register your account or check your user name."}), 401
 
-        if not user or not pwd_match:
-            return jsonify({"error": "Invalid user name or password"}), 401
+        pwd_match = False
+        pwd_match = verify_password(password, user["password_hash"])
+        if not pwd_match:
+            clean_pw = password.strip().lower()
+            if clean_pw in ("admin@123", "admin123", "admin@1234", "admin", "admin@"):
+                pwd_match = True
+
+        if not pwd_match:
+            return jsonify({"error": "Invalid password. Please check your credentials and try again."}), 401
 
         # Check approval status
         if user["status"] == "pending":
@@ -675,6 +609,13 @@ def create_app() -> Flask:
 
         token = generate_jwt_token(user, build_token_profile(user["id"]))
         dept_info = get_user_department_details(user["id"], user["role"])
+        academic_year = None
+        roll_number = None
+        if user["role"] in ("student", "class_leader"):
+            st_prof = query_one("SELECT academic_year, roll_number FROM student_profiles WHERE user_id = ?", (user["id"],))
+            academic_year = st_prof["academic_year"] if st_prof else 1
+            roll_number = st_prof["roll_number"] if st_prof else None
+
         return jsonify({
             "token": token,
             "user": {
@@ -684,6 +625,8 @@ def create_app() -> Flask:
                 "email": user["email"],
                 "role": user["role"],
                 "status": user["status"],
+                "academic_year": academic_year,
+                "roll_number": roll_number,
                 "department_id": dept_info.get("id"),
                 "department_name": dept_info.get("name"),
                 "department_code": dept_info.get("code")
@@ -741,6 +684,13 @@ def create_app() -> Flask:
         u["department_id"] = dept_info.get("id")
         u["department_name"] = dept_info.get("name")
         u["department_code"] = dept_info.get("code")
+        if u["role"] in ("student", "class_leader"):
+            st_prof = query_one("SELECT academic_year, roll_number FROM student_profiles WHERE user_id = ?", (u["id"],))
+            u["academic_year"] = st_prof["academic_year"] if st_prof else 1
+            u["roll_number"] = st_prof["roll_number"] if st_prof else None
+        else:
+            u["academic_year"] = None
+            u["roll_number"] = None
         return jsonify({"user": u}), 200
 
     @app.route("/api/auth/super-admin-status", methods=["GET"])

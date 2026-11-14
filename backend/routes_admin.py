@@ -920,9 +920,9 @@ def update_user_account(user_id: int):
                 execute_write("UPDATE users SET academic_year = ? WHERE id = ?", (u_acad_year, user_id))
         else:
             execute_write("""
-                INSERT INTO student_profiles (user_id, department_id, section_id, roll_number, guardian_name, guardian_phone, guardian_email)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, first_dept_id, resolved_sec_id, r_num, g_name, g_phone, g_email))
+                INSERT INTO student_profiles (user_id, department_id, section_id, roll_number, guardian_name, guardian_phone, guardian_email, academic_year)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, first_dept_id, resolved_sec_id, r_num, g_name, g_phone, g_email, u_acad_year or 1))
 
         # Store multi-departments in staff_departments if provided (e.g. for class leader)
         execute_write("DELETE FROM staff_departments WHERE user_id = ?", (user_id,))

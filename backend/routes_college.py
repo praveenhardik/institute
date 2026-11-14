@@ -184,6 +184,12 @@ def my_departments():
             JOIN departments d ON d.id = COALESCE(st.department_id, p.department_id)
             WHERE st.user_id = ?""", (user["id"],)):
             found[d["id"]] = dict(d, relation="Student" if user["role"] == "student" else "Class Leader")
+        if not found:
+            for d in query_all("""
+                SELECT d.id, d.name, d.code FROM student_profiles st
+                JOIN departments d ON d.id = st.department_id
+                WHERE st.user_id = ?""", (user["id"],)):
+                found[d["id"]] = dict(d, relation="Student" if user["role"] == "student" else "Class Leader")
     else:
         staff_label = {"class_teacher": "Class Teacher", "teacher": "Teacher", "hod": "HOD"}.get(user["role"], "Staff")
         # Check staff_departments
@@ -200,6 +206,15 @@ def my_departments():
                 found[d["id"]] = dict(d, relation=staff_label)
         for d in query_all("SELECT id, name, code FROM departments WHERE hod_user_id = ?", (user["id"],)):
             found[d["id"]] = dict(d, relation="HOD")
+
+    for d_id, d_data in found.items():
+        hod_row = query_one("""
+            SELECT COALESCE(u.name, 'HOD') AS hod_name
+            FROM departments d LEFT JOIN users u ON d.hod_user_id = u.id
+            WHERE d.id = ?
+        """, (d_id,))
+        d_data["hod_name"] = hod_row["hod_name"] if hod_row else "HOD"
+
     pending = query_all(
         "SELECT id, name, code FROM department_requests WHERE requested_user_id = ? AND status = 'pending'", (user["id"],))
     return jsonify({"departments": list(found.values()), "pending": pending}), 200

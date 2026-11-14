@@ -21,6 +21,7 @@ export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepar
 
   const [departments, setDepartments] = useState([]);
   const [selectedDeptId, setSelectedDeptId] = useState(effectiveDeptId ? String(effectiveDeptId) : 'all');
+  const [selectedYear, setSelectedYear] = useState('all');
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,6 +97,10 @@ export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepar
   }, [searchTerm, selectedDeptId]);
 
   const filtered = students.filter(st => {
+    if (selectedYear !== 'all') {
+      const yr = String(st.academic_year || 1);
+      if (yr !== String(selectedYear)) return false;
+    }
     if (facultyDeptYear?.deptCode) {
       const stDeptCode = (st.department_code || '').toUpperCase() || (st.roll_number || '').toUpperCase().slice(0, facultyDeptYear.deptCode.length);
       if (stDeptCode && stDeptCode !== facultyDeptYear.deptCode) return false;
@@ -275,6 +280,20 @@ export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepar
             </select>
           )}
 
+          <select
+            className="form-select"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            style={{ width: 'auto', minWidth: '120px', padding: '8px 12px', fontSize: '0.88rem' }}
+          >
+            <option value="all">All Years</option>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+            <option value="5">Year 5</option>
+          </select>
+
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => loadStudents(selectedDeptId)}
@@ -345,9 +364,24 @@ export const StudentsByDepartment = ({ deptId = null, deptName = null, lockDepar
                   <tr key={st.id}>
                     <td><strong>{st.roll_number || '-'}</strong></td>
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{st.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.94rem' }}>{st.name}</strong>
+                        <span
+                          className="status-pill"
+                          style={{
+                            fontSize: '0.74rem',
+                            padding: '2px 8px',
+                            background: '#e0e7ff',
+                            color: '#4338ca',
+                            borderColor: '#a5b4fc',
+                            fontWeight: 700
+                          }}
+                        >
+                          Year {st.academic_year || 1}
+                        </span>
+                      </div>
                       {st.username && (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>@{st.username}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>@{st.username}</div>
                       )}
                     </td>
                     <td>

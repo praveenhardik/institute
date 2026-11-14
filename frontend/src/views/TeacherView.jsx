@@ -1854,6 +1854,19 @@ export const TeacherView = () => {
                               }}
                             />
                             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{st.name}</span>
+                            <span
+                              className="status-pill"
+                              style={{
+                                fontSize: '0.70rem',
+                                padding: '1px 6px',
+                                background: '#e0e7ff',
+                                color: '#4338ca',
+                                borderColor: '#a5b4fc',
+                                fontWeight: 700
+                              }}
+                            >
+                              Year {st.academic_year || teacherYear || 1}
+                            </span>
                             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                               {st.roll_number ? `(${st.roll_number})` : ''} · {st.email || st.username}
                             </span>

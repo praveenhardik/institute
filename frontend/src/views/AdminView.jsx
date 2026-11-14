@@ -1058,6 +1058,7 @@ export const AdminView = () => {
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Account Name</th>
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Role</th>
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>User Name</th>
+                      <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Year</th>
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Email / Contact</th>
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Provisioned By</th>
                       <th style={{ textAlign: 'center', background: '#1e293b', color: '#ffffff', fontWeight: 700, padding: '10px 14px' }}>Created Date</th>
@@ -1067,7 +1068,7 @@ export const AdminView = () => {
                   <tbody>
                     {profilesLoading && profiles.length === 0 ? (
                       <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '36px 20px' }}>
+                        <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '36px 20px' }}>
                           <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: '6px' }}>Loading accounts directory...</div>
                           <p style={{ margin: '0 auto', fontSize: '0.85rem' }}>Fetching registered user profiles...</p>
                         </td>
@@ -1103,6 +1104,34 @@ export const AdminView = () => {
                               <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)', fontSize: '0.88rem', fontWeight: 600 }}>
                                 @{u.username || '—'}
                               </span>
+                            </td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                              {['student', 'class_leader'].includes(u.role) && u.academic_year ? (
+                                <div>
+                                  <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem' }}>
+                                    Year {u.academic_year}
+                                  </span>
+                                  {u.previous_year && (
+                                    <div
+                                      className="status-pill"
+                                      style={{
+                                        fontSize: '0.68rem',
+                                        marginTop: '3px',
+                                        background: 'rgba(99, 102, 241, 0.12)',
+                                        color: '#4338ca',
+                                        borderColor: '#818cf8',
+                                        fontWeight: 600,
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title={`Changed from Year ${u.previous_year} to Year ${u.academic_year}`}
+                                    >
+                                      From Yr {u.previous_year} → Yr {u.academic_year}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</span>
+                              )}
                             </td>
                             <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                               <span style={{ color: '#4f46e5', fontWeight: 600, fontSize: '0.86rem' }}>{u.email}</span>

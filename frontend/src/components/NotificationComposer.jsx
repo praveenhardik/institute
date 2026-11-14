@@ -495,8 +495,20 @@ export const NotificationComposer = ({ compact = false, onSent }) => {
                     >
                       {st.roll_number || `#${st.id}`}
                     </span>
-                    <span style={{ fontWeight: 600, fontSize: '0.84rem', color: 'var(--text-primary)', flex: 1 }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.84rem', color: 'var(--text-primary)', flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                       {st.name}
+                      <span
+                        style={{
+                          fontSize: '0.70rem',
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          background: '#e0e7ff',
+                          color: '#4338ca',
+                          fontWeight: 700
+                        }}
+                      >
+                        Year {st.academic_year || 1}
+                      </span>
                     </span>
                     <span
                       style={{
