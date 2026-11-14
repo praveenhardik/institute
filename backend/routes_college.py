@@ -157,13 +157,25 @@ def create_semester():
 @college_bp.route("/departments", methods=["GET"])
 @require_auth()
 def list_departments():
-    # Automatically ensure all departments have HOD assigned
-    hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
-    if hod_user:
-        execute_write("UPDATE departments SET hod_user_id = ? WHERE hod_user_id IS NULL", (hod_user["id"],))
+    # Link each department to its own designated HOD (never assign HOD CSE to all departments)
+    for d in query_all("SELECT id, code FROM departments"):
+        dept_hod = query_one("""
+            SELECT u.id FROM users u
+            JOIN staff_profiles sp ON sp.user_id = u.id
+            WHERE u.role = 'hod' AND sp.department_id = ?
+            ORDER BY u.id LIMIT 1
+        """, (d["id"],))
+        if not dept_hod:
+            dept_hod = query_one("""
+                SELECT u.id FROM users u
+                WHERE u.role = 'hod' AND (lower(u.username) LIKE ? OR lower(u.name) LIKE ?)
+                ORDER BY u.id LIMIT 1
+            """, (f"%{d['code'].lower()}%", f"%{d['code'].lower()}%"))
+        if dept_hod:
+            execute_write("UPDATE departments SET hod_user_id = ? WHERE id = ?", (dept_hod["id"], d["id"]))
 
     rows = query_all("""
-        SELECT d.id, d.name, d.code, d.hod_user_id, COALESCE(u.name, 'HOD') AS hod_name
+        SELECT d.id, d.name, d.code, d.hod_user_id, COALESCE(u.name, 'HOD ' || d.code) AS hod_name
         FROM departments d LEFT JOIN users u ON d.hod_user_id = u.id
         ORDER BY d.name
     """)
@@ -411,9 +423,14 @@ def create_department():
     name, code = _str(data, "name"), _str(data, "code").upper()
     if not name or not code:
         return jsonify({"error": "Department name and code are required"}), 400
-    # Automatically assign to HOD
-    hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
-    hod_id = hod_user["id"] if hod_user else None
+    # Automatically check if a matching HOD exists for this department
+    dept_hod = query_one("""
+        SELECT u.id, u.name FROM users u
+        WHERE u.role = 'hod' AND (lower(u.username) LIKE ? OR lower(u.name) LIKE ?)
+        ORDER BY u.id LIMIT 1
+    """, (f"%{code.lower()}%", f"%{code.lower()}%"))
+    hod_id = dept_hod["id"] if dept_hod else None
+    hod_name = dept_hod["name"] if dept_hod else f"HOD {code}"
 
     new_id, err = _save("INSERT INTO departments (name, code, hod_user_id) VALUES (?, ?, ?)", (name, code, hod_id))
     if err:
@@ -422,7 +439,7 @@ def create_department():
     if hod_id:
         execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (hod_id, new_id))
 
-    return jsonify({"message": f"Department {name} added", "id": new_id, "hod_name": "HOD"}), 201
+    return jsonify({"message": f"Department {name} added", "id": new_id, "hod_name": hod_name}), 201
 
 
 @college_bp.route("/departments/<int:dept_id>", methods=["DELETE"])

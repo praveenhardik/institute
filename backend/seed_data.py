@@ -51,10 +51,70 @@ ALL_PORTIONS_ACCOUNTS = [
     },
     {
         "role": "hod",
-        "name": "HOD",
+        "name": "HOD CSE",
+        "username": "hodcse",
+        "email": "hodcse1@inpand.com",
+        "dept_code": "CSE",
+        "designation": "Head of Department (CSE)",
+        "qualification": "Ph.D in Computer Science",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD EEE",
+        "username": "hodeee",
+        "email": "hodeee1@inpand.com",
+        "dept_code": "EEE",
+        "designation": "Head of Department (EEE)",
+        "qualification": "Ph.D in Electrical Engineering",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD ECE",
+        "username": "hodece",
+        "email": "hodece1@inpand.com",
+        "dept_code": "ECE",
+        "designation": "Head of Department (ECE)",
+        "qualification": "Ph.D in Electronics & Communication",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD AERO",
+        "username": "hodaero",
+        "email": "hodaero1@inpand.com",
+        "dept_code": "AERO",
+        "designation": "Head of Department (AERO)",
+        "qualification": "Ph.D in Aeronautical Engineering",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD MECT",
+        "username": "hodmect",
+        "email": "hodmect1@inpand.com",
+        "dept_code": "MECT",
+        "designation": "Head of Department (MECT)",
+        "qualification": "Ph.D in Mechatronics Engineering",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD MECH",
+        "username": "hodmech",
+        "email": "hodmech1@inpand.com",
+        "dept_code": "MECH",
+        "designation": "Head of Department (MECH)",
+        "qualification": "Ph.D in Mechanical Engineering",
+        "portal": "HOD Portal"
+    },
+    {
+        "role": "hod",
+        "name": "HOD CSE",
         "username": "hod",
         "email": "hod1@inpand.com",
-        "dept_code": "CSE",
+        "dept_code": None,
         "designation": "Head of Department (CSE)",
         "qualification": "Ph.D in Computer Science",
         "portal": "HOD Portal"
@@ -96,6 +156,26 @@ for dcode, dname in DEPARTMENTS_SPECS:
 
 ALL_PORTIONS_ACCOUNTS.extend(TEACHER_ACCOUNTS)
 
+DEPARTMENT_STUDENT_ACCOUNTS = []
+for dcode, dname in DEPARTMENTS_SPECS:
+    for yr in range(1, 5):
+        for num in range(1, 6):
+            DEPARTMENT_STUDENT_ACCOUNTS.append({
+                "role": "student",
+                "name": f"Student {num} Year {yr} {dcode}",
+                "username": f"Stu{yr}{num}_{dcode}",
+                "email": f"stu{yr}{num}_{dcode.lower()}@inpand.com",
+                "dept_code": dcode,
+                "roll_number": f"{dcode}{yr:02d}{num:02d}",
+                "academic_year": yr,
+                "guardian_name": f"Guardian {dcode} Y{yr}-{num}",
+                "guardian_phone": f"98765{yr}{num:02d}00",
+                "guardian_email": f"guardian_stu{yr}{num}_{dcode.lower()}@inpand.com",
+                "portal": "Student Portal"
+            })
+
+ALL_PORTIONS_ACCOUNTS.extend(DEPARTMENT_STUDENT_ACCOUNTS)
+
 ALL_PORTIONS_ACCOUNTS.extend([
     {
         "role": "student",
@@ -103,7 +183,7 @@ ALL_PORTIONS_ACCOUNTS.extend([
         "username": "student",
         "email": "student1@inpand.com",
         "dept_code": "CSE",
-        "roll_number": "CSE2026001",
+        "roll_number": "STU-GEN-001",
         "academic_year": 1,
         "guardian_name": "Parent",
         "guardian_phone": "9876543210",
@@ -116,7 +196,7 @@ ALL_PORTIONS_ACCOUNTS.extend([
         "username": "classleader",
         "email": "classleader1@inpand.com",
         "dept_code": "CSE",
-        "roll_number": "CSE2026002",
+        "roll_number": "CL-GEN-001",
         "academic_year": 1,
         "guardian_name": "Parent",
         "guardian_phone": "9876543211",
@@ -278,11 +358,12 @@ def seed_database():
             if target_dept:
                 execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (uid, target_dept))
 
-        # Special HOD linking on department table: assign HOD to ALL departments
+        # Department-specific HOD linking
         if acc["role"] == "hod":
-            execute_write("UPDATE departments SET hod_user_id = ?", (uid,))
-            for did in dept_ids.values():
-                execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (uid, did))
+            target_dept = dept_ids.get(acc.get("dept_code"))
+            if target_dept:
+                execute_write("UPDATE departments SET hod_user_id = ? WHERE id = ?", (uid, target_dept))
+                execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (uid, target_dept))
 
         # Student Profiles & Fees
         if acc["role"] in ("student", "class_leader"):

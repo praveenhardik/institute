@@ -107,6 +107,17 @@ def resolve_teacher_identifier(s):
     return None
 
 
+def resolve_student_identifier(s):
+    if not s:
+        return None
+    clean = re.sub(r'[^a-z0-9]', '', str(s).lower())
+    m = re.match(r'^(?:stu|student)([1-4])([1-5])(cse|eee|ece|aero|mect|mech)$', clean)
+    if m:
+        yr, num, dept = m.group(1), m.group(2), m.group(3).upper()
+        return f"Stu{yr}{num}_{dept}"
+    return None
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=FRONTEND_DIR)
     app_env = os.getenv("APP_ENV", "development").strip().lower()
@@ -347,6 +358,8 @@ def create_app() -> Flask:
                     "INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)",
                     (student_id, dept_choice)
                 )
+            if role == "hod" and dept_choice:
+                execute_write("UPDATE departments SET hod_user_id = ? WHERE id = ?", (student_id, dept_choice))
 
         role_display = role.replace("_", " ").title()
         dept_label = department_name_of_user(student_id)
@@ -517,6 +530,18 @@ def create_app() -> Flask:
                           OR replace(lower(username), ' ', '') = ?
                        ORDER BY id LIMIT 1""",
                     (resolved_t.lower(), resolved_t.lower(), resolved_t.replace(" ", "").lower())
+                )
+
+        if not user:
+            resolved_s = resolve_student_identifier(clean_id) or resolve_student_identifier(norm_key)
+            if resolved_s:
+                user = query_one(
+                    """SELECT id, name, username, email, password_hash, role, status FROM users
+                       WHERE lower(username) = ? OR lower(name) = ?
+                          OR replace(lower(username), ' ', '') = ?
+                          OR replace(lower(username), '_', '') = ?
+                       ORDER BY id LIMIT 1""",
+                    (resolved_s.lower(), resolved_s.lower(), resolved_s.replace(" ", "").lower(), resolved_s.replace("_", "").lower())
                 )
 
         if not user:

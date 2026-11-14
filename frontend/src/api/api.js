@@ -18,6 +18,19 @@ export function resolveTeacherIdentifier(s) {
   return null;
 }
 
+export function resolveStudentIdentifier(s) {
+  if (!s) return null;
+  const clean = String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const m = clean.match(/^(?:stu|student)([1-4])([1-5])(cse|eee|ece|aero|mect|mech)$/);
+  if (m) {
+    const yr = m[1];
+    const num = m[2];
+    const dept = m[3].toUpperCase();
+    return `Stu${yr}${num}_${dept}`;
+  }
+  return null;
+}
+
 export function parseTeacherDeptAndYear(u) {
   if (!u) return { deptCode: null, year: null, deptName: null };
   const combined = [u.username, u.name, (u.email || '').split('@')[0]].filter(Boolean).join(' ').toLowerCase();
@@ -162,7 +175,29 @@ const CANONICAL_DEPTS = [
   { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: 19, hod_name: "HOD ECE" }
 ];
 
-const DEPTS_SCHEMA_VERSION = "v5_dept_specific_hods";
+// Add 5 students for each year (1 to 4) for all 6 departments
+let studentIdCounter = 1000;
+CANONICAL_DEPTS.forEach(d => {
+  for (let yr = 1; yr <= 4; yr++) {
+    for (let num = 1; num <= 5; num++) {
+      DEFAULT_PORTAL_USERS.push({
+        id: studentIdCounter++,
+        name: `Student ${num} Year ${yr} ${d.code}`,
+        username: `Stu${yr}${num}_${d.code}`,
+        email: `stu${yr}${num}_${d.code.toLowerCase()}@inpand.com`,
+        role: "student",
+        status: "active",
+        department_id: d.id,
+        department_name: d.name,
+        department_code: d.code,
+        roll_number: `${d.code}${String(yr).padStart(2, "0")}${String(num).padStart(2, "0")}`,
+        academic_year: yr
+      });
+    }
+  }
+});
+
+const DEPTS_SCHEMA_VERSION = "v6_students_and_dept_hods";
 
 function getStoredDepartments() {
   try {
@@ -204,7 +239,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v10_60_dept_teachers_and_aliases";
+const USERS_SCHEMA_VERSION = "v11_120_dept_students_and_dept_hods";
 
 function getStoredUsers() {
   try {
@@ -444,6 +479,16 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
           (u.username && u.username.toLowerCase() === resolvedT.toLowerCase()) ||
           (u.name && u.name.toLowerCase() === resolvedT.toLowerCase()) ||
           (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === resolvedT.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        );
+      }
+    }
+
+    if (!matched) {
+      const resolvedS = resolveStudentIdentifier(cleanId) || resolveStudentIdentifier(normKey);
+      if (resolvedS) {
+        matched = users.find(u =>
+          (u.username && u.username.toLowerCase() === resolvedS.toLowerCase()) ||
+          (u.username && u.username.toLowerCase().replace(/[^a-z0-9]/g, "") === resolvedS.toLowerCase().replace(/[^a-z0-9]/g, ""))
         );
       }
     }
