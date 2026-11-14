@@ -750,5 +750,21 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     app = create_app()
     port = int(os.environ.get("PORT", 5000))
-    print(f"Starting College Quiz & Management Server on http://127.0.0.1:{port}")
+    import socket
+    try:
+        local_ip = socket.gethostbyname(socket.gethostname())
+    except Exception:
+        local_ip = "192.168.1.40"
+
+    print("\n" + "=" * 65)
+    print(" COLLEGE MANAGEMENT & PORTAL SYSTEM IS RUNNING")
+    print("=" * 65)
+    print(f"  Local Access:   http://localhost:{port}")
+    print(f"  Loopback URL:   http://127.0.0.1:{port}")
+    print(f"  Network (LAN):  http://{local_ip}:{port}  (MUST include :{port})")
+    print(f"  Vercel Cloud:   https://institute-dun.vercel.app")
+    print("=" * 65)
+    print(f"  NOTE: Do not open just http://{local_ip} without :{port}.")
+    print(f"        Always include the port: http://{local_ip}:{port}")
+    print("=" * 65 + "\n")
     app.run(host="0.0.0.0", port=port, debug=True)
