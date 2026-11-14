@@ -949,7 +949,52 @@ def update_user_account(user_id: int):
             request_id, new_dept_name
         ))
         message += f". The new department '{new_dept_name}' was sent to the College Admin for approval; {name} joins it once approved."
-    updated = query_one("SELECT id, name, email, username, role, status FROM users WHERE id = ?", (user_id,))
+    full_sql = """SELECT u.id, u.name, u.email, u.username, u.role, u.status, u.created_at, u.created_by_id,
+               u.last_edited_by_id, u.last_edited_at,
+               cb.name AS created_by_name, cb.role AS created_by_role,
+               eb.name AS edited_by_name, eb.role AS edited_by_role,
+               st.roll_number, st.section_id, sec.name AS section_name,
+               COALESCE(st.academic_year, u.academic_year) AS academic_year,
+               COALESCE(st.previous_year, u.previous_year) AS previous_year,
+               st.year_changed_at,
+               st.guardian_name, st.guardian_phone, st.guardian_email,
+               sp.designation,
+               CASE
+                 WHEN u.role IN ('dean', 'super_admin', 'admin') THEN NULL
+                 ELSE
+                   COALESCE(
+                     (SELECT GROUP_CONCAT(d.name, ', ') FROM (
+                        SELECT DISTINCT d2.name FROM staff_departments sd JOIN departments d2 ON d2.id = sd.department_id WHERE sd.user_id = u.id ORDER BY d2.name
+                     ) d),
+                     (SELECT d.name FROM staff_profiles sp2 JOIN departments d ON d.id = sp2.department_id WHERE sp2.user_id = u.id),
+                     (SELECT d.name FROM student_profiles st2
+                        LEFT JOIN batches b ON b.id = st2.batch_id LEFT JOIN programs p ON p.id = b.program_id
+                        JOIN departments d ON d.id = COALESCE(st2.department_id, p.department_id)
+                        WHERE st2.user_id = u.id)
+                   )
+               END AS department_name
+            FROM users u
+            LEFT JOIN users cb ON cb.id = u.created_by_id
+            LEFT JOIN users eb ON eb.id = u.last_edited_by_id
+            LEFT JOIN staff_profiles sp ON sp.user_id = u.id
+            LEFT JOIN student_profiles st ON st.user_id = u.id
+            LEFT JOIN sections sec ON sec.id = st.section_id
+            WHERE u.id = ?"""
+    updated_row = query_one(full_sql, (user_id,))
+    updated = dict(updated_row) if updated_row else dict(query_one("SELECT id, name, email, username, role, status FROM users WHERE id = ?", (user_id,)))
+    if updated:
+        dept_rows = query_all("SELECT department_id FROM staff_departments WHERE user_id = ?", (user_id,))
+        if dept_rows:
+            updated["department_ids"] = [r["department_id"] for r in dept_rows]
+            updated["department_id"] = updated["department_ids"][0]
+        else:
+            staff = query_one("SELECT department_id FROM staff_profiles WHERE user_id = ?", (user_id,))
+            stu = query_one("SELECT department_id FROM student_profiles WHERE user_id = ?", (user_id,))
+            chosen = staff["department_id"] if staff and staff["department_id"] else (stu["department_id"] if stu and stu["department_id"] else None)
+            updated["department_id"] = chosen
+            updated["department_ids"] = [chosen] if chosen else []
+        updated["can_edit"] = True
+        updated["can_delete"] = (updated["role"] != "super_admin")
     return jsonify({"message": message, "user": updated}), 200
 
 

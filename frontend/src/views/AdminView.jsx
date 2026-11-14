@@ -1217,7 +1217,13 @@ export const AdminView = () => {
         user={editUser}
         isOpen={Boolean(editUser)}
         onClose={() => setEditUser(null)}
-        onUpdated={loadProfiles}
+        onUpdated={(updatedUser) => {
+          if (updatedUser && updatedUser.id) {
+            setProfiles(prev => prev.map(p => Number(p.id) === Number(updatedUser.id) ? { ...p, ...updatedUser } : p));
+            setSelectedUser(prev => (prev && Number(prev.id) === Number(updatedUser.id)) ? { ...prev, ...updatedUser } : prev);
+          }
+          loadProfiles();
+        }}
       />
     </section>
   );

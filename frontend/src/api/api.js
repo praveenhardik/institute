@@ -68,7 +68,14 @@ function saveStoredDepartments(depts) {
   } catch {}
 }
 
-const USERS_SCHEMA_VERSION = "v5_clean_role_names";
+function getDepartmentNameById(deptId) {
+  if (!deptId) return null;
+  const depts = getStoredDepartments();
+  const d = depts.find(item => Number(item.id) === Number(deptId));
+  return d ? d.name : "Computer Science Engineering";
+}
+
+const USERS_SCHEMA_VERSION = "v6_editable_profiles";
 
 function getStoredUsers() {
   try {
@@ -531,11 +538,27 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 18. /api/admin/profiles
   if (path === "/api/admin/profiles" || path.startsWith("/api/admin/profiles/")) {
+    const singleMatch = path.match(/^\/api\/admin\/profiles\/(\d+)/);
+    if (singleMatch) {
+      const uId = parseInt(singleMatch[1], 10);
+      const user = getStoredUsers().find(u => Number(u.id) === Number(uId)) || DEFAULT_PORTAL_USERS[0];
+      return {
+        user: {
+          ...user,
+          can_edit: true,
+          can_delete: user.role !== "super_admin",
+          department_name: user.department_name || (user.department_id ? "Computer Science Engineering" : null)
+        },
+        details: {},
+        can_edit: true
+      };
+    }
     const users = getStoredUsers().map(u => ({
       ...u,
       can_edit: true,
       can_delete: u.role !== "super_admin",
-      department: u.department_name || (u.department_id ? "Computer Science Engineering" : "-")
+      department_name: u.department_name || (getDepartmentNameById(u.department_id)),
+      department: u.department_name || (getDepartmentNameById(u.department_id) || "-")
     }));
     return { users, profiles: users };
   }
@@ -750,8 +773,127 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 32. Student / User edit and delete
   if (path.startsWith("/api/admin/users/")) {
-    if (method === "DELETE") return { message: "User removed successfully." };
-    if (method === "PUT") return { message: "User updated successfully." };
+    const userMatch = path.match(/^\/api\/admin\/users\/(\d+)/);
+    const targetUserId = userMatch ? parseInt(userMatch[1], 10) : null;
+    const users = getStoredUsers();
+
+    if (method === "DELETE" && targetUserId) {
+      const remaining = users.filter(u => Number(u.id) !== Number(targetUserId));
+      saveStoredUsers(remaining);
+      try {
+        const cachedRaw = sessionStorage.getItem("cached_registered_profiles") || localStorage.getItem("cached_registered_profiles");
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw).filter(u => Number(u.id) !== Number(targetUserId));
+          sessionStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+          localStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+        }
+      } catch {}
+      return { message: "User removed successfully." };
+    }
+
+    if (method === "PUT" && targetUserId) {
+      const uIdx = users.findIndex(u => Number(u.id) === Number(targetUserId));
+      const depts = getStoredDepartments();
+      const chosenDeptId = body.department_id || (body.department_ids && body.department_ids[0]) || null;
+      let chosenDeptName = "";
+      let chosenDeptCode = "";
+      if (chosenDeptId) {
+        const dObj = depts.find(d => Number(d.id) === Number(chosenDeptId));
+        if (dObj) {
+          chosenDeptName = dObj.name;
+          chosenDeptCode = dObj.code;
+        }
+      }
+
+      const currentUser = API.getCurrentUser() || { id: 13, name: "Super Admin", role: "super_admin" };
+      const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+      let updatedUser;
+      if (uIdx !== -1) {
+        const existing = users[uIdx];
+        const newName = body.name ? body.name.trim() : existing.name;
+        const newUsername = body.username ? body.username.trim() : (body.name ? body.name.trim() : existing.username);
+        const newEmail = (body.email_or_phone || body.email || existing.email || "").trim();
+        const newRole = body.role || existing.role;
+
+        updatedUser = {
+          ...existing,
+          ...body,
+          id: targetUserId,
+          name: newName,
+          username: newUsername,
+          email: newEmail,
+          role: newRole,
+          designation: body.designation !== undefined ? body.designation : existing.designation,
+          academic_year: body.academic_year !== undefined ? body.academic_year : existing.academic_year,
+          roll_number: body.roll_number !== undefined ? body.roll_number : existing.roll_number,
+          section_id: body.section_id !== undefined ? body.section_id : existing.section_id,
+          guardian_name: body.guardian_name !== undefined ? body.guardian_name : existing.guardian_name,
+          guardian_phone: body.guardian_phone !== undefined ? body.guardian_phone : existing.guardian_phone,
+          guardian_email: body.guardian_email !== undefined ? body.guardian_email : existing.guardian_email,
+          department_id: chosenDeptId !== undefined ? chosenDeptId : existing.department_id,
+          department_ids: body.department_ids || (chosenDeptId ? [Number(chosenDeptId)] : existing.department_ids || []),
+          department_name: chosenDeptName || existing.department_name || (chosenDeptId ? "Computer Science Engineering" : null),
+          department_code: chosenDeptCode || existing.department_code || (chosenDeptId ? "CSE" : null),
+          department: chosenDeptName || existing.department || (chosenDeptId ? "Computer Science Engineering" : "-"),
+          last_edited_by_id: currentUser.id,
+          last_edited_at: nowStr,
+          edited_by_name: currentUser.name,
+          edited_by_role: currentUser.role,
+          can_edit: true,
+          can_delete: newRole !== "super_admin"
+        };
+        if (body.password) {
+          updatedUser.password = body.password;
+        }
+        users[uIdx] = updatedUser;
+      } else {
+        updatedUser = {
+          id: targetUserId,
+          ...body,
+          name: (body.name || "User").trim(),
+          username: (body.username || body.name || "user").trim(),
+          email: (body.email_or_phone || body.email || "user@inpand.com").trim(),
+          role: body.role || "student",
+          department_id: chosenDeptId,
+          department_name: chosenDeptName,
+          department_code: chosenDeptCode,
+          department: chosenDeptName || "-",
+          can_edit: true,
+          can_delete: true
+        };
+        users.push(updatedUser);
+      }
+
+      saveStoredUsers(users);
+
+      // Sync cached_registered_profiles in storage
+      try {
+        const cachedRaw = sessionStorage.getItem("cached_registered_profiles") || localStorage.getItem("cached_registered_profiles");
+        let cached = cachedRaw ? JSON.parse(cachedRaw) : [];
+        const cIdx = cached.findIndex(u => Number(u.id) === Number(targetUserId));
+        if (cIdx !== -1) {
+          cached[cIdx] = { ...cached[cIdx], ...updatedUser };
+        } else {
+          cached.push(updatedUser);
+        }
+        sessionStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+        localStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+      } catch {}
+
+      // If current user was updated, sync session
+      if (currentUser && Number(currentUser.id) === Number(targetUserId)) {
+        API.setCurrentUser({
+          ...currentUser,
+          ...updatedUser
+        });
+      }
+
+      return {
+        message: "Login details updated successfully",
+        user: updatedUser
+      };
+    }
   }
 
   return {};

@@ -6,7 +6,7 @@ import { useAlert } from '../context/AlertContext';
 import { PasswordInput } from './PasswordInput';
 
 export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -176,19 +176,45 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
 
       const res = await API.updateUserAccount(user.id, payload);
 
-      // If updating current user's session, sync sessionStorage
+      const updatedUserObj = res.user || {
+        ...user,
+        ...payload,
+        id: user.id,
+        name: name.trim(),
+        username: username.trim() || user.username || name.trim(),
+        email: emailOrPhone.trim() || user.email
+      };
+
+      // If updating current user's session, sync sessionStorage and trigger AuthContext refresh
       const current = API.getCurrentUser();
-      if (current && current.id === user.id) {
+      if (current && Number(current.id) === Number(user.id)) {
         API.setCurrentUser({
           ...current,
-          name: name.trim(),
-          username: username.trim() || current.username,
-          email: emailOrPhone.trim() || current.email
+          ...updatedUserObj
         });
+        if (typeof refreshUser === 'function') {
+          await refreshUser();
+        }
       }
 
+      // Sync cached profiles in storage so other components see updated values
+      try {
+        const cachedRaw = sessionStorage.getItem("cached_registered_profiles") || localStorage.getItem("cached_registered_profiles");
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          const idx = cached.findIndex(u => Number(u.id) === Number(user.id));
+          if (idx !== -1) {
+            cached[idx] = { ...cached[idx], ...updatedUserObj };
+            sessionStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+            localStorage.setItem("cached_registered_profiles", JSON.stringify(cached));
+          }
+        }
+      } catch {}
+
       showAlert(res.message || 'Login details updated successfully', 'success');
-      onUpdated?.();
+      if (typeof onUpdated === 'function') {
+        onUpdated(updatedUserObj);
+      }
       onClose();
     } catch (err) {
       showAlert(err.message, 'danger');

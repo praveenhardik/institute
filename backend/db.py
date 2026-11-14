@@ -728,9 +728,13 @@ def _init_sqlite_db() -> None:
         """)
 
         # Report view
+        try:
+            conn.execute("DROP VIEW IF EXISTS registered_users_report;")
+            conn.commit()
+        except Exception:
+            pass
         conn.executescript("""
-            DROP VIEW IF EXISTS registered_users_report;
-            CREATE VIEW registered_users_report AS
+            CREATE VIEW IF NOT EXISTS registered_users_report AS
             SELECT * FROM (
               SELECT u.id AS id, u.name AS name, COALESCE(u.username, '(none)') AS username, u.email AS email_or_phone,
                      u.role AS role, u.status AS status,
@@ -1238,20 +1242,28 @@ def init_db() -> None:
             conn.rollback()
             print("Note: users_role_check constraint migration:", e)
 
+        cols_to_add = [
+            ("questions", "target_department_id", "INTEGER"),
+            ("questions", "target_year", "INTEGER"),
+            ("questions", "task_number", "TEXT DEFAULT 'Task 1'"),
+            ("student_profiles", "academic_year", "INTEGER"),
+            ("student_profiles", "previous_year", "INTEGER"),
+            ("student_profiles", "year_changed_at", "TIMESTAMP"),
+            ("users", "academic_year", "INTEGER"),
+            ("users", "previous_year", "INTEGER"),
+            ("users", "year_changed_at", "TIMESTAMP"),
+        ]
+        for tbl, col, col_def in cols_to_add:
+            try:
+                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}")
+                conn.commit()
+            except Exception:
+                pass
         try:
-            conn.execute("ALTER TABLE questions ADD COLUMN IF NOT EXISTS target_department_id INTEGER;")
-            conn.execute("ALTER TABLE questions ADD COLUMN IF NOT EXISTS target_year INTEGER;")
-            conn.execute("ALTER TABLE questions ADD COLUMN IF NOT EXISTS task_number TEXT DEFAULT 'Task 1';")
-            conn.execute("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS academic_year INTEGER;")
-            conn.execute("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS previous_year INTEGER;")
-            conn.execute("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS year_changed_at TIMESTAMP WITHOUT TIME ZONE;")
-            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS academic_year INTEGER;")
-            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS previous_year INTEGER;")
             conn.execute("UPDATE questions SET task_number = 'Task 1' WHERE task_number IS NULL OR task_number = '';")
             conn.commit()
-        except Exception as e:
-            conn.rollback()
-            print("Note: questions column migration:", e)
+        except Exception:
+            pass
 
         try:
             conn.execute("""

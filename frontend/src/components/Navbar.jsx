@@ -26,7 +26,9 @@ export const Navbar = ({ onOpenChangePassword }) => {
 
     setCollegeName,
 
-    formatRoleName
+    formatRoleName,
+
+    refreshUser
 
   } = useAuth();
 
@@ -436,12 +438,10 @@ export const Navbar = ({ onOpenChangePassword }) => {
 
           onClose={() => setEditSelfOpen(false)}
 
-          onUpdated={() => {
-
-            // Refresh to update header and views
-
-            window.location.reload();
-
+          onUpdated={async () => {
+            if (typeof refreshUser === 'function') {
+              await refreshUser();
+            }
           }}
 
         />
