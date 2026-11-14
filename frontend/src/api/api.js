@@ -29,22 +29,37 @@ const DEFAULT_PORTAL_USERS = [
 
 const CANONICAL_DEPTS = [
   { id: 1, name: "Computer Science Engineering", code: "CSE", hod_user_id: 5, hod_name: "HOD" },
-  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: null, hod_name: null },
-  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: null, hod_name: null },
-  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: null, hod_name: null },
-  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: null, hod_name: null },
-  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: null, hod_name: null }
+  { id: 2, name: "Mechanical Engineering", code: "MECH", hod_user_id: 5, hod_name: "HOD" },
+  { id: 3, name: "Mechatronics Engineering", code: "MECT", hod_user_id: 5, hod_name: "HOD" },
+  { id: 4, name: "Aeronautical Engineering", code: "AERO", hod_user_id: 5, hod_name: "HOD" },
+  { id: 5, name: "Electrical and Electronics Engineering", code: "EEE", hod_user_id: 5, hod_name: "HOD" },
+  { id: 6, name: "Electrical and Communication Engineering", code: "ECE", hod_user_id: 5, hod_name: "HOD" }
 ];
+
+const DEPTS_SCHEMA_VERSION = "v4_all_depts_hod_assigned";
 
 function getStoredDepartments() {
   try {
+    const ver = localStorage.getItem("portal_depts_version");
+    if (ver !== DEPTS_SCHEMA_VERSION) {
+      localStorage.setItem("portal_depts_version", DEPTS_SCHEMA_VERSION);
+      const migrated = CANONICAL_DEPTS.map(d => ({ ...d, hod_user_id: 5, hod_name: "HOD" }));
+      localStorage.setItem("portal_departments", JSON.stringify(migrated));
+      return migrated;
+    }
     const raw = localStorage.getItem("portal_departments");
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(d => ({
+          ...d,
+          hod_user_id: d.hod_user_id || 5,
+          hod_name: d.hod_name || "HOD"
+        }));
+      }
     }
   } catch {}
-  return [...CANONICAL_DEPTS];
+  return CANONICAL_DEPTS.map(d => ({ ...d, hod_user_id: 5, hod_name: "HOD" }));
 }
 
 function saveStoredDepartments(depts) {
@@ -399,7 +414,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
         throw new Error(`Department '${existing.name}' already exists with this name or code.`);
       }
       const newId = depts.length ? Math.max(...depts.map(d => d.id || 0)) + 1 : 1;
-      const newDept = { id: newId, name, code, hod_user_id: null, hod_name: null };
+      const newDept = { id: newId, name, code, hod_user_id: 5, hod_name: "HOD" };
       depts.push(newDept);
       saveStoredDepartments(depts);
       return { message: `Department ${name} added`, id: newId, department: newDept };

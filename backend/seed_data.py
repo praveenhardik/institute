@@ -257,9 +257,11 @@ def seed_database():
             if target_dept:
                 execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (uid, target_dept))
 
-        # Special HOD linking on department table
-        if acc["role"] == "hod" and cse_dept_id:
-            execute_write("UPDATE departments SET hod_user_id = ? WHERE id = ?", (uid, cse_dept_id))
+        # Special HOD linking on department table: assign HOD to ALL departments
+        if acc["role"] == "hod":
+            execute_write("UPDATE departments SET hod_user_id = ?", (uid,))
+            for did in dept_ids.values():
+                execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (uid, did))
 
         # Student Profiles & Fees
         if acc["role"] in ("student", "class_leader"):

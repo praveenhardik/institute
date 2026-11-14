@@ -590,7 +590,7 @@ export const CollegeSetup = ({ canManage = true }) => {
                   <tr key={d.id}>
                     <td><strong>{d.name}</strong></td>
                     <td><span className="status-pill">{d.code}</span></td>
-                    <td>{d.hod_name || <span style={{ color: 'var(--text-muted)' }}>Not assigned</span>}</td>
+                    <td>{d.hod_name || 'HOD'}</td>
                     {canManage && (
                       <td>
                         <div style={{ display: 'flex', gap: '8px' }}>

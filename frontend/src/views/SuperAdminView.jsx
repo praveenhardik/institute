@@ -801,7 +801,7 @@ export const SuperAdminView = () => {
                           <td>{idx + 1}</td>
                           <td><strong style={{ color: 'var(--text-primary)' }}>{d.name}</strong></td>
                           <td><span className="status-pill status-pill-active">{d.code}</span></td>
-                          <td>{d.hod_name || <span style={{ color: 'var(--text-muted)' }}>Not assigned</span>}</td>
+                          <td>{d.hod_name || 'HOD'}</td>
                           <td><span style={{ color: '#10b981', fontWeight: 600 }}>Active</span></td>
                           <td style={{ textAlign: 'center' }}>
                             <button

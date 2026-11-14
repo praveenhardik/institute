@@ -157,8 +157,13 @@ def create_semester():
 @college_bp.route("/departments", methods=["GET"])
 @require_auth()
 def list_departments():
+    # Automatically ensure all departments have HOD assigned
+    hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
+    if hod_user:
+        execute_write("UPDATE departments SET hod_user_id = ? WHERE hod_user_id IS NULL", (hod_user["id"],))
+
     rows = query_all("""
-        SELECT d.id, d.name, d.code, d.hod_user_id, u.name AS hod_name
+        SELECT d.id, d.name, d.code, d.hod_user_id, COALESCE(u.name, 'HOD') AS hod_name
         FROM departments d LEFT JOIN users u ON d.hod_user_id = u.id
         ORDER BY d.name
     """)
@@ -395,10 +400,18 @@ def create_department():
     name, code = _str(data, "name"), _str(data, "code").upper()
     if not name or not code:
         return jsonify({"error": "Department name and code are required"}), 400
-    new_id, err = _save("INSERT INTO departments (name, code) VALUES (?, ?)", (name, code))
+    # Automatically assign to HOD
+    hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
+    hod_id = hod_user["id"] if hod_user else None
+
+    new_id, err = _save("INSERT INTO departments (name, code, hod_user_id) VALUES (?, ?, ?)", (name, code, hod_id))
     if err:
         return jsonify({"error": err}), 400
-    return jsonify({"message": f"Department {name} added", "id": new_id}), 201
+
+    if hod_id:
+        execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (hod_id, new_id))
+
+    return jsonify({"message": f"Department {name} added", "id": new_id, "hod_name": "HOD"}), 201
 
 
 @college_bp.route("/departments/<int:dept_id>", methods=["DELETE"])
@@ -512,9 +525,13 @@ def create_department_request():
     user = g.current_user
     # Admin / Super Admin creates directly
     if user["role"] in SETUP_ROLES:
-        dept_id, err = _save("INSERT INTO departments (name, code) VALUES (?, ?)", (name, code))
+        hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
+        hod_id = hod_user["id"] if hod_user else None
+        dept_id, err = _save("INSERT INTO departments (name, code, hod_user_id) VALUES (?, ?, ?)", (name, code, hod_id))
         if err:
             return jsonify({"error": err}), 400
+        if hod_id:
+            execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (hod_id, dept_id))
         return jsonify({"message": f"Department '{name}' ({code}) created successfully.", "id": dept_id}), 201
 
     # Check if a pending request already exists
@@ -572,9 +589,13 @@ def approve_department_request(req_id: int):
     req = query_one("SELECT * FROM department_requests WHERE id = ? AND status = 'pending'", (req_id,))
     if not req:
         return jsonify({"error": "This request is no longer waiting for approval"}), 404
-    dept_id, err = _save("INSERT INTO departments (name, code) VALUES (?, ?)", (req["name"], req["code"]))
+    hod_user = query_one("SELECT id, name FROM users WHERE role = 'hod' ORDER BY id LIMIT 1")
+    hod_id = hod_user["id"] if hod_user else None
+    dept_id, err = _save("INSERT INTO departments (name, code, hod_user_id) VALUES (?, ?, ?)", (req["name"], req["code"], hod_id))
     if err:
         return jsonify({"error": "A department with this name or code already exists. Reject this request instead."}), 400
+    if hod_id:
+        execute_write("INSERT OR IGNORE INTO staff_departments (user_id, department_id) VALUES (?, ?)", (hod_id, dept_id))
     if req["requested_user_id"]:
         requester = query_one("SELECT role FROM users WHERE id = ?", (req["requested_user_id"],))
         if requester and requester["role"] in ("student", "class_leader"):
