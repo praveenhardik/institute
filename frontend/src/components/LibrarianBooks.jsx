@@ -19,7 +19,7 @@ export const LibrarianBooks = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'issued' | 'nobooks'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'issued' | 'nobooks' | 'return'
   const [currentPage, setCurrentPage] = useState(1);
 
   // Per-student input state: { [studentId]: { bookName: string, validityDate: string } }
@@ -27,6 +27,8 @@ export const LibrarianBooks = () => {
   const [actionInProgressId, setActionInProgressId] = useState(null);
   const [returnModalStudent, setReturnModalStudent] = useState(null);
   const [returningBookId, setReturningBookId] = useState(null);
+  const [returnDateTimes, setReturnDateTimes] = useState({});
+  const [modalReturnDateTime, setModalReturnDateTime] = useState('');
 
   // Helper for current date in YYYY-MM-DD
   const getTodayStr = () => {
@@ -35,6 +37,13 @@ export const LibrarianBooks = () => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  const getCurrentDateTimeLocal = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
+    return localISOTime;
   };
 
   const todayStr = getTodayStr();
@@ -53,13 +62,17 @@ export const LibrarianBooks = () => {
   const loadBooks = useCallback(async () => {
     try {
       setLoading(true);
+      const statusParam = activeTab === 'all' ? '' : (activeTab === 'return' ? 'return' : activeTab);
       const res = await API.getLibraryBooks({
         search: searchQuery.trim(),
         departmentId: selectedDeptId,
-        status: activeTab === 'all' ? '' : activeTab
+        status: statusParam
       });
 
-      const stus = res.students || [];
+      let stus = res.students || [];
+      if (activeTab === 'return') {
+        stus = stus.filter(s => s.has_book);
+      }
       setStudents(stus);
       setTotalStudents(res.total_students || stus.length);
       setIssuedCount(res.issued_count || 0);
@@ -176,16 +189,18 @@ export const LibrarianBooks = () => {
   // Open modal showing list of issued books for this student
   const handleOpenReturnModal = (student) => {
     setReturnModalStudent(student);
+    setModalReturnDateTime(returnDateTimes[student.student_id] || getCurrentDateTimeLocal());
   };
 
-  // Confirm Return Book handler for a specific book or all books
-  const handleConfirmReturn = async (student, bookId = null) => {
+  // Confirm Return Book handler for a specific book or all books with date and time
+  const handleConfirmReturn = async (student, bookId = null, customDateTime = null) => {
     const studentId = student.student_id;
+    const finalDateTime = customDateTime || modalReturnDateTime || returnDateTimes[studentId] || getCurrentDateTimeLocal();
     try {
       setReturningBookId(bookId || 'all');
       setActionInProgressId(studentId);
-      const res = await API.returnLibraryBook(studentId, bookId);
-      showAlert(res.message || `Book returned successfully.`, 'success');
+      const res = await API.returnLibraryBook(studentId, bookId, finalDateTime);
+      showAlert(res.message || `Book returned successfully with marked date & time (${finalDateTime}).`, 'success');
       setReturnModalStudent(null);
       await loadBooks();
     } catch (err) {
@@ -357,9 +372,22 @@ export const LibrarianBooks = () => {
               className={`user-tab-btn ${activeTab === 'nobooks' ? 'active' : ''}`}
               onClick={() => setActiveTab('nobooks')}
             >
-              <span className="user-tab-label">No Books</span>
+              <span className="user-tab-label">Not Taken</span>
               <span className="user-tab-badge" style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}>
                 {noBooksCount !== undefined && noBooksCount !== null ? noBooksCount : 1000}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'return'}
+              className={`user-tab-btn ${activeTab === 'return' ? 'active' : ''}`}
+              onClick={() => setActiveTab('return')}
+            >
+              <span className="user-tab-label">Return Books</span>
+              <span className="user-tab-badge" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#dc2626' }}>
+                {issuedCount}
               </span>
             </button>
           </div>
@@ -369,14 +397,24 @@ export const LibrarianBooks = () => {
         <div className="table-responsive">
           <table className="custom-table" style={{ minWidth: '920px' }}>
               <thead>
-                <tr>
-                  <th style={{ width: '22%' }}>Student Details</th>
-                  <th style={{ width: '13%' }}>Department</th>
-                  <th style={{ width: '22%' }}>Current Book Status</th>
-                  <th style={{ width: '20%' }}>Enter Book Name</th>
-                  <th style={{ width: '13%' }}>Validity Period</th>
-                  <th style={{ width: '10%', minWidth: '110px' }}>Action</th>
-                </tr>
+                {activeTab === 'return' ? (
+                  <tr>
+                    <th style={{ width: '22%' }}>Student Details</th>
+                    <th style={{ width: '13%' }}>Department</th>
+                    <th style={{ width: '26%' }}>Active Issued Books</th>
+                    <th style={{ width: '24%' }}>Return Date & Time</th>
+                    <th style={{ width: '15%', minWidth: '120px' }}>Action</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th style={{ width: '22%' }}>Student Details</th>
+                    <th style={{ width: '13%' }}>Department</th>
+                    <th style={{ width: '22%' }}>Current Book Status</th>
+                    <th style={{ width: '20%' }}>Enter Book Name</th>
+                    <th style={{ width: '13%' }}>Validity Period</th>
+                    <th style={{ width: '10%', minWidth: '110px' }}>Action</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {paginatedStudents.length ? (
@@ -384,6 +422,101 @@ export const LibrarianBooks = () => {
                     const studentId = st.student_id;
                     const isBusy = actionInProgressId === studentId;
                     const inputState = rowInputs[studentId] || { bookName: '', validityDate: todayStr };
+
+                    if (activeTab === 'return') {
+                      return (
+                        <tr key={studentId}>
+                          {/* 1. Student Details */}
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.94rem' }}>
+                              {st.student_name}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Roll: <span style={{ color: '#1e293b', fontWeight: 700 }}>{st.roll_number}</span> • @{st.username || 'user'}
+                            </div>
+                          </td>
+
+                          {/* 2. Department */}
+                          <td>
+                            <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
+                              {st.department_name || '-'}
+                            </span>
+                          </td>
+
+                          {/* 3. Active Issued Books */}
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {(st.active_books && st.active_books.length > 0 ? st.active_books : [{ id: st.book_record_id, book_name: st.book_name, validity_date: st.validity_date, is_overdue: st.is_overdue }]).map((ab, abIdx) => (
+                                <div key={ab.id || abIdx}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <strong style={{ color: '#059669', fontSize: '0.92rem' }}>
+                                      {ab.book_name}
+                                    </strong>
+                                    {ab.is_overdue && (
+                                      <span style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px', background: '#fee2e2', color: '#dc2626', fontWeight: 700 }}>
+                                        Overdue
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                    Validity: <strong style={{ color: ab.is_overdue ? '#dc2626' : '#1e293b' }}>{ab.validity_date}</strong> {ab.issued_at && <span>• Issued: {ab.issued_at}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+
+                          {/* 4. Mark Return Date & Time */}
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>Mark Return Date & Time:</label>
+                              <input
+                                type="datetime-local"
+                                className="form-input"
+                                style={{
+                                  padding: '6px 10px',
+                                  fontSize: '0.86rem',
+                                  background: '#ffffff',
+                                  height: '36px'
+                                }}
+                                value={returnDateTimes[studentId] || getCurrentDateTimeLocal()}
+                                onChange={(e) => setReturnDateTimes(prev => ({ ...prev, [studentId]: e.target.value }))}
+                              />
+                            </div>
+                          </td>
+
+                          {/* 5. Return Action */}
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              disabled={isBusy}
+                              onClick={() => {
+                                const dt = returnDateTimes[studentId] || getCurrentDateTimeLocal();
+                                if (st.active_books && st.active_books.length > 1) {
+                                  handleOpenReturnModal(st);
+                                } else {
+                                  const singleBookId = st.book_record_id || (st.active_books && st.active_books[0]?.id) || null;
+                                  handleConfirmReturn(st, singleBookId, dt);
+                                }
+                              }}
+                              style={{
+                                fontSize: '0.82rem',
+                                padding: '6px 14px',
+                                whiteSpace: 'nowrap',
+                                color: '#dc2626',
+                                borderColor: '#fca5a5',
+                                fontWeight: 700,
+                                height: '34px'
+                              }}
+                              title="Return this book with marked date and time"
+                            >
+                              {isBusy ? 'Returning...' : 'Return Book'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    }
 
                     return (
                       <tr key={studentId}>
@@ -404,7 +537,7 @@ export const LibrarianBooks = () => {
                           </span>
                         </td>
 
-                        {/* 3. Current Book Status: "No books" text if not taken, or Book info + ALL previous books */}
+                        {/* 3. Current Book Status: "Not Taken" pill if not taken, or Book info + ALL previous books */}
                         <td>
                           {st.has_book ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -427,7 +560,6 @@ export const LibrarianBooks = () => {
                               ))}
                             </div>
                           ) : (
-                            /* EXACT TEXT "No books" REQUIRED BY USER */
                             <span
                               className="status-pill"
                               style={{
@@ -439,7 +571,7 @@ export const LibrarianBooks = () => {
                                 border: '1px solid #cbd5e1'
                               }}
                             >
-                              No books
+                              Not Taken
                             </span>
                           )}
 
@@ -549,9 +681,9 @@ export const LibrarianBooks = () => {
                                 fontWeight: 700,
                                 height: '34px'
                               }}
-                              title="Issue this book to the student with the specified validity period"
+                              title="Mark as book taken for the student with the specified validity period"
                             >
-                              {isBusy ? 'Saving...' : st.has_book ? 'Issue Another' : 'Issue Book'}
+                              {isBusy ? 'Saving...' : st.has_book ? 'Issue Another' : 'Mark Book Taken'}
                             </button>
 
                             {st.has_book && (
@@ -568,9 +700,9 @@ export const LibrarianBooks = () => {
                                   borderColor: '#fca5a5',
                                   height: '30px'
                                 }}
-                                title="Click to view list of issued books and select which one to return"
+                                title="Click to view list of issued books and return with date and time"
                               >
-                                Return
+                                Return Book
                               </button>
                             )}
                           </div>
@@ -665,6 +797,20 @@ export const LibrarianBooks = () => {
 
             {/* Modal Body */}
             <div style={{ padding: '20px' }}>
+              {/* Return Date & Time Input */}
+              <div style={{ marginBottom: '16px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  Mark Return Date & Time:
+                </label>
+                <input
+                  type="datetime-local"
+                  className="form-input"
+                  style={{ height: '36px', fontSize: '0.88rem', background: '#ffffff' }}
+                  value={modalReturnDateTime}
+                  onChange={(e) => setModalReturnDateTime(e.target.value)}
+                />
+              </div>
+
               <p style={{ margin: '0 0 14px 0', fontSize: '0.88rem', color: '#1e293b', fontWeight: 600 }}>
                 Please select the book you want to return from the currently issued books:
               </p>
@@ -732,7 +878,7 @@ export const LibrarianBooks = () => {
                             type="button"
                             className="btn btn-secondary btn-sm"
                             disabled={!!returningBookId}
-                            onClick={() => handleConfirmReturn(returnModalStudent, bk.id)}
+                            onClick={() => handleConfirmReturn(returnModalStudent, bk.id, modalReturnDateTime)}
                             style={{
                               fontSize: '0.80rem',
                               padding: '6px 12px',
@@ -754,7 +900,7 @@ export const LibrarianBooks = () => {
                           type="button"
                           className="btn btn-secondary btn-sm"
                           disabled={!!returningBookId}
-                          onClick={() => handleConfirmReturn(returnModalStudent, 'all')}
+                          onClick={() => handleConfirmReturn(returnModalStudent, 'all', modalReturnDateTime)}
                           style={{
                             fontSize: '0.80rem',
                             color: '#b91c1c',

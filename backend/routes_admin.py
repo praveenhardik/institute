@@ -99,7 +99,10 @@ def get_user_profiles():
 
     if current_role == "class_teacher":
         sql += " AND u.role IN ('teacher', 'class_teacher', 'student', 'class_leader')"
-    elif current_role in ["student", "class_leader"]:
+    elif current_role == "student":
+        sql += " AND u.id = ?"
+        params.append(g.current_user["id"])
+    elif current_role == "class_leader":
         sql += " AND u.role IN ('student', 'class_leader')"
 
     if role_filter:
@@ -148,6 +151,8 @@ def get_user_profiles():
             u["can_edit"] = (g.current_user["role"] == "super_admin")
         elif g.current_user["role"] == "principal":
             u["can_edit"] = False
+        elif u.get("role") in ("student", "class_leader"):
+            u["can_edit"] = (g.current_user["role"] == "super_admin")
         else:
             u["can_edit"] = (
                 g.current_user["role"] in ("dean", "super_admin", "admin")
@@ -212,6 +217,8 @@ def get_single_profile(user_id: int):
         can_edit = (g.current_user["role"] == "super_admin")
     elif g.current_user["role"] == "principal":
         can_edit = False
+    elif user.get("role") in ("student", "class_leader"):
+        can_edit = (g.current_user["role"] == "super_admin")
     else:
         can_edit = (
             user.get("created_by_id") == g.current_user["id"]
@@ -734,6 +741,8 @@ def update_user_account(user_id: int):
         return jsonify({"error": "User not found"}), 404
     if target["role"] == "principal" and editor["role"] != "super_admin":
         return jsonify({"error": "Permission denied: Principal accounts can only be edited by Super Admin."}), 403
+    if target["role"] in ("student", "class_leader") and editor["role"] != "super_admin" and editor["id"] != target["id"]:
+        return jsonify({"error": "Permission denied: Students can only be edited by Super Admin."}), 403
     if editor["role"] == "principal":
         return jsonify({"error": "Permission denied: Principal accounts cannot edit user details."}), 403
 

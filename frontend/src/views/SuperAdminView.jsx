@@ -644,10 +644,22 @@ export const SuperAdminView = () => {
       <div className="portal-layout">
         <div className="portal-sidebar">
           <button
-            className={`tab-btn ${activeSubTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('dashboard')}
+            className={`tab-btn ${activeSubTab === 'dashboard' && activeTab !== 'student' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveSubTab('dashboard');
+              handleTabChange('all');
+            }}
           >
             Administration & Accounts
+          </button>
+          <button
+            className={`tab-btn ${activeSubTab === 'dashboard' && activeTab === 'student' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveSubTab('dashboard');
+              handleTabChange('student');
+            }}
+          >
+            👨‍🎓 All Enrolled Students ({tabCounts.student})
           </button>
           <button
             className={`tab-btn ${activeSubTab === 'departments' ? 'active' : ''}`}

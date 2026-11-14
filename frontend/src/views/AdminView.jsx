@@ -948,7 +948,7 @@ export const AdminView = () => {
                     >
                       Inspect Profile
                     </button>
-                    {currentUser?.role !== 'principal' && selectedUser.role !== 'principal' && (
+                    {currentUser?.role !== 'principal' && selectedUser.role !== 'principal' && !['student', 'class_leader'].includes(selectedUser.role) && (
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -1119,7 +1119,7 @@ export const AdminView = () => {
                                   View Details
                                 </button>
 
-                                {currentUser?.role !== 'principal' && u.role !== 'principal' && (
+                                {currentUser?.role !== 'principal' && u.role !== 'principal' && !['student', 'class_leader'].includes(u.role) && (
                                   <button
                                     type="button"
                                     className="btn btn-secondary btn-sm"

@@ -1097,6 +1097,8 @@ def list_students():
 @college_bp.route("/students/<int:user_id>/profile", methods=["PUT"])
 @require_auth(allowed_roles=STAFF_ROLES)
 def update_student_profile(user_id: int):
+    if g.current_user["role"] != "super_admin" and g.current_user["id"] != user_id:
+        return jsonify({"error": "Permission denied: Students can only be edited by Super Admin."}), 403
     data = request.get_json() or {}
     target = query_one("SELECT id, name, role FROM users WHERE id = ?", (user_id,))
     if not target or target["role"] not in STUDENT_ROLES:

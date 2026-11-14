@@ -75,7 +75,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v7_no_year_for_non_students";
+const USERS_SCHEMA_VERSION = "v8_students_permissions_and_library_returns";
 
 function getStoredUsers() {
   try {
@@ -134,6 +134,46 @@ function getStoredNotifications() {
 function saveStoredNotifications(notifs) {
   try {
     localStorage.setItem("portal_notifications", JSON.stringify(notifs));
+  } catch {}
+}
+
+function getStoredLibraryBooks() {
+  try {
+    const raw = localStorage.getItem("portal_library_books");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [
+    { id: 1, student_id: 8, book_name: "Introduction to Algorithms (CLRS 4th Edition)", validity_date: "2027-05-31", status: "issued", issued_at: "2026-08-01 10:00:00", returned_at: null },
+    { id: 2, student_id: 9, book_name: "Operating System Concepts", validity_date: "2027-06-30", status: "issued", issued_at: "2026-08-01 11:00:00", returned_at: null }
+  ];
+}
+
+function saveStoredLibraryBooks(books) {
+  try {
+    localStorage.setItem("portal_library_books", JSON.stringify(books));
+  } catch {}
+}
+
+function getStoredFees() {
+  try {
+    const raw = localStorage.getItem("portal_fees_records");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [
+    { student_id: 8, fee_amount: 50000, paid_amount: 50000, status: "paid", paid_at: "2026-08-01 10:00:00" },
+    { student_id: 9, fee_amount: 50000, paid_amount: 0, status: "unpaid", paid_at: null }
+  ];
+}
+
+function saveStoredFees(fees) {
+  try {
+    localStorage.setItem("portal_fees_records", JSON.stringify(fees));
   } catch {}
 }
 
@@ -543,31 +583,39 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   // 18. /api/admin/profiles
   if (path === "/api/admin/profiles" || path.startsWith("/api/admin/profiles/")) {
+    const currentUser = API.getCurrentUser() || { id: 13, name: "Super Admin", role: "super_admin" };
     const singleMatch = path.match(/^\/api\/admin\/profiles\/(\d+)/);
     if (singleMatch) {
       const uId = parseInt(singleMatch[1], 10);
       const user = getStoredUsers().find(u => Number(u.id) === Number(uId)) || DEFAULT_PORTAL_USERS[0];
       const isStudent = ["student", "class_leader"].includes(user.role);
+      const canEdit = currentUser.role === "super_admin" || (!isStudent && currentUser.role !== "principal");
       return {
         user: {
           ...user,
           academic_year: isStudent ? (user.academic_year || 1) : null,
           previous_year: isStudent ? user.previous_year : null,
-          can_edit: true,
+          can_edit: canEdit,
           can_delete: user.role !== "super_admin",
           department_name: user.department_name || (user.department_id ? "Computer Science Engineering" : null)
         },
         details: {},
-        can_edit: true
+        can_edit: canEdit
       };
     }
-    const users = getStoredUsers().map(u => {
+    let allUsers = getStoredUsers();
+    // Students can NEVER view other students:
+    if (currentUser.role === "student") {
+      allUsers = allUsers.filter(u => Number(u.id) === Number(currentUser.id));
+    }
+    const users = allUsers.map(u => {
       const isStudent = ["student", "class_leader"].includes(u.role);
+      const canEdit = currentUser.role === "super_admin" || (!isStudent && currentUser.role !== "principal");
       return {
         ...u,
         academic_year: isStudent ? (u.academic_year || 1) : null,
         previous_year: isStudent ? u.previous_year : null,
-        can_edit: true,
+        can_edit: canEdit,
         can_delete: u.role !== "super_admin",
         department_name: u.department_name || (getDepartmentNameById(u.department_id)),
         department: u.department_name || (getDepartmentNameById(u.department_id) || "-")
@@ -715,23 +763,195 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return { questions: sampleQuestions };
   }
 
-  // 27. /api/fees/student-fees || /api/fees/stats
-  if (path.startsWith("/api/fees/")) {
-    return {
-      fees: [
-        { id: 1, student_id: 8, student_name: "Student", roll_number: "CSE2026001", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" },
-        { id: 2, student_id: 9, student_name: "Class Leader", roll_number: "CSE2026002", fee_amount: 50000, paid_amount: 50000, status: "paid", academic_year: "2026-2027", remarks: "Tuition Fee Paid in Full" }
-      ],
-      stats: { total_expected: 100000, total_collected: 100000, pending_balance: 0 }
-    };
+  // 27. /api/fees
+  if (path.startsWith("/api/fees")) {
+    const feeRecords = getStoredFees();
+    const students = getStoredUsers().filter(u => ["student", "class_leader"].includes(u.role));
+    
+    // Toggle status: /api/fees/students/:id/toggle-status
+    const toggleMatch = path.match(/\/api\/fees\/students\/(\d+)\/toggle-status/);
+    if (toggleMatch && method === "POST") {
+      const sId = Number(toggleMatch[1]);
+      let rec = feeRecords.find(f => Number(f.student_id) === sId);
+      if (!rec) {
+        rec = { student_id: sId, fee_amount: 50000, paid_amount: 0, status: "unpaid", paid_at: null };
+        feeRecords.push(rec);
+      }
+      const newStatus = body.status ? body.status.toLowerCase() : (rec.status === "paid" ? "unpaid" : "paid");
+      rec.status = newStatus;
+      rec.paid_amount = newStatus === "paid" ? rec.fee_amount : 0;
+      rec.paid_at = newStatus === "paid" ? new Date().toISOString() : null;
+      saveStoredFees(feeRecords);
+      return {
+        message: `Fee status updated to ${newStatus.toUpperCase()}`,
+        status: newStatus,
+        fee_amount: rec.fee_amount,
+        paid_amount: rec.paid_amount,
+        pending_amount: rec.fee_amount - rec.paid_amount
+      };
+    }
+
+    // Partial payment: /api/fees/students/:id/partial-payment
+    const partialMatch = path.match(/\/api\/fees\/students\/(\d+)\/partial-payment/);
+    if (partialMatch && method === "POST") {
+      const sId = Number(partialMatch[1]);
+      let rec = feeRecords.find(f => Number(f.student_id) === sId);
+      if (!rec) {
+        rec = { student_id: sId, fee_amount: 50000, paid_amount: 0, status: "unpaid", paid_at: null };
+        feeRecords.push(rec);
+      }
+      const numVal = Math.max(0, Number(body.partial_amount || 0));
+      rec.paid_amount = numVal;
+      if (numVal >= rec.fee_amount) {
+        rec.status = "paid";
+      } else if (numVal === 0) {
+        rec.status = "unpaid";
+      } else {
+        rec.status = "partial";
+      }
+      rec.paid_at = numVal > 0 ? new Date().toISOString() : null;
+      saveStoredFees(feeRecords);
+      return {
+        message: "Partial payment recorded successfully!",
+        status: rec.status,
+        fee_amount: rec.fee_amount,
+        paid_amount: rec.paid_amount,
+        pending_amount: Math.max(0, rec.fee_amount - rec.paid_amount),
+        paid_at: rec.paid_at
+      };
+    }
+
+    // Summary: /api/fees/summary
+    if (path === "/api/fees/summary") {
+      let overall = 0, collected = 0, pending = 0, paidStus = 0, unpaidStus = 0, partialStus = 0;
+      students.forEach(st => {
+        const rec = feeRecords.find(f => Number(f.student_id) === Number(st.id)) || { fee_amount: 50000, paid_amount: 0, status: "unpaid" };
+        const fee = rec.fee_amount || 50000;
+        const paid = rec.paid_amount || 0;
+        overall += fee;
+        collected += paid;
+        pending += Math.max(0, fee - paid);
+        if (rec.status === "paid") paidStus++;
+        else if (rec.status === "partial") partialStus++;
+        else unpaidStus++;
+      });
+      return {
+        overall_fees: overall,
+        collected_fees: collected,
+        pending_fees: pending,
+        total_students: students.length,
+        paid_students: paidStus,
+        unpaid_students: unpaidStus,
+        partial_students: partialStus,
+        collection_rate: overall > 0 ? Math.round((collected / overall) * 100) : 0
+      };
+    }
+
+    // Students list: /api/fees/students
+    const studentList = students.map(st => {
+      const rec = feeRecords.find(f => Number(f.student_id) === Number(st.id)) || { fee_amount: 50000, paid_amount: 0, status: "unpaid" };
+      const fee = rec.fee_amount || 50000;
+      const paid = rec.paid_amount || 0;
+      return {
+        student_id: st.id,
+        student_name: st.name,
+        username: st.username,
+        email: st.email,
+        roll_number: st.roll_number || `REG-${st.id}`,
+        department_id: st.department_id,
+        department_name: st.department_name || "Computer Science Engineering",
+        fee_amount: fee,
+        paid_amount: paid,
+        pending_amount: Math.max(0, fee - paid),
+        status: rec.status || "unpaid",
+        paid_at: rec.paid_at
+      };
+    });
+    return { students: studentList };
   }
 
-  // 28. /api/library/student-books
-  if (path.startsWith("/api/library/")) {
+  // 28. /api/library
+  if (path.startsWith("/api/library")) {
+    const libraryBooks = getStoredLibraryBooks();
+    const students = getStoredUsers().filter(u => ["student", "class_leader"].includes(u.role));
+
+    // Return book: /api/library/return/:studentId
+    const returnMatch = path.match(/\/api\/library\/return\/(\d+)/);
+    if (returnMatch && method === "POST") {
+      const sId = Number(returnMatch[1]);
+      const returnTime = body.returned_at || new Date().toISOString();
+      const targetBookId = body.book_id ? Number(body.book_id) : null;
+      let returnedCount = 0;
+      libraryBooks.forEach(b => {
+        if (Number(b.student_id) === sId && b.status === "issued") {
+          if (!targetBookId || Number(b.id) === targetBookId) {
+            b.status = "returned";
+            b.returned_at = returnTime;
+            returnedCount++;
+          }
+        }
+      });
+      saveStoredLibraryBooks(libraryBooks);
+      return { message: "Book returned successfully.", has_book: libraryBooks.some(b => Number(b.student_id) === sId && b.status === "issued") };
+    }
+
+    // Issue book: /api/library/issue
+    if (path === "/api/library/issue" && method === "POST") {
+      const sId = Number(body.student_id);
+      const newBook = {
+        id: libraryBooks.length ? Math.max(...libraryBooks.map(b => b.id || 0)) + 1 : 1,
+        student_id: sId,
+        book_name: body.book_name || "Reference Book",
+        validity_date: body.validity_date || new Date().toISOString().split("T")[0],
+        status: "issued",
+        issued_at: new Date().toISOString(),
+        returned_at: null
+      };
+      libraryBooks.unshift(newBook);
+      saveStoredLibraryBooks(libraryBooks);
+      return { message: `Book "${newBook.book_name}" issued successfully!` };
+    }
+
+    // My book: /api/library/my-book
+    if (path === "/api/library/my-book") {
+      const curUser = API.getCurrentUser();
+      const myActive = curUser ? libraryBooks.filter(b => Number(b.student_id) === Number(curUser.id) && b.status === "issued") : [];
+      return { books: myActive, has_book: myActive.length > 0 };
+    }
+
+    // Books list: /api/library/books
+    let issuedCount = 0;
+    const studentList = students.map(st => {
+      const stuBooks = libraryBooks.filter(b => Number(b.student_id) === Number(st.id));
+      const activeBooks = stuBooks.filter(b => b.status === "issued");
+      const previousBooks = stuBooks.filter(b => b.status === "returned");
+      const hasBook = activeBooks.length > 0;
+      if (hasBook) issuedCount++;
+      const latest = activeBooks[0] || null;
+      return {
+        student_id: st.id,
+        student_name: st.name,
+        email: st.email,
+        username: st.username,
+        roll_number: st.roll_number || `REG-${st.id}`,
+        department_id: st.department_id,
+        department_name: st.department_name || "Computer Science Engineering",
+        has_book: hasBook,
+        book_record_id: latest ? latest.id : null,
+        book_name: latest ? latest.book_name : null,
+        validity_date: latest ? latest.validity_date : null,
+        issued_at: latest ? latest.issued_at : null,
+        is_overdue: false,
+        active_books: activeBooks,
+        previous_books: previousBooks
+      };
+    });
+
     return {
-      books: [
-        { id: 1, student_id: 8, student_name: "Student", roll_number: "CSE2026001", book_name: "Introduction to Algorithms (CLRS 4th Edition)", validity_date: "2027-05-31", status: "issued" }
-      ]
+      students: studentList,
+      total_students: studentList.length,
+      issued_count: issuedCount,
+      no_books_count: studentList.length - issuedCount
     };
   }
 
@@ -824,6 +1044,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       let updatedUser;
       if (uIdx !== -1) {
         const existing = users[uIdx];
+        if (["student", "class_leader"].includes(existing.role) && currentUser.role !== "super_admin" && Number(currentUser.id) !== Number(targetUserId)) {
+          return { error: "Permission denied: Students can only be edited by Super Admin." };
+        }
         const newName = body.name ? body.name.trim() : existing.name;
         const newUsername = body.username ? body.username.trim() : (body.name ? body.name.trim() : existing.username);
         const newEmail = (body.email_or_phone || body.email || existing.email || "").trim();
@@ -854,7 +1077,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
           last_edited_at: nowStr,
           edited_by_name: currentUser.name,
           edited_by_role: currentUser.role,
-          can_edit: true,
+          can_edit: (currentUser.role === "super_admin") || (!["student", "class_leader"].includes(newRole) && currentUser.role !== "principal"),
           can_delete: newRole !== "super_admin"
         };
         if (body.password) {
@@ -873,7 +1096,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
           department_name: chosenDeptName,
           department_code: chosenDeptCode,
           department: chosenDeptName || "-",
-          can_edit: true,
+          can_edit: (currentUser.role === "super_admin") || (!["student", "class_leader"].includes(newRole) && currentUser.role !== "principal"),
           can_delete: true
         };
         users.push(updatedUser);
@@ -1705,10 +1928,13 @@ export const API = {
     });
   },
 
-  async returnLibraryBook(studentId, bookId = null) {
+  async returnLibraryBook(studentId, bookId = null, returnedAt = null) {
+    const payload = {};
+    if (bookId && bookId !== "all") payload.book_id = bookId;
+    if (returnedAt) payload.returned_at = returnedAt;
     return this.request(`/api/library/return/${studentId}`, {
       method: "POST",
-      body: JSON.stringify(bookId ? { book_id: bookId } : {})
+      body: JSON.stringify(payload)
     });
   },
 

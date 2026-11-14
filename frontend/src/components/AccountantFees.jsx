@@ -547,7 +547,8 @@ export const AccountantFees = () => {
               <tbody>
                 {paginatedStudents.length ? (
                   paginatedStudents.map(st => {
-                    const isPaid = st.status === 'paid';
+                    const isFullyPaid = st.status === 'paid';
+                    const isFullyUnpaid = st.status === 'unpaid';
                     const isPartial = st.status === 'partial';
                     const isToggling = togglingStudentId === st.student_id;
                     const isSavingPartial = savingPartialId === st.student_id;
@@ -594,22 +595,22 @@ export const AccountantFees = () => {
                               fontSize: '0.8rem',
                               padding: '4px 10px',
                               fontWeight: 700,
-                              background: isPaid ? '#dcfce7' : isPartial ? '#fef3c7' : '#fee2e2',
-                              color: isPaid ? '#15803d' : isPartial ? '#b45309' : '#b91c1c',
-                              borderColor: isPaid ? '#86efac' : isPartial ? '#fcd34d' : '#fca5a5'
+                              background: isFullyPaid ? '#dcfce7' : isPartial ? '#fef3c7' : '#fee2e2',
+                              color: isFullyPaid ? '#15803d' : isPartial ? '#b45309' : '#b91c1c',
+                              borderColor: isFullyPaid ? '#86efac' : isPartial ? '#fcd34d' : '#fca5a5'
                             }}
                           >
-                            {isPaid ? 'Paid' : isPartial ? 'Partial Paid' : 'Not Paid'}
+                            {isFullyPaid ? 'Paid' : isPartial ? 'Partial Paid' : 'Not Paid'}
                           </span>
                           {isPartial && (
-                            <div style={{ fontSize: '0.74rem', color: '#92400e', marginTop: '2px', fontWeight: 600 }}>
-                              (₹{(st.paid_amount || 0).toLocaleString('en-IN')} / ₹{st.fee_amount.toLocaleString('en-IN')})
+                            <div style={{ fontSize: '0.74rem', color: '#92400e', marginTop: '2px', fontWeight: 700 }}>
+                              Remaining: ₹{((st.pending_amount !== undefined && st.pending_amount !== null) ? st.pending_amount : (st.fee_amount - (st.paid_amount || 0))).toLocaleString('en-IN')}
                             </div>
                           )}
                         </td>
                         <td>
                           <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                            {(isPaid || isPartial) && st.paid_at ? new Date(st.paid_at).toLocaleDateString() : '—'}
+                            {(isFullyPaid || isPartial) && st.paid_at ? new Date(st.paid_at).toLocaleDateString() : '—'}
                           </span>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
@@ -620,18 +621,18 @@ export const AccountantFees = () => {
                               type="button"
                               disabled={isToggling}
                               onClick={() => handleSetFeeStatus(st, 'paid')}
-                              title={isPaid ? 'Currently marked as Paid' : 'Click to mark fee as Paid'}
+                              title={isFullyPaid ? 'Currently marked as Paid' : 'Click to mark fee as Paid'}
                               style={{
                                 padding: '6px 14px',
                                 fontSize: '0.82rem',
-                                fontWeight: isPaid ? 700 : 600,
+                                fontWeight: isFullyPaid ? 700 : 600,
                                 borderRadius: '6px',
                                 cursor: isToggling ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.2s ease',
-                                background: isPaid ? '#10b981' : 'rgba(16, 185, 129, 0.12)',
-                                color: isPaid ? '#ffffff' : '#34d399',
-                                border: isPaid ? '1px solid #059669' : '1px solid rgba(16, 185, 129, 0.45)',
-                                boxShadow: isPaid ? '0 0 10px rgba(16, 185, 129, 0.45)' : 'none'
+                                background: isFullyPaid ? '#10b981' : 'rgba(16, 185, 129, 0.12)',
+                                color: isFullyPaid ? '#ffffff' : '#34d399',
+                                border: isFullyPaid ? '1px solid #059669' : '1px solid rgba(16, 185, 129, 0.45)',
+                                boxShadow: isFullyPaid ? '0 0 10px rgba(16, 185, 129, 0.45)' : 'none'
                               }}
                             >
                               {isToggling && togglingTarget === 'paid' ? 'Updating...' : 'Paid'}
@@ -642,18 +643,18 @@ export const AccountantFees = () => {
                               type="button"
                               disabled={isToggling}
                               onClick={() => handleSetFeeStatus(st, 'unpaid')}
-                              title={!isPaid && !isPartial ? 'Currently marked as Not Paid' : 'Click to mark fee as Not Paid'}
+                              title={isFullyUnpaid ? 'Currently marked as Not Paid' : 'Click to mark fee as Not Paid'}
                               style={{
                                 padding: '6px 14px',
                                 fontSize: '0.82rem',
-                                fontWeight: !isPaid && !isPartial ? 700 : 600,
+                                fontWeight: isFullyUnpaid ? 700 : 600,
                                 borderRadius: '6px',
                                 cursor: isToggling ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.2s ease',
-                                background: !isPaid && !isPartial ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
-                                color: !isPaid && !isPartial ? '#ffffff' : '#f87171',
-                                border: !isPaid && !isPartial ? '1px solid #dc2626' : '1px solid rgba(239, 68, 68, 0.45)',
-                                boxShadow: !isPaid && !isPartial ? '0 0 10px rgba(239, 68, 68, 0.45)' : 'none'
+                                background: isFullyUnpaid ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
+                                color: isFullyUnpaid ? '#ffffff' : '#f87171',
+                                border: isFullyUnpaid ? '1px solid #dc2626' : '1px solid rgba(239, 68, 68, 0.45)',
+                                boxShadow: isFullyUnpaid ? '0 0 10px rgba(239, 68, 68, 0.45)' : 'none'
                               }}
                             >
                               {isToggling && togglingTarget === 'unpaid' ? 'Updating...' : 'Not Paid'}
@@ -761,9 +762,9 @@ export const AccountantFees = () => {
                             </div>
 
                             {/* Remaining balance indicator */}
-                            {isPartial && st.pending_amount > 0 && (
-                              <span style={{ fontSize: '0.74rem', color: '#b45309', fontWeight: 600 }}>
-                                Balance: ₹{st.pending_amount.toLocaleString('en-IN')}
+                            {(isPartial || (Number(partialVal) > 0 && Number(partialVal) < st.fee_amount)) && (
+                              <span style={{ fontSize: '0.76rem', color: '#b45309', fontWeight: 700, marginTop: '2px' }}>
+                                Remaining Balance: ₹{Math.max(0, st.fee_amount - (Number(partialVal) || st.paid_amount || 0)).toLocaleString('en-IN')}
                               </span>
                             )}
                           </div>

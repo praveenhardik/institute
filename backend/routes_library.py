@@ -1,5 +1,6 @@
 """Library book circulation routes for Librarian, Admin, and Super Admin."""
 import datetime
+from datetime import datetime, date
 from flask import Blueprint, g, jsonify, request
 from backend.db import execute_write, query_all, query_one
 from backend.auth import require_auth
@@ -7,7 +8,7 @@ from backend.auth import require_auth
 library_bp = Blueprint("library", __name__, url_prefix="/api/library")
 
 def get_today_date():
-    return datetime.date.today()
+    return date.today()
 
 @library_bp.route("/books", methods=["GET"])
 @require_auth(allowed_roles=["librarian", "admin", "super_admin"])
@@ -61,10 +62,10 @@ def get_library_students():
             id, 
             student_id, 
             book_name, 
-            TO_CHAR(validity_date, 'YYYY-MM-DD') AS validity_date, 
+            substr(validity_date, 1, 10) AS validity_date, 
             status, 
-            TO_CHAR(issued_at, 'YYYY-MM-DD HH24:MI') AS issued_at,
-            TO_CHAR(returned_at, 'YYYY-MM-DD HH24:MI') AS returned_at
+            substr(issued_at, 1, 16) AS issued_at,
+            substr(returned_at, 1, 16) AS returned_at
         FROM student_library_books
         ORDER BY id DESC
     """
@@ -111,7 +112,7 @@ def get_library_students():
                 ab_val = ab.get("validity_date")
                 if ab_val:
                     try:
-                        v_date = datetime.datetime.strptime(ab_val, "%Y-%m-%d").date()
+                        v_date = datetime.strptime(ab_val, "%Y-%m-%d").date()
                         if v_date < today:
                             ab["is_overdue"] = True
                             is_overdue = True
@@ -122,7 +123,7 @@ def get_library_students():
             no_books_count += 1
 
         # Check status filter
-        if status_filter == "issued" and not has_book:
+        if status_filter in ("issued", "return") and not has_book:
             continue
         if status_filter in ("nobooks", "no_books", "unissued") and has_book:
             continue
@@ -176,7 +177,7 @@ def issue_book():
 
     # Parse and validate validity date
     try:
-        val_date = datetime.datetime.strptime(validity_date_str, "%Y-%m-%d").date()
+        val_date = datetime.strptime(validity_date_str, "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return jsonify({"error": "Validity date must be a valid date in YYYY-MM-DD format"}), 400
 
@@ -232,11 +233,19 @@ def return_book(student_id: int):
             return jsonify({"error": "Selected book was not found or has already been returned."}), 400
 
         book_title = target_book["book_name"]
+        returned_time = (data.get("returned_at") or "").strip()
+        if not returned_time:
+            returned_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            returned_time = returned_time.replace("T", " ")
+            if len(returned_time) == 16:
+                returned_time += ":00"
+
         execute_write("""
             UPDATE student_library_books
-            SET status = 'returned', returned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            SET status = 'returned', returned_at = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND student_id = ? AND status = 'issued'
-        """, (bid, student_id))
+        """, (returned_time, bid, student_id))
     else:
         # Return all currently issued books for this student
         active_books = query_all("""
@@ -247,11 +256,19 @@ def return_book(student_id: int):
             return jsonify({"message": f"Student '{student['name']}' already has no books issued.", "has_book": False}), 200
 
         book_title = ", ".join(b["book_name"] for b in active_books)
+        returned_time = (data.get("returned_at") or "").strip()
+        if not returned_time:
+            returned_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            returned_time = returned_time.replace("T", " ")
+            if len(returned_time) == 16:
+                returned_time += ":00"
+
         execute_write("""
             UPDATE student_library_books
-            SET status = 'returned', returned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            SET status = 'returned', returned_at = ?, updated_at = CURRENT_TIMESTAMP
             WHERE student_id = ? AND status = 'issued'
-        """, (student_id,))
+        """, (returned_time, student_id))
 
     # Check remaining active issued books for this student
     rem_row = query_one("""
@@ -274,7 +291,7 @@ def get_my_book():
     """Return currently issued library book for the logged in student."""
     sid = g.current_user["id"]
     book = query_one("""
-        SELECT book_name, TO_CHAR(validity_date, 'YYYY-MM-DD') AS validity_date, issued_at
+        SELECT book_name, substr(validity_date, 1, 10) AS validity_date, issued_at
         FROM student_library_books
         WHERE student_id = ? AND status = 'issued'
         ORDER BY id DESC LIMIT 1

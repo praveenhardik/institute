@@ -109,6 +109,10 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (['student', 'class_leader'].includes(user?.role) && currentUser?.role !== 'super_admin' && currentUser?.id !== user?.id) {
+      showAlert('Permission denied: Students can only be edited by Super Admin.', 'danger');
+      return;
+    }
     if (!name.trim()) {
       showAlert('Full name is required', 'danger');
       return;
