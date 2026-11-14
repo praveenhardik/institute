@@ -36,23 +36,19 @@ export const parseTeacherDeptAndYear = (u) => {
   let year = null;
   const fields = [u.username || '', u.name || '', (u.email || '').split('@')[0]];
   for (const f of fields) {
-    const mEnd = f.trim().toLowerCase().match(/([1-4])\s*$/);
+    const mTeacher = f.toLowerCase().match(/(?:class\s*teacher|classteacher|teacher|tec|class)\s*([1-5])/);
+    if (mTeacher) {
+      year = Number(mTeacher[1]);
+      break;
+    }
+    const mEnd = f.trim().toLowerCase().match(/([1-5])\s*$/);
     if (mEnd) {
       year = Number(mEnd[1]);
       break;
     }
   }
   if (year === null) {
-    for (const f of fields) {
-      const mMid = f.toLowerCase().match(/(?:tec|class)\s*([1-4])/);
-      if (mMid) {
-        year = Number(mMid[1]);
-        break;
-      }
-    }
-  }
-  if (year === null) {
-    const mAny = combined.match(/\b([1-4])\b|([1-4])/);
+    const mAny = combined.match(/\b([1-5])\b|([1-5])/);
     if (mAny) year = Number(mAny[1] || mAny[2]);
   }
   
@@ -97,7 +93,7 @@ export const parseStudentDeptAndYear = (st) => {
   if (!year) {
     const fields = [st.username || '', st.name || '', (st.email || '').split('@')[0]];
     for (const f of fields) {
-      const mEnd = f.trim().toLowerCase().match(/([1-4])\s*$/);
+      const mEnd = f.trim().toLowerCase().match(/([1-5])\s*$/);
       if (mEnd) {
         year = Number(mEnd[1]);
         break;
@@ -105,7 +101,7 @@ export const parseStudentDeptAndYear = (st) => {
     }
     if (year === null) {
       for (const f of fields) {
-        const mMid = f.toLowerCase().match(/(?:stu|leader|tec|class)\s*([1-4])/);
+        const mMid = f.toLowerCase().match(/(?:stu|leader|tec|class)\s*([1-5])/);
         if (mMid) {
           year = Number(mMid[1]);
           break;
@@ -113,7 +109,7 @@ export const parseStudentDeptAndYear = (st) => {
       }
     }
     if (year === null) {
-      const mAny = combined.match(/\b([1-4])\b|([1-4])/);
+      const mAny = combined.match(/\b([1-5])\b|([1-5])/);
       if (mAny) year = Number(mAny[1] || mAny[2]);
     }
   }

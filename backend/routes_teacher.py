@@ -59,24 +59,23 @@ def extract_dept_and_year(user):
         except (ValueError, TypeError):
             year = None
     if year is None:
+        # Check explicit class teacher / teacher / student prefix with year 1-5
+        for f in [str(user.get("username") or ""), str(user.get("name") or ""), str(user.get("email") or "").split("@")[0]]:
+            m_teacher = re.search(r"(?:class\s*teacher|classteacher|teacher|tec|class|stu|leader)\s*([1-5])", f.lower())
+            if m_teacher:
+                year = int(m_teacher.group(1))
+                break
+    if year is None:
         # Check trailing digit in username, name, or email
         for f in [str(user.get("username") or ""), str(user.get("name") or ""), str(user.get("email") or "").split("@")[0]]:
             f_clean = f.strip().lower()
-            m_end = re.search(r"([1-4])\s*$", f_clean)
+            m_end = re.search(r"([1-5])\s*$", f_clean)
             if m_end:
                 year = int(m_end.group(1))
                 break
             
     if year is None:
-        # Check stu([1-4]) or leader...([1-4]) or tec([1-4])
-        for f in [str(user.get("username") or ""), str(user.get("email") or "").split("@")[0]]:
-            m_pfx = re.search(r"(?:stu|leader|tec|class)\s*([1-4])", f.lower())
-            if m_pfx:
-                year = int(m_pfx.group(1))
-                break
-                
-    if year is None:
-        m_any = re.search(r"\b([1-4])\b|([1-4])", combined)
+        m_any = re.search(r"\b([1-5])\b|([1-5])", combined)
         if m_any:
             year = int(m_any.group(1) or m_any.group(2))
             
