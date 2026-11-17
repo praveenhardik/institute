@@ -1204,6 +1204,31 @@ export const SuperAdminView = () => {
                                 </div>
                               </div>
 
+                              {/* Explicit Correct Answer Callout */}
+                              <div
+                                style={{
+                                  background: '#dcfce7',
+                                  border: '1px solid #86efac',
+                                  borderRadius: 'var(--radius-sm)',
+                                  padding: '10px 14px',
+                                  marginBottom: '14px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '8px'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#15803d', fontWeight: 800 }}>
+                                    ✓ Correct Answer:
+                                  </span>
+                                  <strong style={{ fontSize: '0.92rem', color: '#166534', fontWeight: 800 }}>
+                                    Option {q.correct_option}: {q.correct_answer_text || (q.correct_option === 'A' ? q.option_a : q.correct_option === 'B' ? q.option_b : q.correct_option === 'C' ? q.option_c : q.correct_option === 'D' ? q.option_d : q.correct_option)}
+                                  </strong>
+                                </div>
+                              </div>
+
                               {q.explanation && (
                                 <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '6px', background: '#eef2ff', border: '1px solid rgba(99, 102, 241, 0.25)', fontSize: '0.85rem', color: '#3730a3' }}>
                                   <strong>Explanation:</strong> {q.explanation}

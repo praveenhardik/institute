@@ -20,3 +20,6 @@ build/
 *.db-shm
 institute/
 .vercel
+
+# Local Docker Desktop database copy
+docker-data/

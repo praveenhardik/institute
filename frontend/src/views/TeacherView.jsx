@@ -3988,6 +3988,36 @@ export const TeacherView = () => {
                             </div>
                           </div>
 
+                          {/* Explicit Correct Answer Callout */}
+                          <div
+                            style={{
+                              background: '#dcfce7',
+                              border: '1px solid #86efac',
+                              borderRadius: 'var(--radius-sm)',
+                              padding: '10px 14px',
+                              marginBottom: '14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '8px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#15803d', fontWeight: 800 }}>
+                                ✓ Correct Answer:
+                              </span>
+                              <strong style={{ fontSize: '0.92rem', color: '#166534', fontWeight: 800 }}>
+                                Option {q.correct_option}: {q.correct_answer_text || (q.correct_option === 'A' ? q.option_a : q.correct_option === 'B' ? q.option_b : q.correct_option === 'C' ? q.option_c : q.correct_option === 'D' ? q.option_d : q.correct_option)}
+                              </strong>
+                            </div>
+                            {q.explanation && (
+                              <div style={{ fontSize: '0.82rem', color: '#15803d' }}>
+                                <em>💡 {q.explanation}</em>
+                              </div>
+                            )}
+                          </div>
+
                           {q.explanation && (
                             <div style={{ marginBottom: '14px', padding: '10px 14px', borderRadius: '6px', background: '#eef2ff', border: '1px solid #c7d2fe', fontSize: '0.85rem', color: '#1e293b' }}>
                               <strong>Explanation:</strong> {q.explanation}
@@ -4403,50 +4433,162 @@ export const TeacherView = () => {
                           </span>
                         </div>
 
-                        {hasQuestions && (
-                          <button
-                            type="button"
-                            className={`btn btn-sm ${openTeacherTasks[t.task_number] ? 'btn-secondary' : 'btn-primary'}`}
-                            onClick={() => setOpenTeacherTasks(prev => ({ ...prev, [t.task_number]: !prev[t.task_number] }))}
-                            style={{ padding: '4px 10px', fontSize: '0.78rem', fontWeight: 600 }}
-                          >
-                            {openTeacherTasks[t.task_number] ? 'Hide Questions ▲' : `View Questions (${qCount}) ▼`}
-                          </button>
-                        )}
+                        {hasQuestions && (() => {
+                          const isTaskOpen = openTeacherTasks[t.task_number] !== false;
+                          return (
+                            <button
+                              type="button"
+                              className={`btn btn-sm ${isTaskOpen ? 'btn-secondary' : 'btn-primary'}`}
+                              onClick={() => setOpenTeacherTasks(prev => ({ ...prev, [t.task_number]: !isTaskOpen }))}
+                              style={{ padding: '4px 10px', fontSize: '0.78rem', fontWeight: 600 }}
+                            >
+                              {isTaskOpen ? 'Hide Questions ▲' : `View Questions (${qCount}) ▼`}
+                            </button>
+                          );
+                        })()}
                       </div>
 
-                      {/* Questions Available Inside That Task Name when Opened */}
+                      {/* Questions Available Inside That Task Name with Options & Correct Answers */}
                       {hasQuestions ? (
-                        openTeacherTasks[t.task_number] && (
-                          <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(99, 102, 241, 0.04)', borderRadius: '8px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
-                            <div style={{ fontSize: '0.78rem', color: '#7e22ce', fontWeight: 700, marginBottom: '8px' }}>
-                              Questions in {t.task_number}:
+                        (openTeacherTasks[t.task_number] !== false) && (
+                          <div style={{ marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#7e22ce', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span>Questions in {t.task_number} ({t.questions.length}):</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {t.questions.map((q, qIdx) => (
-                                <div
-                                  key={q.id}
-                                  style={{
-                                    fontSize: '0.82rem',
-                                    color: '#fff',
-                                    background: 'rgba(255, 255, 255, 0.03)',
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                  }}
-                                >
-                                  <div>
-                                    <strong style={{ color: '#7e22ce' }}>Q{qIdx + 1}:</strong> {q.question_text}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {t.questions.map((q, qIdx) => {
+                                const normCorrect = (q.correct_option || '').trim().toUpperCase();
+                                const getOptText = (optKey) => {
+                                  if (optKey === 'A') return q.option_a;
+                                  if (optKey === 'B') return q.option_b;
+                                  if (optKey === 'C') return q.option_c;
+                                  if (optKey === 'D') return q.option_d;
+                                  return '';
+                                };
+                                const correctText = q.correct_answer_text || getOptText(normCorrect) || q.correct_option || '';
+
+                                return (
+                                  <div
+                                    key={q.id || qIdx}
+                                    style={{
+                                      fontSize: '0.84rem',
+                                      color: 'var(--text-primary)',
+                                      background: '#ffffff',
+                                      padding: '12px 14px',
+                                      borderRadius: '8px',
+                                      border: '1px solid #cbd5e1',
+                                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '8px'
+                                    }}
+                                  >
+                                    {/* Question Title & Meta */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                                      <div style={{ color: '#0f172a', fontWeight: 700, lineHeight: 1.4, flex: 1, minWidth: '180px' }}>
+                                        <strong style={{ color: '#7e22ce', marginRight: '6px' }}>Q{qIdx + 1}:</strong>
+                                        <span>{q.question_text}</span>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                                        <span className="timer-badge" style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                                          ⏱️ {q.duration_seconds || 30}s
+                                        </span>
+                                        {q.points && (
+                                          <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700 }}>
+                                            ⭐ {q.points} pt{q.points > 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteQuestion(q.id, q.question_text)}
+                                          title="Delete question"
+                                          style={{
+                                            background: 'rgba(239, 68, 68, 0.12)',
+                                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                                            color: '#ef4444',
+                                            borderRadius: '9999px',
+                                            padding: '2px 7px',
+                                            fontSize: '0.75rem',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          🗑️
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* 4 Options Preview */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px' }}>
+                                      {['A', 'B', 'C', 'D'].map(opt => {
+                                        const optText = getOptText(opt);
+                                        if (optText === undefined || optText === null) return null;
+                                        const isCorrect = normCorrect === opt || (optText && normCorrect === String(optText).trim().toUpperCase());
+                                        return (
+                                          <div
+                                            key={opt}
+                                            style={{
+                                              padding: '6px 10px',
+                                              borderRadius: '6px',
+                                              background: isCorrect ? '#dcfce7' : '#f8fafc',
+                                              border: isCorrect ? '1.5px solid #22c55e' : '1px solid #e2e8f0',
+                                              fontSize: '0.8rem',
+                                              color: isCorrect ? '#14532d' : '#1e293b',
+                                              fontWeight: isCorrect ? 700 : 500,
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'space-between',
+                                              gap: '6px'
+                                            }}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                                              <strong style={{ color: isCorrect ? '#15803d' : '#64748b', flexShrink: 0 }}>
+                                                {opt}:
+                                              </strong>
+                                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={optText}>
+                                                {optText}
+                                              </span>
+                                            </div>
+                                            {isCorrect && (
+                                              <span style={{ color: '#16a34a', fontWeight: 800, fontSize: '0.85rem', flexShrink: 0 }} title="Correct Option">
+                                                ✓
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Prominent Correct Answer Callout */}
+                                    <div
+                                      style={{
+                                        padding: '7px 12px',
+                                        borderRadius: '6px',
+                                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.14) 0%, rgba(16, 185, 129, 0.10) 100%)',
+                                        border: '1px solid rgba(34, 197, 94, 0.45)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        flexWrap: 'wrap'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#15803d', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                          <span>✓</span> Correct Answer:
+                                        </span>
+                                        <strong style={{ fontSize: '0.86rem', color: '#14532d', fontWeight: 800 }}>
+                                          Option {normCorrect || 'A'}{correctText ? `: ${correctText}` : ''}
+                                        </strong>
+                                      </div>
+                                      {q.explanation && (
+                                        <div style={{ fontSize: '0.78rem', color: '#166534', fontStyle: 'italic' }}>
+                                          💡 {q.explanation}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                                    ⏱️ {q.duration_seconds}s
-                                  </span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )
