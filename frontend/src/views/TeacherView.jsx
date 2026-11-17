@@ -151,7 +151,7 @@ export const TeacherView = () => {
   const [targetSelectedStudentIds, setTargetSelectedStudentIds] = useState([]);
   const [targetStudentSearch, setTargetStudentSearch] = useState('');
   const [taskNumber, setTaskNumber] = useState('Task 1');
-  const [availableTasks, setAvailableTasks] = useState(['Task 1']);
+  const [availableTasks, setAvailableTasks] = useState([]);
   const [showAddTaskInput, setShowAddTaskInput] = useState(false);
   const [newTaskNumberInput, setNewTaskNumberInput] = useState('');
   const [activeTeacherTask, setActiveTeacherTask] = useState('');
@@ -398,10 +398,7 @@ export const TeacherView = () => {
       const serverTasks = res.tasks || [];
       const details = res.task_details || [];
       setTaskDetailsList(details);
-      setAvailableTasks(prev => {
-        const merged = Array.from(new Set([...serverTasks, ...prev, 'Task 1'])).filter(Boolean);
-        return merged;
-      });
+      setAvailableTasks(serverTasks);
     } catch (e) {
       console.warn('Could not load teacher tasks:', e);
     } finally {
@@ -446,7 +443,7 @@ export const TeacherView = () => {
       setMyQuestions(qList);
       const qTasks = qList.map(q => q.task_number).filter(Boolean);
       if (qTasks.length > 0) {
-        setAvailableTasks(prev => Array.from(new Set([...prev, ...qTasks, 'Task 1'])));
+        setAvailableTasks(prev => Array.from(new Set([...prev, ...qTasks])).filter(Boolean));
       }
     } catch (e) {
       console.warn('Could not load teacher questions:', e);
@@ -970,18 +967,29 @@ export const TeacherView = () => {
     if (!taskNumber) return;
     const questionsInTask = groupedTeacherQuestions[taskNumber] || [];
     const count = questionsInTask.length;
-    if (!window.confirm(`Are you sure you want to completely delete "${taskNumber}"?\n\nThis will permanently delete all ${count} question(s) published under ${taskNumber} and all associated student submissions. This action cannot be undone.`)) {
+    const confirmMsg = count > 0
+      ? `Are you sure you want to permanently delete "${taskNumber}"?\n\nThis will permanently delete this task, all ${count} question(s) published under it, and all student submissions.\n\nThis action cannot be undone.`
+      : `Are you sure you want to delete "${taskNumber}"?\n\nThis will remove it completely from your department.`;
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
     try {
-      const res = await API.deleteTask(taskNumber);
-      showAlert(res.message || `Task "${taskNumber}" and all associated questions deleted successfully`, 'success');
+      // Optimistically remove immediately from local state
+      setAvailableTasks(prev => prev.filter(t => t !== taskNumber));
+      setTaskDetailsList(prev => prev.filter(t => (typeof t === 'string' ? t : t?.task_number) !== taskNumber));
+      setMyQuestions(prev => prev.filter(q => q.task_number !== taskNumber));
       if (activeTeacherTask === taskNumber) {
         setActiveTeacherTask('');
       }
-      loadMyQuestions();
+
+      const res = await API.deleteTask(taskNumber);
+      showAlert(res.message || `Task "${taskNumber}" deleted successfully from department`, 'success');
+      await Promise.all([loadTasks(), loadMyQuestions()]);
     } catch (err) {
       showAlert(err.message || `Failed to delete task "${taskNumber}"`, 'danger');
+      loadTasks();
+      loadMyQuestions();
     }
   };
 
@@ -1283,8 +1291,7 @@ export const TeacherView = () => {
     const names = Array.from(new Set([
       ...(availableTasks || []),
       ...Object.keys(groupedTeacherQuestions || {}),
-      ...(taskDetailsList || []).map(t => typeof t === 'string' ? t : t?.task_number),
-      'Task 1'
+      ...(taskDetailsList || []).map(t => typeof t === 'string' ? t : t?.task_number)
     ])).filter(Boolean);
 
     names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -4391,20 +4398,41 @@ export const TeacherView = () => {
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteTask(t.task_number)}
-                          title={`Delete ${t.task_number} completely`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTask(t.task_number);
+                          }}
+                          title={`Delete ${t.task_number} completely from department`}
+                          aria-label={`Delete ${t.task_number}`}
                           style={{
                             background: 'rgba(239, 68, 68, 0.14)',
-                            border: '1px solid rgba(239, 68, 68, 0.4)',
-                            color: '#f87171',
+                            border: '1px solid rgba(239, 68, 68, 0.45)',
+                            color: '#ef4444',
                             borderRadius: '8px',
-                            padding: '5px 8px',
-                            fontSize: '0.85rem',
+                            padding: '6px 10px',
+                            fontSize: '0.92rem',
                             cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            transition: 'all 0.18s ease',
                             lineHeight: 1
                           }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#ef4444';
+                            e.currentTarget.style.color = '#ffffff';
+                            e.currentTarget.style.borderColor = '#dc2626';
+                            e.currentTarget.style.transform = 'scale(1.08)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.14)';
+                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
                         >
-                          🗑️
+                          <span style={{ fontSize: '1rem' }}>🗑️</span>
                         </button>
                       </div>
 

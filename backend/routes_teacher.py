@@ -514,45 +514,161 @@ def create_question():
         "task_number": task_number
     }), 201
 
+def get_caller_dept_id(caller):
+    """Resolve caller's department id and code."""
+    if not caller:
+        return None, None
+    uid = caller.get("id")
+    dept = query_one("""
+        SELECT COALESCE(
+            (SELECT sd.department_id FROM staff_departments sd WHERE sd.user_id = u.id ORDER BY sd.id LIMIT 1),
+            sp.department_id
+        ) as id,
+        COALESCE(
+            (SELECT d2.code FROM staff_departments sd JOIN departments d2 ON d2.id = sd.department_id WHERE sd.user_id = u.id ORDER BY sd.id LIMIT 1),
+            d.code
+        ) as code
+        FROM users u
+        LEFT JOIN staff_profiles sp ON sp.user_id = u.id
+        LEFT JOIN departments d ON d.id = sp.department_id
+        WHERE u.id = ?
+    """, (uid,))
+    if dept and dept.get("id"):
+        return dept["id"], dept.get("code")
+    c_dept, _ = extract_dept_and_year(caller)
+    if c_dept:
+        d_row = query_one("SELECT id, code FROM departments WHERE upper(code) = ?", (c_dept.upper(),))
+        if d_row:
+            return d_row["id"], d_row["code"]
+    return None, None
+
+
 @teacher_bp.route("/tasks", methods=["GET"])
 @require_auth(allowed_roles=["teacher", "class_teacher", "admin", "super_admin"])
 def get_teacher_tasks():
-    """List all available academic tasks with question counts and metadata."""
+    """List all available academic tasks with question counts and metadata for caller's department."""
+    caller = g.current_user
+    dept_id, dept_code = get_caller_dept_id(caller)
+
     try:
         execute_write("""
             CREATE TABLE IF NOT EXISTS academic_tasks (
                 id SERIAL PRIMARY KEY,
-                task_number TEXT UNIQUE NOT NULL,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
                 created_by_id INTEGER,
                 description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        try:
+            execute_write("ALTER TABLE academic_tasks ADD COLUMN department_id INTEGER")
+        except Exception:
+            pass
+        execute_write("""
+            CREATE TABLE IF NOT EXISTS deleted_academic_tasks (
+                id SERIAL PRIMARY KEY,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
+                deleted_by_id INTEGER,
+                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     except Exception:
         pass
 
-    db_tasks = query_all("SELECT task_number, description, created_at FROM academic_tasks ORDER BY task_number ASC")
-    q_tasks = query_all("SELECT DISTINCT COALESCE(task_number, 'Task 1') as task_number FROM questions ORDER BY task_number ASC")
+    # Retrieve all task numbers deleted for this department / user
+    if caller["role"] in ["admin", "super_admin"]:
+        del_rows = query_all("SELECT DISTINCT task_number FROM deleted_academic_tasks WHERE department_id IS NULL")
+    elif dept_id:
+        del_rows = query_all("""
+            SELECT DISTINCT task_number FROM deleted_academic_tasks
+            WHERE department_id = ? OR department_id IS NULL OR deleted_by_id = ?
+        """, (dept_id, caller["id"]))
+    else:
+        del_rows = query_all("SELECT DISTINCT task_number FROM deleted_academic_tasks WHERE deleted_by_id = ?", (caller["id"],))
+    deleted_tasks_set = {r["task_number"] for r in (del_rows or []) if r.get("task_number")}
 
-    all_names = set(["Task 1"])
-    for r in db_tasks:
-        if r.get("task_number"):
-            all_names.add(r["task_number"])
-    for r in q_tasks:
-        if r.get("task_number"):
-            all_names.add(r["task_number"])
+    # Get registered academic tasks
+    if caller["role"] in ["admin", "super_admin"]:
+        db_tasks = query_all("SELECT task_number, description, created_at FROM academic_tasks ORDER BY task_number ASC")
+    elif dept_id:
+        db_tasks = query_all("""
+            SELECT task_number, description, created_at FROM academic_tasks
+            WHERE (department_id = ? OR department_id IS NULL OR created_by_id = ?)
+            ORDER BY task_number ASC
+        """, (dept_id, caller["id"]))
+    else:
+        db_tasks = query_all("SELECT task_number, description, created_at FROM academic_tasks WHERE created_by_id = ? ORDER BY task_number ASC", (caller["id"],))
 
-    sorted_tasks = sorted(list(all_names))
+    # Get tasks from existing questions in caller's department
+    if caller["role"] in ["admin", "super_admin"]:
+        q_tasks = query_all("SELECT DISTINCT task_number FROM questions WHERE task_number IS NOT NULL")
+    elif dept_id:
+        q_tasks = query_all("""
+            SELECT DISTINCT q.task_number 
+            FROM questions q
+            WHERE q.task_number IS NOT NULL
+              AND (q.teacher_id = ? 
+                   OR q.target_department_id = ?
+                   OR q.teacher_id IN (SELECT user_id FROM staff_departments WHERE department_id = ?)
+                   OR q.teacher_id IN (SELECT user_id FROM staff_profiles WHERE department_id = ?))
+        """, (caller["id"], dept_id, dept_id, dept_id))
+    else:
+        q_tasks = query_all("SELECT DISTINCT task_number FROM questions WHERE task_number IS NOT NULL AND teacher_id = ?", (caller["id"],))
 
-    task_stats = query_all("""
-        SELECT COALESCE(q.task_number, 'Task 1') as task_number,
-               COUNT(DISTINCT q.id) as question_count,
-               COUNT(s.id) as total_submissions
-        FROM questions q
-        LEFT JOIN submissions s ON s.question_id = q.id
-        GROUP BY COALESCE(q.task_number, 'Task 1')
-    """)
-    stats_map = {r["task_number"]: r for r in task_stats}
+    all_names = set()
+    for r in (db_tasks or []):
+        t = r.get("task_number")
+        if t and t not in deleted_tasks_set:
+            all_names.add(t)
+    for r in (q_tasks or []):
+        t = r.get("task_number")
+        if t and t not in deleted_tasks_set:
+            all_names.add(t)
+
+    # If Task 1 was not deleted and no tasks exist, supply Task 1 as standard starting task
+    if "Task 1" not in deleted_tasks_set and not all_names:
+        all_names.add("Task 1")
+
+    # Natural sorting: Task 1, Task 2, Task 10
+    sorted_tasks = sorted(list(all_names), key=lambda x: [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', x)])
+
+    # Task submission and question stats
+    if caller["role"] in ["admin", "super_admin"]:
+        task_stats = query_all("""
+            SELECT COALESCE(q.task_number, 'Task 1') as task_number,
+                   COUNT(DISTINCT q.id) as question_count,
+                   COUNT(s.id) as total_submissions
+            FROM questions q
+            LEFT JOIN submissions s ON s.question_id = q.id
+            GROUP BY COALESCE(q.task_number, 'Task 1')
+        """)
+    elif dept_id:
+        task_stats = query_all("""
+            SELECT COALESCE(q.task_number, 'Task 1') as task_number,
+                   COUNT(DISTINCT q.id) as question_count,
+                   COUNT(s.id) as total_submissions
+            FROM questions q
+            LEFT JOIN submissions s ON s.question_id = q.id
+            WHERE (q.teacher_id = ? 
+                   OR q.target_department_id = ?
+                   OR q.teacher_id IN (SELECT user_id FROM staff_departments WHERE department_id = ?)
+                   OR q.teacher_id IN (SELECT user_id FROM staff_profiles WHERE department_id = ?))
+            GROUP BY COALESCE(q.task_number, 'Task 1')
+        """, (caller["id"], dept_id, dept_id, dept_id))
+    else:
+        task_stats = query_all("""
+            SELECT COALESCE(q.task_number, 'Task 1') as task_number,
+                   COUNT(DISTINCT q.id) as question_count,
+                   COUNT(s.id) as total_submissions
+            FROM questions q
+            LEFT JOIN submissions s ON s.question_id = q.id
+            WHERE q.teacher_id = ?
+            GROUP BY COALESCE(q.task_number, 'Task 1')
+        """, (caller["id"],))
+
+    stats_map = {r["task_number"]: r for r in (task_stats or [])}
 
     task_details = []
     for t_num in sorted_tasks:
@@ -580,24 +696,46 @@ def create_teacher_task():
     if not task_number:
         return jsonify({"error": "Task number/name is required (e.g. 'Task 2')"}), 400
 
-    user_id = g.current_user["id"]
+    user = g.current_user
+    dept_id, _ = get_caller_dept_id(user)
 
     try:
         execute_write("""
             CREATE TABLE IF NOT EXISTS academic_tasks (
                 id SERIAL PRIMARY KEY,
-                task_number TEXT UNIQUE NOT NULL,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
                 created_by_id INTEGER,
                 description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        try:
+            execute_write("ALTER TABLE academic_tasks ADD COLUMN department_id INTEGER")
+        except Exception:
+            pass
         execute_write("""
-            INSERT INTO academic_tasks (task_number, created_by_id, description)
-            VALUES (?, ?, ?)
-            ON CONFLICT (task_number) DO UPDATE SET description = EXCLUDED.description
-        """, (task_number, user_id, description))
-    except Exception:
+            CREATE TABLE IF NOT EXISTS deleted_academic_tasks (
+                id SERIAL PRIMARY KEY,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
+                deleted_by_id INTEGER,
+                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Un-delete if this task was previously marked as deleted
+        if dept_id:
+            execute_write("DELETE FROM deleted_academic_tasks WHERE task_number = ? AND (department_id = ? OR department_id IS NULL)", (task_number, dept_id))
+            execute_write("DELETE FROM academic_tasks WHERE task_number = ? AND (department_id = ? OR department_id IS NULL)", (task_number, dept_id))
+        else:
+            execute_write("DELETE FROM deleted_academic_tasks WHERE task_number = ?", (task_number,))
+            execute_write("DELETE FROM academic_tasks WHERE task_number = ?", (task_number,))
+
+        execute_write("""
+            INSERT INTO academic_tasks (task_number, department_id, created_by_id, description)
+            VALUES (?, ?, ?, ?)
+        """, (task_number, dept_id, user["id"], description))
+    except Exception as e:
         pass
 
     return jsonify({
@@ -692,68 +830,104 @@ def delete_question(question_id: int):
 @teacher_bp.route("/tasks/<path:task_number>", methods=["DELETE"])
 @require_auth(allowed_roles=["teacher", "class_teacher", "admin", "super_admin"])
 def delete_task(task_number: str):
-    """Permanently delete a task completely and all its questions and student submissions."""
+    """Permanently delete a task completely and all its questions and student submissions from department."""
     task_number = (task_number or "").strip()
     if not task_number:
         return jsonify({"error": "Task number is required"}), 400
 
     user = g.current_user
-    if user["role"] in ["admin", "super_admin"]:
-        q_rows = query_all("SELECT id FROM questions WHERE task_number = ?", (task_number,))
-    else:
-        q_rows = query_all("SELECT id FROM questions WHERE task_number = ? AND teacher_id = ?", (task_number, user["id"]))
+    dept_id, dept_code = get_caller_dept_id(user)
 
-    deleted_from_tasks = 0
     try:
-        deleted_from_tasks = execute_write("DELETE FROM academic_tasks WHERE task_number = ?", (task_number,))
+        execute_write("""
+            CREATE TABLE IF NOT EXISTS academic_tasks (
+                id SERIAL PRIMARY KEY,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
+                created_by_id INTEGER,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        try:
+            execute_write("ALTER TABLE academic_tasks ADD COLUMN department_id INTEGER")
+        except Exception:
+            pass
+        execute_write("""
+            CREATE TABLE IF NOT EXISTS deleted_academic_tasks (
+                id SERIAL PRIMARY KEY,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
+                deleted_by_id INTEGER,
+                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     except Exception:
         pass
 
-    if not q_rows and not deleted_from_tasks:
-        return jsonify({"error": f"No questions or tasks found for '{task_number}'"}), 404
+    # 1. Scope question deletion:
+    if user["role"] in ["admin", "super_admin"]:
+        q_rows = query_all("SELECT id FROM questions WHERE task_number = ?", (task_number,))
+    elif dept_id:
+        q_rows = query_all("""
+            SELECT q.id FROM questions q
+            WHERE q.task_number = ?
+              AND (q.teacher_id = ?
+                   OR q.target_department_id = ?
+                   OR q.target_department_id IS NULL
+                   OR q.teacher_id IN (SELECT user_id FROM staff_departments WHERE department_id = ?)
+                   OR q.teacher_id IN (SELECT user_id FROM staff_profiles WHERE department_id = ?))
+        """, (task_number, user["id"], dept_id, dept_id, dept_id))
+    else:
+        q_rows = query_all("SELECT id FROM questions WHERE task_number = ? AND teacher_id = ?", (task_number, user["id"]))
 
-    q_ids = [r["id"] for r in q_rows]
+    q_ids = [r["id"] for r in (q_rows or [])]
+
+    # 2. Delete submissions, notifications, and questions
     if q_ids:
         q_placeholders = ",".join("?" for _ in q_ids)
-        execute_write(f"DELETE FROM submissions WHERE question_id IN ({q_placeholders})", tuple(q_ids))
-        execute_write(f"DELETE FROM notifications WHERE type = 'question' AND reference_id IN ({q_placeholders})", tuple(q_ids))
-        execute_write(f"DELETE FROM questions WHERE id IN ({q_placeholders})", tuple(q_ids))
+        try:
+            execute_write(f"DELETE FROM submissions WHERE question_id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
+        try:
+            execute_write(f"DELETE FROM notifications WHERE type = 'question' AND reference_id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
+        try:
+            execute_write(f"DELETE FROM questions WHERE id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
+
+    # 3. Delete from academic_tasks
+    try:
+        if user["role"] in ["admin", "super_admin"]:
+            execute_write("DELETE FROM academic_tasks WHERE task_number = ?", (task_number,))
+        elif dept_id:
+            execute_write("""
+                DELETE FROM academic_tasks 
+                WHERE task_number = ? 
+                  AND (department_id = ? OR department_id IS NULL OR created_by_id = ?)
+            """, (task_number, dept_id, user["id"]))
+        else:
+            execute_write("DELETE FROM academic_tasks WHERE task_number = ? AND created_by_id = ?", (task_number, user["id"]))
+    except Exception:
+        pass
+
+    # 4. Insert into deleted_academic_tasks so caller's department never sees it again
+    try:
+        execute_write("""
+            INSERT INTO deleted_academic_tasks (task_number, department_id, deleted_by_id)
+            VALUES (?, ?, ?)
+        """, (task_number, dept_id, user["id"]))
+    except Exception:
+        pass
 
     return jsonify({
-        "message": f"Task '{task_number}' and all {len(q_ids)} associated question(s) permanently deleted successfully.",
+        "message": f"Task '{task_number}' permanently deleted successfully.",
         "deleted_count": len(q_ids),
         "task_number": task_number
     }), 200
-
-
-
-def get_caller_dept_id(caller):
-    """Resolve caller's department id and code."""
-    if not caller:
-        return None, None
-    uid = caller.get("id")
-    dept = query_one("""
-        SELECT COALESCE(
-            (SELECT sd.department_id FROM staff_departments sd WHERE sd.user_id = u.id ORDER BY sd.id LIMIT 1),
-            sp.department_id
-        ) as id,
-        COALESCE(
-            (SELECT d2.code FROM staff_departments sd JOIN departments d2 ON d2.id = sd.department_id WHERE sd.user_id = u.id ORDER BY sd.id LIMIT 1),
-            d.code
-        ) as code
-        FROM users u
-        LEFT JOIN staff_profiles sp ON sp.user_id = u.id
-        LEFT JOIN departments d ON d.id = sp.department_id
-        WHERE u.id = ?
-    """, (uid,))
-    if dept and dept.get("id"):
-        return dept["id"], dept.get("code")
-    c_dept, _ = extract_dept_and_year(caller)
-    if c_dept:
-        d_row = query_one("SELECT id, code FROM departments WHERE upper(code) = ?", (c_dept.upper(),))
-        if d_row:
-            return d_row["id"], d_row["code"]
-    return None, None
 
 
 def compute_promoted_credentials(name, username, email, from_year, to_year):
