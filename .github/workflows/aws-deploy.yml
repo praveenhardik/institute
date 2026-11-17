@@ -1,4 +1,4 @@
-name: Build and verify AWS OIDC
+name: Build, Test, and Verify AWS + Vercel Integration
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build-and-connect:
-    name: Build and connect to AWS
+  build-test-and-verify:
+    name: Build, Test & Verify Integration
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,29 +34,50 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
 
-      - name: Build frontend
+      - name: Build frontend production bundle
         run: npm run build --prefix frontend
 
       - name: Install backend dependencies
         run: python -m pip install -r backend/requirements.txt
 
+      - name: Run backend unit tests
+        env:
+          USE_SQLITE: "1"
+        run: python -m unittest backend/test_app.py
+
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         continue-on-error: true
         with:
-            role-to-assume: arn:aws:iam::523220341693:role/GitHubActionsRole
-            aws-region: ap-south-1
-            allowed-account-ids: 523220341693
-            role-session-name: GitHubActions-${{ github.run_id }}
+          role-to-assume: arn:aws:iam::523220341693:role/GitHubActionsRole
+          aws-region: ap-south-1
+          allowed-account-ids: 523220341693
+          role-session-name: GitHubActions-${{ github.run_id }}
 
-      - name: Verify AWS identity
+      - name: Verify AWS STS Identity
         continue-on-error: true
         run: aws sts get-caller-identity
 
-      - name: Verify AWS EC2 Backend and Vercel Frontend Health
+      - name: Trigger AWS EC2 Deployment via Systems Manager
         continue-on-error: true
         run: |
-          echo "Checking AWS EC2 Backend API..."
-          curl -sS --max-time 10 http://3.27.170.60:5000/api/college-name || echo "AWS EC2 API check completed"
-          echo "Checking Vercel Frontend Deployment..."
-          curl -sS --max-time 10 https://institute-dun.vercel.app/api/college-name || echo "Vercel Frontend check completed"
+          if [ -n "${{ secrets.EC2_INSTANCE_ID }}" ]; then
+            echo "Deploying latest commit to EC2 instance ${{ secrets.EC2_INSTANCE_ID }}..."
+            aws ssm send-command \
+              --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+              --document-name "AWS-RunShellScript" \
+              --parameters 'commands=["cd /app || cd /opt/institute || cd /home/ubuntu/institute", "git pull origin main", "docker compose -f docker-compose.aws.yml up -d --build backend || true"]' \
+              --region ap-south-1
+          else
+            echo "Notice: EC2_INSTANCE_ID secret not set in GitHub repository settings. Skipping SSM remote trigger."
+          fi
+
+      - name: Verify AWS EC2 Backend Health
+        run: |
+          echo "Checking AWS EC2 Backend API at http://3.27.170.60:5000/api/college-name..."
+          curl -fsS --max-time 15 http://3.27.170.60:5000/api/college-name
+
+      - name: Verify Vercel Production Frontend Health
+        run: |
+          echo "Checking Vercel Frontend Deployment at https://institute-dun.vercel.app/api/college-name..."
+          curl -fsS --max-time 15 https://institute-dun.vercel.app/api/college-name

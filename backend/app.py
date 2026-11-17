@@ -195,6 +195,22 @@ def create_app() -> Flask:
         WHERE hod_user_id IS NULL
     """)
 
+    # --- Health & Diagnostic Endpoints ---
+
+    @app.route("/api/health", methods=["GET"])
+    @app.route("/api/healthz", methods=["GET"])
+    def health_check():
+        from backend.db import detect_db_mode
+        mode = detect_db_mode()
+        user_count = (query_one("SELECT count(*) as cnt FROM users") or {}).get("cnt", 0)
+        return jsonify({
+            "status": "healthy",
+            "db_mode": mode,
+            "users_count": user_count,
+            "region": os.getenv("AWS_REGION", "ap-south-1"),
+            "environment": os.getenv("APP_ENV", "production")
+        }), 200
+
     # --- College name: can be set or edited by Super Admin and Admin, shown in top bar ---
 
     @app.route("/api/college-name", methods=["GET"])
