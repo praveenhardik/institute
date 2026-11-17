@@ -88,7 +88,7 @@ export function parseTeacherDeptAndYear(u) {
 /**
  * Unified API Client for College Quiz & Role Management Portal
  */
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const API_BASE = (typeof import.meta !== "undefined" && import.meta?.env?.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL : "").replace(/\/+$/, "");
 
 
 
@@ -1384,6 +1384,108 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   return {};
 }
 
+export function getLoginAliases(raw) {
+  if (!raw) return [];
+  const s = String(raw).trim();
+  const lower = s.toLowerCase();
+  const clean = lower.replace(/[^a-z0-9]/g, "");
+  const list = [s];
+
+  if (!list.includes(lower)) list.push(lower);
+  if (!list.includes(clean)) list.push(clean);
+
+  // Super Admin: superadmin <-> super
+  if (clean === "superadmin" || clean === "super" || clean === "super_admin") {
+    if (!list.includes("superadmin")) list.push("superadmin");
+    if (!list.includes("super")) list.push("super");
+  }
+
+  // Teacher: "teacher1 CSE", "teacher1cse", "tec1cse"
+  const m_t = clean.match(/^(?:tec|teacher|teach)([1-5])?(cse|eee|ece|aero|mect|mech)$/);
+  if (m_t) {
+    const yr = m_t[1] || "1";
+    const dept = m_t[2];
+    const DEPT = dept.toUpperCase();
+    for (const a of [
+      `teacher${yr} ${DEPT}`,
+      `tec${yr}${dept}`,
+      `teacher${yr}${dept}`,
+      `tec${yr}_${dept}`
+    ]) {
+      if (!list.includes(a)) list.push(a);
+    }
+  }
+
+  // Class Teacher: "class teacher1 CSE", "classcse1", "classteacher1 cse"
+  const m_ct = clean.match(/^(?:ct|classteacher|classtec|class_teacher|class)?(?:teacher)?([1-5])?(cse|eee|ece|aero|mect|mech)$/) ||
+               clean.match(/^(?:class)?(cse|eee|ece|aero|mect|mech)([1-5])$/);
+  if (m_ct) {
+    const yr = m_ct[1] && m_ct[1].match(/[1-5]/) ? m_ct[1] : (m_ct[2] && m_ct[2].match(/[1-5]/) ? m_ct[2] : "1");
+    const dept = (m_ct[2] && !m_ct[2].match(/[1-5]/) ? m_ct[2] : m_ct[1]).toLowerCase();
+    const DEPT = dept.toUpperCase();
+    for (const a of [
+      `class teacher${yr} ${DEPT}`,
+      `class${dept}${yr}`,
+      `classteacher${yr} ${DEPT}`,
+      `class_teacher${yr}_${dept}`,
+      `ct${yr}${dept}`
+    ]) {
+      if (!list.includes(a)) list.push(a);
+    }
+  }
+
+  // HOD: "hod cse", "hodcse", "hod_cse"
+  const m_hod = clean.match(/^(?:hod)?(cse|eee|ece|aero|mect|mech)$/);
+  if (m_hod) {
+    const dept = m_hod[1].toLowerCase();
+    const DEPT = dept.toUpperCase();
+    for (const a of [
+      `hod_${dept}`,
+      `hod${dept}`,
+      `HOD ${DEPT}`,
+      `hod`
+    ]) {
+      if (!list.includes(a)) list.push(a);
+    }
+  }
+
+  // Class Leader: "class leader1 CSE", "leadercse1"
+  const m_cl = clean.match(/^(?:cl|classleader|classlead|leader)([1-4])?(cse|eee|ece|aero|mect|mech)$/) ||
+               clean.match(/^(?:leader)(cse|eee|ece|aero|mect|mech)([1-4])$/);
+  if (m_cl) {
+    const yr = m_cl[1] && m_cl[1].match(/[1-4]/) ? m_cl[1] : (m_cl[2] && m_cl[2].match(/[1-4]/) ? m_cl[2] : "1");
+    const dept = (m_cl[2] && !m_cl[2].match(/[1-4]/) ? m_cl[2] : m_cl[1]).toLowerCase();
+    const DEPT = dept.toUpperCase();
+    for (const a of [
+      `class leader${yr} ${DEPT}`,
+      `leader${dept}${yr}`,
+      `classleader${yr} ${DEPT}`,
+      `cl${yr}${dept}`
+    ]) {
+      if (!list.includes(a)) list.push(a);
+    }
+  }
+
+  // Student: "Stu11_CSE", "stu11_cse", "stu11cse"
+  const m_s = clean.match(/^(?:stu|student)([1-4])([1-5])(cse|eee|ece|aero|mect|mech)$/);
+  if (m_s) {
+    const yr = m_s[1];
+    const num = m_s[2];
+    const dept = m_s[3].toLowerCase();
+    const DEPT = dept.toUpperCase();
+    for (const a of [
+      `Stu${yr}${num}_${DEPT}`,
+      `stu${yr}${num}_${dept}`,
+      `stu${yr}${num}${dept}`,
+      `student${yr}${num}_${dept}`
+    ]) {
+      if (!list.includes(a)) list.push(a);
+    }
+  }
+
+  return list;
+}
+
 export const API = {
   getToken() {
     try {
@@ -1549,19 +1651,32 @@ export const API = {
     }
   },
 
+
+
   // Auth
   async login(emailOrPhoneOrUsername, password) {
-    const data = await this.request("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({
-        username: emailOrPhoneOrUsername,
-        email_or_phone: emailOrPhoneOrUsername,
-        password
-      })
-    });
-    this.setToken(data.token);
-    this.setCurrentUser(data.user);
-    return data;
+    const aliases = getLoginAliases(emailOrPhoneOrUsername);
+    let lastErr = null;
+    for (const id of aliases) {
+      try {
+        const data = await this.request("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            username: id,
+            email_or_phone: id,
+            password
+          })
+        });
+        if (data && data.token) {
+          this.setToken(data.token);
+          this.setCurrentUser(data.user);
+          return data;
+        }
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("Invalid user name or password");
   },
 
   async registerStudent(name, emailOrPhone, password, role = "super_admin", contactType = "email", username = "", extra = {}) {
