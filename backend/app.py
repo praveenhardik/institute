@@ -284,16 +284,8 @@ def create_app() -> Flask:
             if username_in_use(username):
                 return jsonify({"error": "This user name is already taken"}), 400
 
-        digits = re.sub(r'\D', '', identifier)
-        if contact_type == "phone" and digits and len(digits) >= 8:
-            phone_suffix = digits[-4:] if len(digits) >= 4 else digits
-            identifier = f"{username.lower()}{phone_suffix}@inpand.com"
-        else:
-            if role in ("teacher", "class_teacher"):
-                identifier = f"{username.lower()}@inpand.com"
-            else:
-                has_digits = bool(re.search(r'\d', username))
-                identifier = f"{username.lower()}@inpand.com" if has_digits else f"{username.lower()}1@inpand.com"
+        # Preserve exact email or phone number entered by the user
+        identifier = identifier.strip().lower() if "@" in identifier else identifier.strip()
 
         # Check existing user
         existing = query_one(f"SELECT id FROM users WHERE {CONTACT_MATCH_SQL}", (identifier,))
