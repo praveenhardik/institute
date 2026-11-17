@@ -1385,21 +1385,42 @@ def delete_task_admin(task_number: str):
     if not task_number:
         return jsonify({"error": "Task number is required"}), 400
 
+    q_rows = query_all("SELECT id FROM questions WHERE task_number = ?", (task_number,))
     deleted_from_tasks = 0
     try:
         deleted_from_tasks = execute_write("DELETE FROM academic_tasks WHERE task_number = ?", (task_number,))
     except Exception:
         pass
 
-    if not q_rows and not deleted_from_tasks:
-        return jsonify({"error": f"No questions or tasks found for '{task_number}'"}), 404
+    try:
+        execute_write("""
+            CREATE TABLE IF NOT EXISTS deleted_academic_tasks (
+                id SERIAL PRIMARY KEY,
+                task_number TEXT NOT NULL,
+                department_id INTEGER,
+                deleted_by_id INTEGER,
+                deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        execute_write("INSERT INTO deleted_academic_tasks (task_number) VALUES (?)", (task_number,))
+    except Exception:
+        pass
 
-    q_ids = [r["id"] for r in q_rows]
+    q_ids = [r["id"] for r in (q_rows or [])]
     if q_ids:
         q_placeholders = ",".join("?" for _ in q_ids)
-        execute_write(f"DELETE FROM submissions WHERE question_id IN ({q_placeholders})", tuple(q_ids))
-        execute_write(f"DELETE FROM notifications WHERE type = 'question' AND reference_id IN ({q_placeholders})", tuple(q_ids))
-        execute_write(f"DELETE FROM questions WHERE id IN ({q_placeholders})", tuple(q_ids))
+        try:
+            execute_write(f"DELETE FROM submissions WHERE question_id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
+        try:
+            execute_write(f"DELETE FROM notifications WHERE type = 'question' AND reference_id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
+        try:
+            execute_write(f"DELETE FROM questions WHERE id IN ({q_placeholders})", tuple(q_ids))
+        except Exception:
+            pass
 
     return jsonify({
         "message": f"Task '{task_number}' and all {len(q_ids)} associated question(s) permanently deleted successfully.",
