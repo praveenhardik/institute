@@ -759,7 +759,7 @@ def create_app() -> Flask:
 
         user = find_user_by_email_or_username(identifier)
         if not user or not user.get("email"):
-            return jsonify({"error": "No registered account found with this Email or Username."}), 404
+            return jsonify({"error": f"❌ No registered account found with this Email or Username. Please check and try again, or Create Account."}), 404
 
         otp_code = f"{random.randint(100000, 999999)}"
         expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
@@ -821,7 +821,7 @@ def create_app() -> Flask:
             """, (user["id"], otp))
 
             if not otp_record:
-                return jsonify({"error": "Invalid OTP code. Please enter the valid OTP from INPAND sent to your email."}), 400
+                return jsonify({"error": "❌ Wrong OTP! The code you entered is incorrect. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP."}), 400
 
             if str(otp_record["expires_at"]) < now_str:
                 return jsonify({"error": "The OTP has expired. Please request a new OTP."}), 400
@@ -930,7 +930,7 @@ def create_app() -> Flask:
                         break
 
         if not user:
-            return jsonify({"error": "User with this email is not registered. Please enter your registered email address."}), 401
+            return jsonify({"error": "This email is not registered in the portal. Please Create Account first or check your email address."}), 401
 
         pwd_match = False
         pwd_match = verify_password(password, user["password_hash"])

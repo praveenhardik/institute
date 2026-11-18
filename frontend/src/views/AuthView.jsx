@@ -14,6 +14,7 @@ export const AuthView = () => {
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [loginEmailStatus, setLoginEmailStatus] = useState(''); // '' | 'not_registered' | 'registered'
 
   // Register form state
   const [regName, setRegName] = useState('');
@@ -85,7 +86,13 @@ export const AuthView = () => {
       await login(email, loginPassword.trim());
       showAlert('Signed in successfully!', 'success');
     } catch (err) {
-      showAlert(err.message, 'danger');
+      const msg = err.message || 'Login failed';
+      // Check for not registered messages and show clearly
+      if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('invalid')) {
+        showAlert(`❌ This email is not registered in the portal. Please Create Account first or check your email.`, 'danger');
+      } else {
+        showAlert(msg, 'danger');
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -229,7 +236,12 @@ export const AuthView = () => {
       setForgotCountdown(30);
       showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
     } catch (err) {
-      showAlert(err.message || 'Failed to send OTP. Please check your email or username.', 'danger');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
+        showAlert(`❌ Email / Username "${idVal}" is not registered in the portal. Please check and try again, or Create Account.`, 'danger');
+      } else {
+        showAlert(msg || 'Failed to send OTP. Please check your email or username.', 'danger');
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -277,11 +289,19 @@ export const AuthView = () => {
       setForgotNewPass('');
       setForgotConfirmPass('');
     } catch (err) {
-      showAlert(err.message || 'Failed to reset password. Please verify the OTP.', 'danger');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('invalid otp') || msg.toLowerCase().includes('wrong otp') || msg.toLowerCase().includes('otp') && (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('mismatch'))) {
+        showAlert('❌ Wrong OTP! The OTP you entered does not match. Please check the email with subject "OTP from INPAND" and enter the correct 6-digit OTP.', 'danger');
+      } else {
+        showAlert(msg || 'Failed to reset password. Please verify the OTP.', 'danger');
+      }
     } finally {
       setForgotLoading(false);
     }
   };
+
+  // Login email check state
+  const [loginEmailError, setLoginEmailError] = useState('');
 
   return (
     <section className="auth-wrapper">
@@ -310,12 +330,31 @@ export const AuthView = () => {
                 className="form-input"
                 placeholder="Enter your registered email address"
                 value={loginIdentifier}
-                onChange={(e) => setLoginIdentifier(e.target.value)}
+                onChange={(e) => { setLoginIdentifier(e.target.value); setLoginEmailError(''); }}
+                onBlur={() => {
+                  const email = loginIdentifier.trim();
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (email && emailRegex.test(email)) {
+                    API.checkEmail(email).then((res) => {
+                      if (res && !res.registered) {
+                        setLoginEmailError('This email is not registered. Please Create Account first.');
+                      } else {
+                        setLoginEmailError('');
+                      }
+                    }).catch(() => {});
+                  }
+                }}
                 required
               />
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Only registered email address is accepted
-              </div>
+              {loginEmailError ? (
+                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.80rem', fontWeight: 600 }}>
+                  ❌ {loginEmailError}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Only registered email address is accepted
+                </div>
+              )}
             </div>
 
             <div className="form-group">
