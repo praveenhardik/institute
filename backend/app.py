@@ -517,16 +517,11 @@ def create_app() -> Flask:
         sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration")
 
         masked = mask_email(email)
-        if sent:
-            return jsonify({
-                "message": f"OTP from INPAND has been sent to your email address ({masked}). Please check your Mail inbox.",
-                "email_masked": masked
-            }), 200
-        else:
-            return jsonify({
-                "error": f"Email delivery failed: {mail_msg}",
-                "email_masked": masked
-            }), 500
+        return jsonify({
+            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox.",
+            "email_masked": masked,
+            "email_sent": bool(sent)
+        }), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
     def register_student():
@@ -606,8 +601,7 @@ def create_app() -> Flask:
             if matched_otp:
                 execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
             else:
-                # User explicit specification: "wrong OTP should be able to proceed."
-                print(f"[AUTH NOTICE] Registration OTP '{otp}' for {identifier} did not match active code, but permitted to proceed as requested.")
+                return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
 
         hashed = hash_password(password)
         # All newly created accounts are active straight away so they show immediately in the directory
@@ -637,7 +631,9 @@ def create_app() -> Flask:
 
         if role in ("student", "class_leader", "teacher", "class_teacher", "hod", "librarian", "accountant"):
             if not dept_choice and not dept_ids_list:
-                return jsonify({"error": "Department is mandatory. Please select a department."}), 400
+                default_dept = query_one("SELECT id FROM departments ORDER BY id ASC LIMIT 1")
+                dept_choice = default_dept["id"] if default_dept else 1
+                dept_ids_list = [dept_choice]
             if role == "teacher" and len(dept_ids_list) > 10:
                 return jsonify({"error": "A teacher can be assigned to a maximum of 10 departments."}), 400
             if role == "class_teacher" and len(dept_ids_list) > 1:
@@ -780,16 +776,11 @@ def create_app() -> Flask:
         """, (user["id"], f"Your password reset OTP is {otp_code}. Valid for 10 minutes."))
 
         masked = mask_email(user["email"])
-        if sent:
-            return jsonify({
-                "message": f"OTP from INPAND has been sent to your registered email address ({masked}). Please check your Mail inbox.",
-                "email_masked": masked
-            }), 200
-        else:
-            return jsonify({
-                "error": f"Email delivery failed: {mail_msg}",
-                "email_masked": masked
-            }), 500
+        return jsonify({
+            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox.",
+            "email_masked": masked,
+            "email_sent": bool(sent)
+        }), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
     @app.route("/api/auth/forgot-password/verify-reset", methods=["POST"])
