@@ -54,7 +54,7 @@ html, body {
   background-image: 
     linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.82) 300px, rgba(255, 255, 255, 0.95) 650px),
     url('/images/inpand_college_bg.jpg') !important;
-  background-size: 100vw 100vh !important;
+  background-size: cover !important;
   background-position: center center !important;
   background-attachment: fixed !important;
   background-repeat: no-repeat !important;

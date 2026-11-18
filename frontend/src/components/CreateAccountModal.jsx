@@ -138,6 +138,41 @@ export const CreateAccountModal = ({
   const [loadingLists, setLoadingLists] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [principalExists, setPrincipalExists] = useState(false);
+  const [modalOtp, setModalOtp] = useState('');
+  const [modalOtpSent, setModalOtpSent] = useState(false);
+  const [modalOtpLoading, setModalOtpLoading] = useState(false);
+  const [modalCountdown, setModalCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer = null;
+    if (modalCountdown > 0) {
+      timer = setInterval(() => {
+        setModalCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [modalCountdown]);
+
+  const handleSendModalOtp = async () => {
+    const email = contact.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showAlert('Please enter a valid email address first to receive OTP', 'danger');
+      return;
+    }
+    try {
+      setModalOtpLoading(true);
+      const res = await API.sendRegisterOtp(email, name.trim() || 'New User');
+      setModalOtpSent(true);
+      setModalCountdown(30);
+      showAlert(res.message || "OTP from INPAND has been sent to the email address.", 'success');
+    } catch (err) {
+      showAlert(err.message || 'Failed to send OTP.', 'danger');
+    } finally {
+      setModalOtpLoading(false);
+    }
+  };
 
   // Check if principal already exists when super_admin opens modal
   useEffect(() => {
@@ -259,6 +294,9 @@ export const CreateAccountModal = ({
     setGuardianPhone('');
     setGuardianEmail('');
     setNameEligibilityNotice('');
+    setModalOtp('');
+    setModalOtpSent(false);
+    setModalCountdown(0);
   };
 
   const handleSubmit = async (e) => {
@@ -269,6 +307,16 @@ export const CreateAccountModal = ({
     }
     if (!name.trim() || !contact.trim() || !password.trim() || !username.trim()) {
       showAlert('Please enter Name, Username, Contact/Email, and Password.', 'danger');
+      return;
+    }
+
+    if (!modalOtp.trim()) {
+      if (!modalOtpSent) {
+        await handleSendModalOtp();
+        showAlert('OTP has been sent to the email! Please enter the 6-digit OTP from the received mail.', 'info');
+        return;
+      }
+      showAlert('Please enter the 6-digit OTP from the received email to create the account.', 'danger');
       return;
     }
 
@@ -322,6 +370,7 @@ export const CreateAccountModal = ({
         if (guardianEmail.trim()) extra.guardian_email = guardianEmail.trim();
       }
 
+      extra.otp = modalOtp.trim();
       const res = await API.createAccount(
         name.trim(),
         contact.trim(),
@@ -555,6 +604,47 @@ export const CreateAccountModal = ({
                 onChange={(e) => setContact(e.target.value)}
                 required
               />
+            </div>
+
+            {/* Email Verification OTP */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>
+                  Email Verification OTP <span className="req">*</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={modalCountdown > 0 || modalOtpLoading || !contact.trim()}
+                  onClick={handleSendModalOtp}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: (modalCountdown > 0 || !contact.trim()) ? 'var(--text-muted)' : '#4338ca',
+                    fontSize: '0.80rem',
+                    fontWeight: 700,
+                    cursor: (modalCountdown > 0 || !contact.trim()) ? 'default' : 'pointer'
+                  }}
+                >
+                  {modalOtpLoading ? 'Sending...' : modalCountdown > 0 ? `Resend in ${modalCountdown}s` : (modalOtpSent ? 'Resend OTP' : 'Send OTP')}
+                </button>
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                className="form-input"
+                placeholder="Enter 6-digit OTP from received mail"
+                value={modalOtp}
+                onChange={(e) => setModalOtp(e.target.value.replace(/\D/g, ''))}
+                style={{ letterSpacing: '4px', fontSize: '1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                required
+              />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                {modalOtpSent ? (
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent to {contact}!</span>
+                ) : (
+                  <span>Click "Send OTP" to receive verification code in mail</span>
+                )}
+              </div>
             </div>
 
             {/* Password */}

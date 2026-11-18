@@ -117,8 +117,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, collegeName]);
 
-  const login = async (identifier, password) => {
-    const data = await API.login(identifier, password);
+  const login = async (identifier, password, otp = '') => {
+    const data = await API.login(identifier, password, otp);
     setUser(data.user);
     setToken(data.token);
     return data;

@@ -570,6 +570,41 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("Invalid password. Please check your password and try again.");
     }
 
+    // Email OTP Verification for Login
+    const enteredOtp = String(body.otp || "").trim();
+    if (!enteredOtp) {
+      throw new Error("❌ Email OTP verification is mandatory. Please enter the 6-digit OTP sent to your email.");
+    }
+
+    const targetEmail = (matched.email || "").toLowerCase().trim();
+    let expectedOtp = null;
+    let otpTimestamp = null;
+    try {
+      expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail) ||
+                    sessionStorage.getItem("active_login_otp_" + rawId) || localStorage.getItem("active_login_otp_" + rawId);
+      otpTimestamp = sessionStorage.getItem("active_login_otp_time_" + targetEmail) || localStorage.getItem("active_login_otp_time_" + targetEmail) ||
+                     sessionStorage.getItem("active_login_otp_time_" + rawId) || localStorage.getItem("active_login_otp_time_" + rawId);
+    } catch {}
+
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first.");
+    }
+
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
+      throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
+    }
+
+    if (enteredOtp !== expectedOtp) {
+      throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email.");
+    }
+
+    try {
+      sessionStorage.removeItem("active_login_otp_" + targetEmail);
+      localStorage.removeItem("active_login_otp_" + targetEmail);
+      sessionStorage.removeItem("active_login_otp_time_" + targetEmail);
+      localStorage.removeItem("active_login_otp_time_" + targetEmail);
+    } catch {}
+
     let tokenPayload = {
       user_id: matched.id,
       role: matched.role,
@@ -755,6 +790,33 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return {
       message: `OTP from INPAND has been sent to your official email (${email}). Please check your Mail inbox. Valid for 10 minutes.`,
       email_masked: email,
+      otp_sent: true,
+      expires_in: 600
+    };
+  }
+
+  if (path === "/api/auth/login-send-otp") {
+    const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
+    if (!email || !email.includes("@")) {
+      throw new Error("A valid registered email address is required to receive login OTP.");
+    }
+    const users = getStoredUsers();
+    const user = users.find(u => (u.email && u.email.toLowerCase().trim() === email));
+    if (!user) {
+      throw new Error("❌ This email is not registered in the portal. Please Create Account first.");
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const nowTime = String(Date.now());
+    try {
+      sessionStorage.setItem("active_login_otp_" + email, otp);
+      localStorage.setItem("active_login_otp_" + email, otp);
+      sessionStorage.setItem("active_login_otp_time_" + email, nowTime);
+      localStorage.setItem("active_login_otp_time_" + email, nowTime);
+    } catch {}
+    const masked = email[0] + "***" + email.slice(email.indexOf("@") - 1);
+    return {
+      message: `OTP from INPAND has been sent to your registered email (${masked}). Please check your Mail inbox. Valid for 10 minutes.`,
+      email_masked: masked,
       otp_sent: true,
       expires_in: 600
     };
@@ -1926,7 +1988,7 @@ export const API = {
 
 
   // Auth
-  async login(email, password) {
+  async login(email, password, otp = "") {
     const trimmedEmail = (email || '').trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!trimmedEmail.includes('@') || !emailRegex.test(trimmedEmail)) {
@@ -1939,7 +2001,8 @@ export const API = {
         email: trimmedEmail,
         username: trimmedEmail,
         email_or_phone: trimmedEmail,
-        password
+        password,
+        otp: (otp || '').trim()
       })
     });
     if (data && data.token) {
@@ -1948,6 +2011,15 @@ export const API = {
       return data;
     }
     throw new Error("Invalid email address or password");
+  },
+
+  async sendLoginOtp(email) {
+    return this.request("/api/auth/login-send-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        email: (email || '').trim()
+      })
+    });
   },
 
   async registerStudent(name, emailOrPhone, password, role = "super_admin", contactType = "email", username = "", extra = {}) {

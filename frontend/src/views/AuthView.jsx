@@ -15,6 +15,10 @@ export const AuthView = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginEmailStatus, setLoginEmailStatus] = useState(''); // '' | 'not_registered' | 'registered'
+  const [loginOtp, setLoginOtp] = useState('');
+  const [loginOtpSent, setLoginOtpSent] = useState(false);
+  const [loginOtpLoading, setLoginOtpLoading] = useState(false);
+  const [loginCountdown, setLoginCountdown] = useState(0);
 
   // Register form state
   const [regName, setRegName] = useState('');
@@ -66,7 +70,39 @@ export const AuthView = () => {
     };
   }, [regCountdown]);
 
-  // 1. Submit Login
+  useEffect(() => {
+    let timer = null;
+    if (loginCountdown > 0) {
+      timer = setInterval(() => {
+        setLoginCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [loginCountdown]);
+
+  // 1. Send OTP for Login
+  const handleSendLoginOtp = async () => {
+    const email = loginIdentifier.trim();
+    if (!email || !email.includes('@')) {
+      showAlert('Please enter your registered email address first to receive OTP', 'danger');
+      return;
+    }
+    try {
+      setLoginOtpLoading(true);
+      const res = await API.sendLoginOtp(email);
+      setLoginOtpSent(true);
+      setLoginCountdown(30);
+      showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
+    } catch (err) {
+      showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
+    } finally {
+      setLoginOtpLoading(false);
+    }
+  };
+
+  // 2. Submit Login
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
     const email = loginIdentifier.trim();
@@ -81,9 +117,19 @@ export const AuthView = () => {
       return;
     }
 
+    if (!loginOtp.trim()) {
+      if (!loginOtpSent) {
+        await handleSendLoginOtp();
+        showAlert('OTP has been sent to your email! Please check your received mail and enter the 6-digit OTP to sign in.', 'info');
+        return;
+      }
+      showAlert('Please enter the 6-digit OTP from your received mail to sign in.', 'danger');
+      return;
+    }
+
     try {
       setLoginLoading(true);
-      await login(email, loginPassword.trim());
+      await login(email, loginPassword.trim(), loginOtp.trim());
       showAlert('Signed in successfully!', 'success');
     } catch (err) {
       const msg = err.message || 'Login failed';
@@ -370,6 +416,48 @@ export const AuthView = () => {
               />
             </div>
 
+            {/* Email Verification OTP Section for Login */}
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>
+                  Email Verification OTP <span className="req">*</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={loginCountdown > 0 || loginOtpLoading || !loginIdentifier.trim() || !!loginEmailError}
+                  onClick={handleSendLoginOtp}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: (loginCountdown > 0 || !loginIdentifier.trim() || !!loginEmailError) ? 'var(--text-muted)' : '#4338ca',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: (loginCountdown > 0 || !loginIdentifier.trim() || !!loginEmailError) ? 'default' : 'pointer'
+                  }}
+                >
+                  {loginOtpLoading ? 'Sending OTP to Mail...' : loginCountdown > 0 ? `Resend OTP in ${loginCountdown}s` : (loginOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                </button>
+              </div>
+
+              <input
+                type="text"
+                maxLength={6}
+                className="form-input"
+                placeholder="Enter 6-digit OTP from received mail"
+                value={loginOtp}
+                onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, ''))}
+                style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                required
+              />
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+                {loginOtpSent ? (
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {loginIdentifier}</span>
+                ) : (
+                  <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                )}
+              </div>
+            </div>
+
             <button
               type="submit"
               className="btn btn-primary"
@@ -434,6 +522,7 @@ export const AuthView = () => {
                 <option value="dean">Dean</option>
                 <option value="principal">Principal</option>
                 <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
                 <option value="accountant">Accountant</option>
                 <option value="librarian">Librarian</option>
                 <option value="parent">Parent</option>
