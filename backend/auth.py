@@ -82,8 +82,8 @@ def validate_contact(value: str, contact_type: Optional[str] = None) -> Optional
 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._]{2,29}$")
 
-# Find an account by user name / full name (case-insensitive) OR by stored email/phone.
-LOGIN_MATCH_SQL = f"({CONTACT_MATCH_SQL} OR (username IS NOT NULL AND lower(username) = lower(?)) OR (name IS NOT NULL AND lower(name) = lower(?)))"
+# Strictly match by email only. Full name, username, or phone number cannot be accepted.
+LOGIN_MATCH_SQL = "(email IS NOT NULL AND lower(email) = lower(?))"
 
 
 def validate_username(value: str) -> Optional[str]:

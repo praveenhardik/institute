@@ -1654,29 +1654,28 @@ export const API = {
 
 
   // Auth
-  async login(emailOrPhoneOrUsername, password) {
-    const aliases = getLoginAliases(emailOrPhoneOrUsername);
-    let lastErr = null;
-    for (const id of aliases) {
-      try {
-        const data = await this.request("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({
-            username: id,
-            email_or_phone: id,
-            password
-          })
-        });
-        if (data && data.token) {
-          this.setToken(data.token);
-          this.setCurrentUser(data.user);
-          return data;
-        }
-      } catch (err) {
-        lastErr = err;
-      }
+  async login(email, password) {
+    const trimmedEmail = (email || '').trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail.includes('@') || !emailRegex.test(trimmedEmail)) {
+      throw new Error("Only email address is accepted for login. Full name, username, or phone number cannot be used.");
     }
-    throw lastErr || new Error("Invalid user name or password");
+
+    const data = await this.request("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email: trimmedEmail,
+        username: trimmedEmail,
+        email_or_phone: trimmedEmail,
+        password
+      })
+    });
+    if (data && data.token) {
+      this.setToken(data.token);
+      this.setCurrentUser(data.user);
+      return data;
+    }
+    throw new Error("Invalid email address or password");
   },
 
   async registerStudent(name, emailOrPhone, password, role = "super_admin", contactType = "email", username = "", extra = {}) {

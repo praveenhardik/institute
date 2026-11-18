@@ -1,4 +1,5 @@
 import sys, os
+os.environ["USE_SQLITE"] = "1"
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 from backend.app import create_app
 
@@ -6,7 +7,7 @@ app = create_app()
 client = app.test_client()
 
 # 1. Login as Super Admin
-r = client.post('/api/auth/login', json={'username': 'superadmin', 'password': 'Admin@123'})
+r = client.post('/api/auth/login', json={'email': 'superadmin1@inpand.com', 'password': 'Admin@123'})
 assert r.status_code == 200, f"Superadmin login failed: {r.get_json()}"
 super_token = r.get_json()['token']
 headers = {'Authorization': f'Bearer {super_token}'}
@@ -62,16 +63,17 @@ sample_students = [
 ]
 
 for uname, expected_yr, expected_dept in sample_students:
-    r = client.post('/api/auth/login', json={'username': uname, 'password': 'Admin@123'})
-    assert r.status_code == 200, f"Login failed for {uname}: {r.get_json()}"
+    email = f"{uname.lower()}@inpand.com"
+    r = client.post('/api/auth/login', json={'email': email, 'password': 'Admin@123'})
+    assert r.status_code == 200, f"Login failed for {email}: {r.get_json()}"
     u = r.get_json()['user']
     assert u['role'] == 'student'
-    assert u['academic_year'] == expected_yr, f"Wrong year for {uname}: got {u['academic_year']}, expected {expected_yr}"
-    assert u['department_code'] == expected_dept, f"Wrong dept for {uname}: got {u['department_code']}, expected {expected_dept}"
+    assert u['academic_year'] == expected_yr, f"Wrong year for {email}: got {u['academic_year']}, expected {expected_yr}"
+    assert u['department_code'] == expected_dept, f"Wrong dept for {email}: got {u['department_code']}, expected {expected_dept}"
 
-# 4. Test lowercase / flexible format without underscore (e.g. stu11cse)
-r = client.post('/api/auth/login', json={'username': 'stu11cse', 'password': 'Admin@123'})
-assert r.status_code == 200, f"Flexible login failed for stu11cse: {r.get_json()}"
+# 4. Test lowercase / flexible format without underscore (e.g. stu11cse@inpand.com)
+r = client.post('/api/auth/login', json={'email': 'stu11cse@inpand.com', 'password': 'Admin@123'})
+assert r.status_code == 200, f"Flexible login failed for stu11cse@inpand.com: {r.get_json()}"
 u = r.get_json()['user']
 assert u['username'] == 'Stu11_CSE'
 assert u['academic_year'] == 1

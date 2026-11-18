@@ -1,4 +1,5 @@
 import sys, os
+os.environ["USE_SQLITE"] = "1"
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 from backend.app import create_app
 
@@ -6,7 +7,7 @@ app = create_app()
 client = app.test_client()
 
 # 1. Login as Super Admin
-r = client.post('/api/auth/login', json={'username': 'superadmin', 'password': 'Admin@123'})
+r = client.post('/api/auth/login', json={'email': 'superadmin1@inpand.com', 'password': 'Admin@123'})
 assert r.status_code == 200, f"Superadmin login failed: {r.get_json()}"
 super_token = r.get_json()['token']
 headers = {'Authorization': f'Bearer {super_token}'}
@@ -59,20 +60,21 @@ test_cls = [
 ]
 
 for uname, expected_yr, expected_dept in test_cls:
-    res = client.post('/api/auth/login', json={'username': uname, 'password': 'Admin@123'})
-    assert res.status_code == 200, f"Login failed for {uname}: {res.get_json()}"
+    email = f"classleader{expected_yr}_{expected_dept.lower()}@inpand.com"
+    res = client.post('/api/auth/login', json={'email': email, 'password': 'Admin@123'})
+    assert res.status_code == 200, f"Login failed for {email}: {res.get_json()}"
     user = res.get_json()['user']
     assert user['role'] == 'class_leader'
-    assert user['academic_year'] == expected_yr, f"Wrong year for {uname}: got {user['academic_year']}, expected {expected_yr}"
-    assert user['department_code'] == expected_dept, f"Wrong dept for {uname}: got {user['department_code']}, expected {expected_dept}"
+    assert user['academic_year'] == expected_yr, f"Wrong year for {email}: got {user['academic_year']}, expected {expected_yr}"
+    assert user['department_code'] == expected_dept, f"Wrong dept for {email}: got {user['department_code']}, expected {expected_dept}"
 
-# 5. Test flexible shorthand login: classleader1cse, cl1_cse
-res = client.post('/api/auth/login', json={'username': 'classleader1cse', 'password': 'Admin@123'})
-assert res.status_code == 200, f"Flexible login failed for classleader1cse: {res.get_json()}"
+# 5. Test flexible email login formats: classleader1cse@inpand.com, cl1_cse@inpand.com
+res = client.post('/api/auth/login', json={'email': 'classleader1cse@inpand.com', 'password': 'Admin@123'})
+assert res.status_code == 200, f"Flexible login failed for classleader1cse@inpand.com: {res.get_json()}"
 assert res.get_json()['user']['role'] == 'class_leader'
 
-res = client.post('/api/auth/login', json={'username': 'cl1_aero', 'password': 'Admin@123'})
-assert res.status_code == 200, f"Flexible login failed for cl1_aero: {res.get_json()}"
+res = client.post('/api/auth/login', json={'email': 'cl1_aero@inpand.com', 'password': 'Admin@123'})
+assert res.status_code == 200, f"Flexible login failed for cl1_aero@inpand.com: {res.get_json()}"
 assert res.get_json()['user']['role'] == 'class_leader'
 
 print("\nALL 24 CLASS LEADERS, PROFILE SEPARATION, AND LOGINS VERIFIED 100% SUCCESSFULLY!")

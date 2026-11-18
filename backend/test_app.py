@@ -1,5 +1,8 @@
 import os
 import sys
+
+os.environ["USE_SQLITE"] = "1"
+
 import unittest
 import uuid
 
@@ -17,8 +20,18 @@ class TestQuizManagementSystem(unittest.TestCase):
         cls.client = cls.app.test_client()
 
     def login(self, identifier, password="Admin@123"):
-        res = self.client.post("/api/auth/login", json={"email": identifier, "password": password})
-        self.assertEqual(res.status_code, 200, f"Failed login for {identifier}: {res.get_json()}")
+        email_map = {
+            "superadmin": "superadmin1@inpand.com",
+            "admin": "admin1@inpand.com",
+            "class teacher1 CSE": "classteacher1cse@inpand.com",
+            "teacher1 CSE": "teacher1cse@inpand.com",
+            "Stu11_CSE": "stu11_cse@inpand.com",
+        }
+        email = email_map.get(identifier, identifier)
+        if "@" not in email:
+            email = f"{email.replace(' ', '').lower()}@inpand.com"
+        res = self.client.post("/api/auth/login", json={"email": email, "password": password})
+        self.assertEqual(res.status_code, 200, f"Failed login for {email}: {res.get_json()}")
         return res.get_json()["token"]
 
     def test_01_super_admin_permissions_and_deletion(self):
@@ -181,32 +194,40 @@ class TestQuizManagementSystem(unittest.TestCase):
         self.assertTrue(any(n["title"] == "Class Teacher Announcement" for n in notifs))
         self.assertTrue(any(n["title"] == "Quiz 2 Announcement" for n in notifs))
 
-    def test_05_phone_number_authentication(self):
-        """Student self-registration and login with Phone Number instead of email."""
-        uid = uuid.uuid4().hex[:6]
-        phone = f"98{uuid.uuid4().int % 100000000:08d}"
-        
-        # Self-register with phone number
-        reg_res = self.client.post("/api/auth/register-student", json={
-            "name": f"PhoneStudent_{uid}",
-            "email_or_phone": phone,
-            "password": "Password@123",
-            "department_id": 1
+    def test_05_email_only_authentication_enforcement(self):
+        """Strict enforcement: Full name, username, or phone number cannot be accepted for login. Only email is accepted."""
+        # 1. Attempt login with username -> MUST RETURN 400
+        res_u = self.client.post("/api/auth/login", json={
+            "email": "superadmin",
+            "password": "Admin@123"
         })
-        self.assertEqual(reg_res.status_code, 201)
-        student_id = reg_res.get_json()["student_id"]
+        self.assertEqual(res_u.status_code, 400)
+        self.assertIn("Only email address is accepted", res_u.get_json()["error"])
 
-        # Approve student
-        admin_token = self.login("admin", "Admin@123")
-        self.client.post(f"/api/admin/students/{student_id}/approve", headers={"Authorization": f"Bearer {admin_token}"})
-
-        # Login with phone number
-        login_res = self.client.post("/api/auth/login", json={
-            "email_or_phone": phone,
-            "password": "Password@123"
+        # 2. Attempt login with full name -> MUST RETURN 400
+        res_n = self.client.post("/api/auth/login", json={
+            "email": "Super Admin",
+            "password": "Admin@123"
         })
-        self.assertEqual(login_res.status_code, 200)
-        self.assertEqual(login_res.get_json()["user"]["email"], phone)
+        self.assertEqual(res_n.status_code, 400)
+        self.assertIn("Only email address is accepted", res_n.get_json()["error"])
+
+        # 3. Attempt login with phone number -> MUST RETURN 400
+        res_p = self.client.post("/api/auth/login", json={
+            "email": "9876543210",
+            "password": "Admin@123"
+        })
+        self.assertEqual(res_p.status_code, 400)
+        self.assertIn("Only email address is accepted", res_p.get_json()["error"])
+
+        # 4. Valid email login -> MUST SUCCEED (200)
+        res_ok = self.client.post("/api/auth/login", json={
+            "email": "superadmin1@inpand.com",
+            "password": "Admin@123"
+        })
+        self.assertEqual(res_ok.status_code, 200)
+        self.assertIn("token", res_ok.get_json())
+        self.assertEqual(res_ok.get_json()["user"]["email"], "superadmin1@inpand.com")
 
     def test_06_student_quiz_submission_feedback(self):
         """Student submits answer and gets feedback."""

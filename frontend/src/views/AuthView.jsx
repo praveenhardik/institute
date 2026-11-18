@@ -34,14 +34,21 @@ export const AuthView = () => {
   // 1. Submit Login
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
-    if (!loginIdentifier.trim() || !loginPassword.trim()) {
-      showAlert('Please enter your user name and password', 'danger');
+    const email = loginIdentifier.trim();
+    if (!email || !loginPassword.trim()) {
+      showAlert('Please enter your email and password', 'danger');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.includes('@') || !emailRegex.test(email)) {
+      showAlert('Only email address is accepted for login. Full name, username, or phone number cannot be used.', 'danger');
       return;
     }
 
     try {
       setLoginLoading(true);
-      await login(loginIdentifier.trim(), loginPassword.trim());
+      await login(email, loginPassword.trim());
       showAlert('Signed in successfully!', 'success');
     } catch (err) {
       showAlert(err.message, 'danger');
@@ -163,25 +170,25 @@ export const AuthView = () => {
                 College Portal Login
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                Sign in with your Full Name, Email, or Mobile Phone
+                Sign in with your registered Email address
               </p>
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="login-full-name">
-                Full Name <span className="req">*</span>
+              <label className="form-label" htmlFor="login-email">
+                Email <span className="req">*</span>
               </label>
               <input
-                id="login-full-name"
-                type="text"
+                id="login-email"
+                type="email"
                 className="form-input"
-                placeholder="Enter your Full Name, username, or email"
+                placeholder="Enter your registered email address"
                 value={loginIdentifier}
                 onChange={(e) => setLoginIdentifier(e.target.value)}
                 required
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                You can also enter your email or phone number
+                Only registered email address is accepted
               </div>
             </div>
 
@@ -421,22 +428,22 @@ export const AuthView = () => {
                 Reset Password
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                Enter your User Name or Email to set a new password
+                Enter your registered Email to set a new password
               </p>
             </div>
 
             <div className="alert alert-info" style={{ fontSize: '0.8rem', marginBottom: '16px' }}>
-              Enter your registered Full Name or Email, followed by your new password.
+              Enter your registered Email address, followed by your new password.
             </div>
 
             <div className="form-group">
               <label className="form-label">
-                Full Name or Email <span className="req">*</span>
+                Email <span className="req">*</span>
               </label>
               <input
-                type="text"
+                type="email"
                 className="form-input"
-                placeholder="Enter Full Name, username, or email"
+                placeholder="Enter your registered email address"
                 value={forgotIdentifier}
                 onChange={(e) => setForgotIdentifier(e.target.value)}
                 required

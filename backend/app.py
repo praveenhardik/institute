@@ -447,23 +447,26 @@ def create_app() -> Flask:
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
     def forgot_password():
-        """Reset password for an existing account by verifying email or phone number."""
+        """Reset password for an existing account by verifying email address."""
         data = request.get_json() or {}
-        identifier = (data.get("username") or data.get("email_or_phone") or data.get("email") or "").strip()
+        identifier = (data.get("email") or data.get("username") or data.get("email_or_phone") or "").strip()
         new_password = (data.get("new_password") or "").strip()
 
         if not identifier or not new_password:
-            return jsonify({"error": "User name and new password are required"}), 400
+            return jsonify({"error": "Email address and new password are required"}), 400
+
+        if "@" not in identifier or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", identifier):
+            return jsonify({"error": "Only registered email address is accepted to reset password. Full name, username, or phone number cannot be used."}), 400
 
         if len(new_password) < 6:
             return jsonify({"error": "New password must be at least 6 characters long"}), 400
 
         user = query_one(
-            "SELECT id, name, email FROM users WHERE (username IS NOT NULL AND lower(username) = lower(?)) OR lower(email) = lower(?)",
-            (identifier, identifier)
+            "SELECT id, name, email FROM users WHERE lower(email) = lower(?)",
+            (identifier.lower(),)
         )
         if not user:
-            return jsonify({"error": "No registered account found with this user name or email."}), 404
+            return jsonify({"error": "No registered account found with this email address."}), 404
 
         new_hash = hash_password(new_password)
         execute_write("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
@@ -512,132 +515,52 @@ def create_app() -> Flask:
 
     @app.route("/api/auth/login", methods=["POST"])
     def login():
-        """Authenticate user with Email or Phone Number and return JWT token."""
+        """Authenticate user with Email only and return JWT token."""
         data = request.get_json() or {}
-        identifier = (data.get("username") or data.get("email_or_phone") or data.get("email") or data.get("identifier") or "").strip()
+        identifier = (data.get("email") or data.get("username") or data.get("email_or_phone") or data.get("identifier") or "").strip()
         password = (data.get("password") or "").strip()
 
         if not identifier or not password:
-            return jsonify({"error": "User name and password are required"}), 400
+            return jsonify({"error": "Email and password are required"}), 400
 
-        # Sign in with the user name / full name, or with the email / phone number
+        # STRICT REQUIREMENT: Only email addresses are accepted for login.
+        # Full name, username, or phone number cannot be accepted.
+        if "@" not in identifier or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", identifier):
+            return jsonify({
+                "error": "Only email address is accepted for login. Full name, username, or phone number cannot be used."
+            }), 400
+
+        norm_email = identifier.strip().lower()
+
+        # Query exclusively by email address
         user = query_one(
-            f"SELECT id, name, username, email, password_hash, role, status FROM users WHERE {LOGIN_MATCH_SQL}",
-            (normalize_contact(identifier), identifier, identifier)
+            "SELECT id, name, username, email, password_hash, role, status FROM users WHERE lower(email) = ?",
+            (norm_email,)
         )
-        raw_id = identifier.strip().lower()
-        clean_id = raw_id.split("@")[0]
-        for suffix in (" login", " portal", " account", " user", "_login", "_portal", "-login", "-portal"):
-            if clean_id.endswith(suffix):
-                clean_id = clean_id[:-len(suffix)].strip()
-        norm_key = re.sub(r'[^a-z0-9]', '', clean_id)
+
+        # Allow standard institutional alias matching (e.g. superadmin@inpand.com <-> superadmin1@inpand.com, super1@inpand.com)
+        if not user and "@" in norm_email:
+            local_part, domain = norm_email.split("@", 1)
+            candidates = []
+            if local_part.endswith("1"):
+                candidates.append(f"{local_part[:-1]}@{domain}")
+            else:
+                candidates.append(f"{local_part}1@{domain}")
+            if local_part in ("super", "superadmin"):
+                candidates.extend([f"superadmin1@{domain}", f"super1@{domain}", f"super@{domain}", f"superadmin@{domain}"])
+            elif local_part in ("admin", "collegeadmin"):
+                candidates.extend([f"admin1@{domain}", f"admin@{domain}"])
+            for cand in candidates:
+                if cand != norm_email:
+                    user = query_one(
+                        "SELECT id, name, username, email, password_hash, role, status FROM users WHERE lower(email) = ?",
+                        (cand.lower(),)
+                    )
+                    if user:
+                        break
 
         if not user:
-            user = query_one(
-                """SELECT id, name, username, email, password_hash, role, status FROM users
-                   WHERE lower(username) = ? OR lower(name) = ? OR lower(email) = ? 
-                      OR lower(username) = ? OR lower(name) = ?
-                      OR replace(lower(username), ' ', '') = ? OR replace(lower(name), ' ', '') = ?
-                   ORDER BY id LIMIT 1""",
-                (clean_id, clean_id, identifier.lower(), norm_key, norm_key, norm_key, norm_key)
-            )
-
-        if not user:
-            resolved_t = resolve_teacher_identifier(clean_id) or resolve_teacher_identifier(norm_key)
-            if resolved_t:
-                user = query_one(
-                    """SELECT id, name, username, email, password_hash, role, status FROM users
-                       WHERE lower(username) = ? OR lower(name) = ?
-                          OR replace(lower(username), ' ', '') = ?
-                       ORDER BY id LIMIT 1""",
-                    (resolved_t.lower(), resolved_t.lower(), resolved_t.replace(" ", "").lower())
-                )
-
-        if not user:
-            resolved_s = resolve_student_identifier(clean_id) or resolve_student_identifier(norm_key)
-            if resolved_s:
-                user = query_one(
-                    """SELECT id, name, username, email, password_hash, role, status FROM users
-                       WHERE lower(username) = ? OR lower(name) = ?
-                          OR replace(lower(username), ' ', '') = ?
-                          OR replace(lower(username), '_', '') = ?
-                       ORDER BY id LIMIT 1""",
-                    (resolved_s.lower(), resolved_s.lower(), resolved_s.replace(" ", "").lower(), resolved_s.replace("_", "").lower())
-                )
-
-        if not user:
-            resolved_cl = resolve_class_leader_identifier(clean_id) or resolve_class_leader_identifier(norm_key)
-            if resolved_cl:
-                user = query_one(
-                    """SELECT id, name, username, email, password_hash, role, status FROM users
-                       WHERE lower(username) = ? OR lower(name) = ?
-                          OR replace(lower(username), ' ', '') = ?
-                          OR replace(lower(username), '_', '') = ?
-                       ORDER BY id LIMIT 1""",
-                    (resolved_cl.lower(), resolved_cl.lower(), resolved_cl.replace(" ", "").lower(), resolved_cl.replace("_", "").lower())
-                )
-
-        if not user:
-            role_aliases = {
-                # Super Admin
-                "super": "super_admin",
-                "superadmin": "super_admin",
-                "super_admin": "super_admin",
-                # Admin
-                "admin": "admin",
-                "admins": "admin",
-                "administrator": "admin",
-                "collegeadmin": "admin",
-                # Dean
-                "dean": "dean",
-                "deans": "dean",
-                # Principal
-                "principal": "principal",
-                "principals": "principal",
-                # HOD
-                "hod": "hod",
-                "hods": "hod",
-                # Teacher generic alias
-                "teacher": "teacher",
-                "teachers": "teacher",
-                "faculty": "teacher",
-                # Class Teacher generic alias
-                "classteacher": "class_teacher",
-                "class_teacher": "class_teacher",
-                # Student generic alias
-                "student": "student",
-                "students": "student",
-                # Class Leader generic alias
-                "classleader": "class_leader",
-                "class_leader": "class_leader",
-                # Accountant
-                "accountant": "accountant",
-                "accountants": "accountant",
-                "accounts": "accountant",
-                "account": "accountant",
-                "bursar": "accountant",
-                # Librarian
-                "librarian": "librarian",
-                "librarians": "librarian",
-                "library": "librarian",
-                # Parent
-                "parent": "parent",
-                "parents": "parent",
-                "guardian": "parent",
-                "guardians": "parent"
-            }
-            mapped_role = role_aliases.get(clean_id) or role_aliases.get(norm_key)
-
-            if mapped_role:
-                user = query_one(
-                    """SELECT id, name, username, email, password_hash, role, status FROM users
-                       WHERE role = ? AND status = 'active'
-                       ORDER BY id LIMIT 1""",
-                    (mapped_role,)
-                )
-
-        if not user:
-            return jsonify({"error": "User not registered. Please register your account or check your user name."}), 401
+            return jsonify({"error": "User with this email is not registered. Please enter your registered email address."}), 401
 
         pwd_match = False
         pwd_match = verify_password(password, user["password_hash"])
