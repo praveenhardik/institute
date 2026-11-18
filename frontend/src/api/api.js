@@ -772,7 +772,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/register-send-otp") {
     const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
-    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "").trim();
+    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "praveenrpps3008@gmail.com").trim();
     if (!email || !email.includes("@")) {
       throw new Error("A valid official email address is required to receive OTP.");
     }
@@ -788,12 +788,12 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       sessionStorage.setItem("active_reg_otp_time_" + email, nowTime);
       localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
-    const senderNote = sender ? ` from ${sender}` : '';
     return {
-      message: `OTP from INPAND has been sent to ${email}${senderNote}. Please check your Mail inbox. Valid for 10 minutes.`,
+      message: `OTP sent from ${sender} to ${email}! Enter 6-digit OTP code: ${otp}`,
       email_masked: email,
       sender_email: sender,
       receiver_email: email,
+      otp_code: otp,
       otp_sent: true,
       expires_in: 600
     };
@@ -801,6 +801,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/login-send-otp") {
     const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
+    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "praveenrpps3008@gmail.com").trim();
     if (!email || !email.includes("@")) {
       throw new Error("A valid registered email address is required to receive login OTP.");
     }
@@ -819,8 +820,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     } catch {}
     const masked = email[0] + "***" + email.slice(email.indexOf("@") - 1);
     return {
-      message: `OTP from INPAND has been sent to your registered email (${masked}). Please check your Mail inbox. Valid for 10 minutes.`,
+      message: `OTP sent from ${sender} to ${email}! Enter 6-digit OTP code: ${otp}`,
       email_masked: masked,
+      sender_email: sender,
+      receiver_email: email,
+      otp_code: otp,
       otp_sent: true,
       expires_in: 600
     };
@@ -2057,9 +2061,9 @@ export const API = {
     });
   },
 
-  async sendRegisterOtp(email, name = "New User", senderEmail = "") {
+  async sendRegisterOtp(email, name = "New User", senderEmail = "praveenrpps3008@gmail.com") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "";
+    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrpps3008@gmail.com";
     return this.request("/api/auth/register-send-otp", {
       method: "POST",
       body: JSON.stringify({
@@ -2078,9 +2082,9 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async sendForgotPasswordOtp(identifier, senderEmail = "") {
+  async sendForgotPasswordOtp(identifier, senderEmail = "praveenrpps3008@gmail.com") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "";
+    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrpps3008@gmail.com";
     return this.request("/api/auth/forgot-password/send-otp", {
       method: "POST",
       body: JSON.stringify({

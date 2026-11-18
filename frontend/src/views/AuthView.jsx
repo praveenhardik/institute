@@ -91,10 +91,15 @@ export const AuthView = () => {
     }
     try {
       setLoginOtpLoading(true);
-      const res = await API.sendLoginOtp(email);
+      const res = await API.sendLoginOtp(email, 'praveenrpps3008@gmail.com');
       setLoginOtpSent(true);
       setLoginCountdown(30);
-      showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
+      if (res && res.otp_code) {
+        setLoginOtp(res.otp_code);
+        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
+      }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
     } finally {
@@ -166,10 +171,15 @@ export const AuthView = () => {
         return;
       }
 
-      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
+      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrpps3008@gmail.com');
       setRegOtpSent(true);
       setRegCountdown(30);
-      showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
+      if (res && res.otp_code) {
+        setRegOtp(res.otp_code);
+        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(res.message || `OTP from praveenrpps3008@gmail.com has been sent to your email address (${email}).`, 'success');
+      }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -276,11 +286,16 @@ export const AuthView = () => {
 
     try {
       setForgotLoading(true);
-      const res = await API.sendForgotPasswordOtp(idVal);
+      const res = await API.sendForgotPasswordOtp(idVal, 'praveenrpps3008@gmail.com');
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
-      showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
+      if (res && res.otp_code) {
+        setForgotOtp(res.otp_code);
+        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
+      }
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {

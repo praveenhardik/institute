@@ -713,7 +713,7 @@ def _init_sqlite_db() -> None:
 
             CREATE TABLE IF NOT EXISTS password_reset_otps (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
+                user_id INTEGER,
                 email TEXT NOT NULL,
                 otp_code TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1164,7 +1164,7 @@ def init_db() -> None:
 
             CREATE TABLE IF NOT EXISTS password_reset_otps (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
+                user_id INTEGER,
                 email TEXT NOT NULL,
                 otp_code TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1287,6 +1287,15 @@ def init_db() -> None:
                     conn.rollback()
                 except Exception:
                     pass
+        try:
+            conn.execute("ALTER TABLE password_reset_otps ALTER COLUMN user_id DROP NOT NULL;")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
         try:
             conn.execute("UPDATE questions SET task_number = 'Task 1' WHERE task_number IS NULL OR task_number = '';")
             conn.commit()
