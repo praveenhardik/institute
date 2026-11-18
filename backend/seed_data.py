@@ -289,7 +289,19 @@ def seed_database():
     print("=" * 60)
     init_db()
 
+    # Ensure academic_year columns exist on users and profiles
+    for col in ("academic_year INTEGER", "previous_year INTEGER", "year_changed_at TIMESTAMP"):
+        try:
+            execute_write(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col}")
+        except Exception:
+            pass
+        try:
+            execute_write(f"ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS {col}")
+        except Exception:
+            pass
+
     # Ensure all legacy personal name accounts are completely removed or cleaned
+    execute_write("DELETE FROM users WHERE lower(username) = 'praveen' OR lower(email) = 'praveeninpand@gmail.com'")
     execute_write("DELETE FROM users WHERE lower(name) IN ('eleanor', 'alan', 'xavier', 'lovelace', 'alex', 'arthur') OR lower(email) IN ('eleanor1@inpand.com', 'alan1@inpand.com', 'xavier1@inpand.com', 'lovelace1@inpand.com', 'alex1@inpand.com', 'arthur1@inpand.com')")
     execute_write("DELETE FROM users WHERE role IN ('teacher', 'class_teacher') AND lower(username) IN ('teacher', 'classteacher')")
     execute_write("DELETE FROM staff_profiles WHERE user_id NOT IN (SELECT id FROM users)")

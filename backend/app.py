@@ -383,8 +383,23 @@ def create_app() -> Flask:
         release_request_connection(exception)
 
     # Initialize DB tables and run migrations
-    from backend.seed_data import seed_database
-    seed_database()
+    init_db()
+
+    # Seed initial accounts only if database is brand new (super_admin not yet present)
+    try:
+        super_admin_exists = query_one("SELECT id FROM users WHERE role = 'super_admin' LIMIT 1")
+    except Exception:
+        super_admin_exists = None
+
+    if not super_admin_exists:
+        from backend.seed_data import seed_database
+        seed_database()
+
+    # Ensure legacy praveen account is removed
+    try:
+        execute_write("DELETE FROM users WHERE lower(username) = 'praveen' OR lower(email) = 'praveeninpand@gmail.com'")
+    except Exception:
+        pass
 
     # Class Teacher accounts are active on registration; activate any still waiting for approval
     execute_write("UPDATE users SET status = 'active' WHERE role = 'class_teacher' AND status = 'pending'")

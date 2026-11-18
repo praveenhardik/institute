@@ -873,6 +873,9 @@ def init_db() -> None:
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent')),
                 status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'pending', 'rejected', 'reject', 'deleted', 'delete', 'passed_out', 'graduated')),
+                academic_year INTEGER,
+                previous_year INTEGER,
+                year_changed_at TIMESTAMP,
                 created_by_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_edited_by_id INTEGER,
@@ -1277,10 +1280,13 @@ def init_db() -> None:
         ]
         for tbl, col, col_def in cols_to_add:
             try:
-                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}")
+                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}")
                 conn.commit()
             except Exception:
-                pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
         try:
             conn.execute("UPDATE questions SET task_number = 'Task 1' WHERE task_number IS NULL OR task_number = '';")
             conn.commit()

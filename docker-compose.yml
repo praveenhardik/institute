@@ -12,6 +12,7 @@ services:
       POSTGRES_PASSWORD: ${PGPASSWORD:?Set PGPASSWORD in your local .env file}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:${PGHOST_PORT:-5433}:5432"
     healthcheck:
@@ -55,10 +56,10 @@ services:
       - "127.0.0.1:5000:5000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/auth/super-admin-status"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      start_period: 15s
-      retries: 3
+      start_period: 25s
+      retries: 5
     networks:
       - college_net
 
