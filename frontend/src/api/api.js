@@ -604,9 +604,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   // 6. /api/auth/forgot-password/send-otp & /api/auth/forgot-password
   if (path === "/api/auth/forgot-password/send-otp") {
     return {
-      message: "OTP from INPAND has been sent to your registered email address.",
-      email_masked: "u***r@gmail.com",
-      dev_otp: "123456"
+      message: "OTP from INPAND has been sent to your registered email address. Please check your Mail inbox.",
+      email_masked: "u***r@gmail.com"
     };
   }
 
@@ -626,9 +625,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/register-send-otp") {
     return {
-      message: "OTP from INPAND has been sent to your email address.",
-      email_masked: body?.email || "user@email.com",
-      dev_otp: "123456"
+      message: "OTP from INPAND has been sent to your email address. Please check your Mail inbox.",
+      email_masked: body?.email || "user@email.com"
     };
   }
 

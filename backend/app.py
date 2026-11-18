@@ -450,9 +450,8 @@ def create_app() -> Flask:
 
         masked = mask_email(email)
         return jsonify({
-            "message": f"OTP from INPAND has been sent to your email address ({masked}).",
-            "email_masked": masked,
-            "dev_otp": otp_code
+            "message": f"OTP from INPAND has been sent to your email address ({masked}). Please check your Mail inbox.",
+            "email_masked": masked
         }), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -708,9 +707,8 @@ def create_app() -> Flask:
 
         masked = mask_email(user["email"])
         return jsonify({
-            "message": f"OTP from INPAND has been sent to your registered email address ({masked}).",
-            "email_masked": masked,
-            "dev_otp": otp_code
+            "message": f"OTP from INPAND has been sent to your registered email address ({masked}). Please check your Mail inbox.",
+            "email_masked": masked
         }), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])

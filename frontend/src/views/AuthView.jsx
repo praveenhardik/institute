@@ -28,7 +28,6 @@ export const AuthView = () => {
   const [regOtp, setRegOtp] = useState('');
   const [regOtpSent, setRegOtpSent] = useState(false);
   const [regOtpLoading, setRegOtpLoading] = useState(false);
-  const [regDevOtp, setRegDevOtp] = useState('');
   const [regCountdown, setRegCountdown] = useState(0);
 
   // Forgot password state
@@ -40,7 +39,6 @@ export const AuthView = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotOtpSentTo, setForgotOtpSentTo] = useState('');
   const [forgotCountdown, setForgotCountdown] = useState(0);
-  const [forgotDevOtp, setForgotDevOtp] = useState('');
 
   // Resend OTP countdown timers
   useEffect(() => {
@@ -117,7 +115,6 @@ export const AuthView = () => {
 
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
       setRegOtpSent(true);
-      setRegDevOtp(res.dev_otp || '');
       setRegCountdown(30);
       showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
     } catch (err) {
@@ -200,7 +197,6 @@ export const AuthView = () => {
       setRegPassword('');
       setRegOtp('');
       setRegOtpSent(false);
-      setRegDevOtp('');
       setEmailRegisteredNotice('');
     } catch (err) {
       showAlert(err.message, 'danger');
@@ -228,7 +224,6 @@ export const AuthView = () => {
       setForgotLoading(true);
       const res = await API.sendForgotPasswordOtp(idVal);
       setForgotOtpSentTo(res.email_masked || idVal);
-      setForgotDevOtp(res.dev_otp || '');
       setForgotStep('verify');
       setForgotCountdown(30);
       showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
@@ -280,7 +275,6 @@ export const AuthView = () => {
       setForgotOtp('');
       setForgotNewPass('');
       setForgotConfirmPass('');
-      setForgotDevOtp('');
     } catch (err) {
       showAlert(err.message || 'Failed to reset password. Please verify the OTP.', 'danger');
     } finally {
@@ -573,19 +567,6 @@ export const AuthView = () => {
                       </button>
                     </div>
 
-                    {regDevOtp && (
-                      <div style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '6px 12px', marginBottom: '8px', fontSize: '0.8rem', color: '#3730a3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>OTP from INPAND: <strong style={{ letterSpacing: '2px', fontFamily: 'monospace' }}>{regDevOtp}</strong></span>
-                        <button
-                          type="button"
-                          onClick={() => setRegOtp(regDevOtp)}
-                          style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '0.74rem', cursor: 'pointer' }}
-                        >
-                          Fill OTP
-                        </button>
-                      </div>
-                    )}
-
                     {regOtpSent && (
                       <div>
                         <input
@@ -599,7 +580,7 @@ export const AuthView = () => {
                           required
                         />
                         <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Enter the OTP sent from INPAND to {regContact}
+                          Please check your Mail inbox for the 6-digit OTP sent to {regContact}
                         </div>
                       </div>
                     )}
@@ -713,18 +694,7 @@ export const AuthView = () => {
                   </button>
                 </div>
 
-                {forgotDevOtp && (
-                  <div style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '8px 12px', marginBottom: '14px', fontSize: '0.8rem', color: '#3730a3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>OTP from INPAND: <strong style={{ letterSpacing: '2px', fontFamily: 'monospace', fontSize: '0.95rem' }}>{forgotDevOtp}</strong></span>
-                    <button
-                      type="button"
-                      onClick={() => setForgotOtp(forgotDevOtp)}
-                      style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '0.74rem', cursor: 'pointer' }}
-                    >
-                      Fill OTP
-                    </button>
-                  </div>
-                )}
+
 
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
