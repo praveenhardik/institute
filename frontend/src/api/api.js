@@ -2017,11 +2017,14 @@ export const API = {
     throw new Error("Invalid email address or password");
   },
 
-  async sendLoginOtp(email) {
+  async sendLoginOtp(email, senderEmail = "") {
+    const cur = this.getCurrentUser();
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     return this.request("/api/auth/login-send-otp", {
       method: "POST",
       body: JSON.stringify({
-        email: (email || '').trim()
+        email: (email || '').trim(),
+        sender_email: effectiveSender
       })
     });
   },
@@ -2075,13 +2078,16 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async sendForgotPasswordOtp(identifier) {
+  async sendForgotPasswordOtp(identifier, senderEmail = "") {
+    const cur = this.getCurrentUser();
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     return this.request("/api/auth/forgot-password/send-otp", {
       method: "POST",
       body: JSON.stringify({
         identifier: (identifier || "").trim(),
         email: (identifier || "").trim(),
-        username: (identifier || "").trim()
+        username: (identifier || "").trim(),
+        sender_email: effectiveSender
       })
     });
   },
