@@ -129,12 +129,8 @@ export const AuthView = () => {
       const res = await API.sendLoginOtp(email, 'praveenrps3008@gmail.com');
       setLoginOtpSent(true);
       setLoginCountdown(30);
-      if (res && res.otp_code) {
-        setLoginOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
-      } else {
-        showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
-      }
+      setLoginOtp('');
+      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${email}. Please check your inbox or spam to enter your 6-digit OTP (or click the email link).`, 'success');
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
     } finally {
@@ -209,12 +205,8 @@ export const AuthView = () => {
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrps3008@gmail.com');
       setRegOtpSent(true);
       setRegCountdown(30);
-      if (res && res.otp_code) {
-        setRegOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
-      } else {
-        showAlert(res.message || `OTP from praveenrps3008@gmail.com has been sent to your email address (${email}).`, 'success');
-      }
+      setRegOtp('');
+      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${email}. Please check your inbox or spam to enter your 6-digit OTP (or click the email link).`, 'success');
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -325,12 +317,8 @@ export const AuthView = () => {
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
-      if (res && res.otp_code) {
-        setForgotOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
-      } else {
-        showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
-      }
+      setForgotOtp('');
+      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${res.email_masked || idVal}. Please check your inbox or spam to enter your 6-digit OTP.`, 'success');
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
@@ -493,15 +481,23 @@ export const AuthView = () => {
                 type="text"
                 maxLength={6}
                 className="form-input"
-                placeholder="Enter 6-digit OTP from received mail"
+                placeholder="Enter 6-digit OTP"
                 value={loginOtp}
                 onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, ''))}
-                style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                style={{
+                  letterSpacing: loginOtp ? '4px' : 'normal',
+                  fontSize: loginOtp ? '1.15rem' : '0.95rem',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                  fontFamily: loginOtp ? 'monospace' : 'inherit',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
                 required
               />
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {loginIdentifier}</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {loginIdentifier} (or click the email link)</span>
                 ) : (
                   <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
                 )}
@@ -517,7 +513,7 @@ export const AuthView = () => {
               {loginLoading ? 'Signing in...' : 'Sign In to Portal'}
             </button>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', fontSize: '0.85rem', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', fontSize: '0.85rem', paddingTop: '14px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => setActiveTab('register')}
@@ -734,15 +730,23 @@ export const AuthView = () => {
                   type="text"
                   maxLength={6}
                   className="form-input"
-                  placeholder="Enter 6-digit OTP from received mail"
+                  placeholder="Enter 6-digit OTP"
                   value={regOtp}
                   onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, ''))}
-                  style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                  style={{
+                    letterSpacing: regOtp ? '4px' : 'normal',
+                    fontSize: regOtp ? '1.15rem' : '0.95rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    fontFamily: regOtp ? 'monospace' : 'inherit',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
                   required
                 />
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                   {regOtpSent ? (
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {regContact}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {regContact} (or click the email link)</span>
                   ) : (
                     <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
                   )}
@@ -771,7 +775,7 @@ export const AuthView = () => {
                 {regLoading ? 'Creating Account...' : 'Create Account'}
               </button>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('login')}
@@ -882,13 +886,24 @@ export const AuthView = () => {
                     type="text"
                     maxLength={6}
                     className="form-input"
-                    placeholder="Enter 6-digit OTP from INPAND"
+                    placeholder="Enter 6-digit OTP"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
-                    style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                    style={{
+                      letterSpacing: forgotOtp ? '4px' : 'normal',
+                      fontSize: forgotOtp ? '1.15rem' : '0.95rem',
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      fontFamily: forgotOtp ? 'monospace' : 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
                     required
                     autoFocus
                   />
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {forgotOtpSentTo || forgotIdentifier}</span>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -928,7 +943,7 @@ export const AuthView = () => {
               </form>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => { setActiveTab('login'); setForgotStep('request'); }}

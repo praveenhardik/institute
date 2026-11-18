@@ -424,12 +424,6 @@ def create_app() -> Flask:
         from backend.seed_data import seed_database
         seed_database()
 
-    # Ensure legacy praveen account is removed
-    try:
-        execute_write("DELETE FROM users WHERE lower(username) = 'praveen' OR lower(email) = 'praveeninpand@gmail.com'")
-    except Exception:
-        pass
-
     # Class Teacher accounts are active on registration; activate any still waiting for approval
     execute_write("UPDATE users SET status = 'active' WHERE role = 'class_teacher' AND status = 'pending'")
     execute_write("""
@@ -579,8 +573,7 @@ def create_app() -> Flask:
             "expires_in": 600
         }
         if not sent:
-            res_payload["otp_code"] = otp_code
-            res_payload["message"] = f"OTP sent from {sender_email} to {email}! Enter the 6-digit OTP code: {otp_code}"
+            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {email}. Please check your mail inbox or spam to enter your 6-digit OTP."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -858,8 +851,7 @@ def create_app() -> Flask:
             "expires_in": 600
         }
         if not sent:
-            res_payload["otp_code"] = otp_code
-            res_payload["message"] = f"OTP sent from {sender_email} to {user['email']}! Enter the 6-digit OTP code: {otp_code}"
+            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {user['email']}. Please check your mail inbox or spam to enter your 6-digit OTP."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -984,8 +976,7 @@ def create_app() -> Flask:
             "expires_in": 600
         }
         if not sent:
-            res_payload["otp_code"] = otp_code
-            res_payload["message"] = f"OTP sent from {sender_email} to {user['email']}! Enter the 6-digit OTP code: {otp_code}"
+            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {user['email']}. Please check your mail inbox or spam to enter your 6-digit OTP."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/login", methods=["POST"])
