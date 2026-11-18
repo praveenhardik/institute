@@ -601,9 +601,17 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return { eligible: true, message: "Name is eligible" };
   }
 
-  // 6. /api/auth/forgot-password
-  if (path === "/api/auth/forgot-password") {
-    return { message: "Password has been successfully reset! Please sign in with your new password." };
+  // 6. /api/auth/forgot-password/send-otp & /api/auth/forgot-password
+  if (path === "/api/auth/forgot-password/send-otp") {
+    return {
+      message: "OTP from INPAND has been sent to your registered email address.",
+      email_masked: "s***1@inpand.com",
+      dev_otp: "123456"
+    };
+  }
+
+  if (path === "/api/auth/forgot-password" || path === "/api/auth/forgot-password/verify-reset") {
+    return { message: "Password has been successfully reset! You can now sign in with your registered email and new password." };
   }
 
   // 7. /api/auth/change-password
@@ -1707,12 +1715,36 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async forgotPassword(usernameOrContact, newPassword) {
+  async sendForgotPasswordOtp(identifier) {
+    return this.request("/api/auth/forgot-password/send-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        identifier: (identifier || "").trim(),
+        email: (identifier || "").trim(),
+        username: (identifier || "").trim()
+      })
+    });
+  },
+
+  async forgotPassword(usernameOrContact, newPassword, otp = "") {
     return this.request("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({
+        identifier: usernameOrContact,
         username: usernameOrContact,
         email_or_phone: usernameOrContact,
+        otp: (otp || "").trim(),
+        new_password: newPassword
+      })
+    });
+  },
+
+  async resetForgotPasswordWithOtp(identifier, otp, newPassword) {
+    return this.request("/api/auth/forgot-password/verify-reset", {
+      method: "POST",
+      body: JSON.stringify({
+        identifier: (identifier || "").trim(),
+        otp: (otp || "").trim(),
         new_password: newPassword
       })
     });

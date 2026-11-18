@@ -131,6 +131,161 @@ def resolve_class_leader_identifier(s):
     return None
 
 
+def mask_email(email: str) -> str:
+    """Mask email for privacy display, e.g. s***1@inpand.com"""
+    if not email or "@" not in email:
+        return email or ""
+    parts = email.split("@")
+    user_part, domain = parts[0], parts[1]
+    if len(user_part) <= 2:
+        masked_user = user_part[0] + "*"
+    else:
+        masked_user = user_part[0] + "*" * (len(user_part) - 2) + user_part[-1]
+    return f"{masked_user}@{domain}"
+
+
+def find_user_by_email_or_username(identifier: str):
+    """Find a registered user by email address OR username (case-insensitive & alias tolerant)."""
+    if not identifier:
+        return None
+    raw = identifier.strip().lower()
+
+    # 1. Exact match on email
+    user = query_one(
+        "SELECT id, name, username, email FROM users WHERE lower(email) = lower(?)",
+        (raw,)
+    )
+    if user:
+        return user
+
+    # 2. Exact match on username
+    user = query_one(
+        "SELECT id, name, username, email FROM users WHERE username IS NOT NULL AND lower(username) = lower(?)",
+        (raw,)
+    )
+    if user:
+        return user
+
+    # 3. Normalized alphanumeric username/name match
+    norm = re.sub(r'[^a-z0-9]', '', raw)
+    if norm:
+        user = query_one(
+            """SELECT id, name, username, email FROM users
+               WHERE replace(lower(COALESCE(username, '')), ' ', '') = ?
+                  OR replace(lower(COALESCE(name, '')), ' ', '') = ?
+               ORDER BY id LIMIT 1""",
+            (norm, norm)
+        )
+        if user:
+            return user
+
+    # 4. If identifier does not include @, check institution alias email
+    if "@" not in raw and norm:
+        alias_email = f"{norm}@inpand.com"
+        user = query_one(
+            "SELECT id, name, username, email FROM users WHERE lower(email) = lower(?)",
+            (alias_email,)
+        )
+        if user:
+            return user
+
+        alias_email_1 = f"{norm}1@inpand.com"
+        user = query_one(
+            "SELECT id, name, username, email FROM users WHERE lower(email) = lower(?)",
+            (alias_email_1,)
+        )
+        if user:
+            return user
+
+    return None
+
+
+def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str) -> bool:
+    """Send 'OTP from INPAND' email via standard SMTP."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.header import Header
+
+    smtp_host = os.getenv("SMTP_HOST", "localhost")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", ""))
+    smtp_from = os.getenv("SMTP_FROM", "INPAND Security <no-reply@inpand.com>")
+    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
+
+    subject = "OTP from INPAND"
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OTP from INPAND</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
+  <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <h2 style="font-size: 22px; font-weight: 700; color: #1e293b; margin: 0;">INPAND Portal Security</h2>
+      <p style="font-size: 14px; color: #64748b; margin-top: 6px;">Password Reset Verification</p>
+    </div>
+    <p style="font-size: 15px; color: #334155; line-height: 1.6;">Hello <strong>{user_name}</strong>,</p>
+    <p style="font-size: 15px; color: #334155; line-height: 1.6;">We received a request to reset the password for your INPAND portal account. Use the One-Time Password (OTP) below to complete your verification:</p>
+    <div style="background: #f1f5f9; border: 2px dashed #6366f1; border-radius: 10px; padding: 20px; text-align: center; margin: 26px 0;">
+      <div style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #4338ca; font-family: monospace;">{otp_code}</div>
+      <div style="font-size: 13px; color: #64748b; margin-top: 8px;">Valid for 10 minutes (Single use only)</div>
+    </div>
+    <p style="font-size: 13px; color: #64748b; line-height: 1.5;">If you did not request this OTP, you can safely ignore this message. Your password remains safe and secure.</p>
+    <div style="margin-top: 32px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+      &copy; 2026 INPAND Institute of Engineering and Technology. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>"""
+
+    text_content = (
+        f"Hello {user_name},\n\n"
+        f"Your One-Time Password (OTP) from INPAND is: {otp_code}\n\n"
+        f"This OTP is valid for 10 minutes.\n"
+        f"If you did not request this, please ignore this email.\n\n"
+        f"INPAND Institute of Engineering and Technology"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = smtp_from
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_content, "plain", "utf-8"))
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+    try:
+        if smtp_user and smtp_pass:
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=8)
+            else:
+                server = smtplib.SMTP(smtp_host, smtp_port, timeout=8)
+                if use_tls:
+                    server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_from, [to_email], msg.as_string())
+            server.quit()
+            print(f"[MAIL] Sent 'OTP from INPAND' to {to_email}")
+            return True
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=3)
+            if use_tls:
+                try:
+                    server.starttls()
+                except Exception:
+                    pass
+            server.sendmail(smtp_from, [to_email], msg.as_string())
+            server.quit()
+            print(f"[MAIL] Sent 'OTP from INPAND' to {to_email}")
+            return True
+    except Exception as e:
+        print(f"[MAIL NOTICE] SMTP delivery to {to_email} ({e}). OTP recorded in database and notifications.")
+        return False
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=FRONTEND_DIR)
     app_env = os.getenv("APP_ENV", "development").strip().lower()
@@ -445,28 +600,91 @@ def create_app() -> Flask:
             }), 200
         return jsonify({"eligible": True, "message": "Name is eligible"}), 200
 
-    @app.route("/api/auth/forgot-password", methods=["POST"])
-    def forgot_password():
-        """Reset password for an existing account by verifying email address."""
+    @app.route("/api/auth/forgot-password/send-otp", methods=["POST"])
+    def forgot_password_send_otp():
+        """Send OTP to the registered email address of the account matching email or username."""
+        import random
+        import datetime
         data = request.get_json() or {}
-        identifier = (data.get("email") or data.get("username") or data.get("email_or_phone") or "").strip()
+        identifier = (data.get("identifier") or data.get("email") or data.get("username") or data.get("email_or_phone") or "").strip()
+
+        if not identifier:
+            return jsonify({"error": "Registered Email or Username is required"}), 400
+
+        user = find_user_by_email_or_username(identifier)
+        if not user or not user.get("email"):
+            return jsonify({"error": "No registered account found with this Email or Username."}), 404
+
+        otp_code = f"{random.randint(100000, 999999)}"
+        expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Save OTP to database
+        execute_write("""
+            INSERT INTO password_reset_otps (user_id, email, otp_code, expires_at, used)
+            VALUES (?, ?, ?, ?, 0)
+        """, (user["id"], user["email"], otp_code, expires_at))
+
+        # Send via email with Subject 'OTP from INPAND'
+        send_inpand_otp_email(user["email"], user["name"], otp_code)
+
+        # Also store notification for the user
+        execute_write("""
+            INSERT INTO notifications (recipient_id, sender_name, sender_role, type, title, message, is_read)
+            VALUES (?, 'INPAND Security', 'system', 'security', 'OTP from INPAND', ?, 0)
+        """, (user["id"], f"Your password reset OTP is {otp_code}. Valid for 10 minutes."))
+
+        masked = mask_email(user["email"])
+        return jsonify({
+            "message": f"OTP from INPAND has been sent to your registered email address ({masked}).",
+            "email_masked": masked,
+            "dev_otp": otp_code
+        }), 200
+
+    @app.route("/api/auth/forgot-password", methods=["POST"])
+    @app.route("/api/auth/forgot-password/verify-reset", methods=["POST"])
+    def forgot_password():
+        """Reset password for an existing account by verifying OTP from INPAND."""
+        import datetime
+        data = request.get_json() or {}
+        identifier = (data.get("identifier") or data.get("email") or data.get("username") or data.get("email_or_phone") or "").strip()
+        otp = (data.get("otp") or "").strip()
         new_password = (data.get("new_password") or "").strip()
 
         if not identifier or not new_password:
-            return jsonify({"error": "Email address and new password are required"}), 400
-
-        if "@" not in identifier or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", identifier):
-            return jsonify({"error": "Only registered email address is accepted to reset password. Full name, username, or phone number cannot be used."}), 400
+            return jsonify({"error": "Registered Email/Username and new password are required"}), 400
 
         if len(new_password) < 6:
             return jsonify({"error": "New password must be at least 6 characters long"}), 400
 
-        user = query_one(
-            "SELECT id, name, email FROM users WHERE lower(email) = lower(?)",
-            (identifier.lower(),)
-        )
+        user = find_user_by_email_or_username(identifier)
         if not user:
-            return jsonify({"error": "No registered account found with this email address."}), 404
+            return jsonify({"error": "No registered account found with this Email or Username."}), 404
+
+        now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        if otp:
+            otp_record = query_one("""
+                SELECT id, expires_at FROM password_reset_otps
+                WHERE user_id = ? AND otp_code = ? AND used = 0
+                ORDER BY id DESC LIMIT 1
+            """, (user["id"], otp))
+
+            if not otp_record:
+                return jsonify({"error": "Invalid OTP code. Please enter the valid OTP from INPAND sent to your email."}), 400
+
+            if str(otp_record["expires_at"]) < now_str:
+                return jsonify({"error": "The OTP has expired. Please request a new OTP."}), 400
+
+            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (otp_record["id"],))
+        else:
+            # Check if an unused active OTP was generated for this user
+            pending_otp = query_one("""
+                SELECT id FROM password_reset_otps
+                WHERE user_id = ? AND used = 0 AND expires_at > ?
+                ORDER BY id DESC LIMIT 1
+            """, (user["id"], now_str))
+            if pending_otp:
+                return jsonify({"error": "Please enter the 6-digit OTP sent to your registered email."}), 400
 
         new_hash = hash_password(new_password)
         execute_write("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
@@ -478,7 +696,8 @@ def create_app() -> Flask:
         """, (user["id"],))
 
         return jsonify({
-            "message": f"Password has been successfully reset for {user['name']}! You can now sign in with your new password."
+            "message": f"Password has been successfully reset for {user['name']}! You can now sign in with your email ({user['email']}).",
+            "email": user["email"]
         }), 200
 
     def get_user_department_details(user_id: int, role: str) -> dict:

@@ -27,9 +27,27 @@ export const AuthView = () => {
 
   // Forgot password state
   const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'verify'
+  const [forgotOtp, setForgotOtp] = useState('');
   const [forgotNewPass, setForgotNewPass] = useState('');
   const [forgotConfirmPass, setForgotConfirmPass] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotOtpSentTo, setForgotOtpSentTo] = useState('');
+  const [forgotCountdown, setForgotCountdown] = useState(0);
+  const [forgotDevOtp, setForgotDevOtp] = useState('');
+
+  // Resend OTP countdown timer
+  useEffect(() => {
+    let timer = null;
+    if (forgotCountdown > 0) {
+      timer = setInterval(() => {
+        setForgotCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [forgotCountdown]);
 
   // 1. Submit Login
   const handleLoginSubmit = async (e) => {
@@ -107,31 +125,74 @@ export const AuthView = () => {
     }
   };
 
-  // 3. Submit Forgot Password
-  const handleForgotSubmit = async (e) => {
-    e.preventDefault();
-    if (!forgotIdentifier.trim() || !forgotNewPass.trim() || !forgotConfirmPass.trim()) {
-      showAlert('All fields are required', 'danger');
+  // 3. Send OTP for Forgot Password
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    const idVal = forgotIdentifier.trim();
+    if (!idVal) {
+      showAlert('Please enter your registered Email or Username', 'danger');
       return;
     }
-    if (forgotNewPass.length < 6) {
+
+    try {
+      setForgotLoading(true);
+      const res = await API.sendForgotPasswordOtp(idVal);
+      setForgotOtpSentTo(res.email_masked || idVal);
+      setForgotDevOtp(res.dev_otp || '');
+      setForgotStep('verify');
+      setForgotCountdown(30);
+      showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
+    } catch (err) {
+      showAlert(err.message || 'Failed to send OTP. Please check your email or username.', 'danger');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // 4. Verify OTP & Reset Password
+  const handleForgotSubmit = async (e) => {
+    e?.preventDefault();
+    const idVal = forgotIdentifier.trim();
+    const otpVal = forgotOtp.trim();
+    const newPass = forgotNewPass.trim();
+    const confPass = forgotConfirmPass.trim();
+
+    if (!idVal || !otpVal || !newPass || !confPass) {
+      showAlert('All fields (email/username, OTP, new password, confirm password) are required', 'danger');
+      return;
+    }
+    if (otpVal.length !== 6 || !/^\d{6}$/.test(otpVal)) {
+      showAlert('Please enter the 6-digit numeric OTP from INPAND', 'danger');
+      return;
+    }
+    if (newPass.length < 6) {
       showAlert('New password must be at least 6 characters long', 'danger');
       return;
     }
-    if (forgotNewPass !== forgotConfirmPass) {
+    if (newPass !== confPass) {
       showAlert('New password and confirmation do not match', 'danger');
       return;
     }
 
     try {
       setForgotLoading(true);
-      const res = await API.forgotPassword(forgotIdentifier.trim(), forgotNewPass.trim());
-      showAlert(res.message || 'Password reset successfully! Please sign in with your new password.', 'success');
+      const res = await API.resetForgotPasswordWithOtp(idVal, otpVal, newPass);
+      showAlert(res.message || 'Password reset successfully! You can now sign in with your email and new password.', 'success');
       setActiveTab('login');
-      setLoginIdentifier(forgotIdentifier.trim());
+      if (res.email) {
+        setLoginIdentifier(res.email);
+      } else if (idVal.includes('@')) {
+        setLoginIdentifier(idVal);
+      }
       setLoginPassword('');
+      // Reset forgot state
+      setForgotStep('request');
+      setForgotOtp('');
+      setForgotNewPass('');
+      setForgotConfirmPass('');
+      setForgotDevOtp('');
     } catch (err) {
-      showAlert(err.message, 'danger');
+      showAlert(err.message || 'Failed to reset password. Please verify the OTP.', 'danger');
     } finally {
       setForgotLoading(false);
     }
@@ -140,27 +201,7 @@ export const AuthView = () => {
   return (
     <section className="auth-wrapper">
       <div className="auth-card">
-        {/* Auth Tabs */}
-        <div className="auth-tabs">
-          <button
-            className={`auth-tab-btn ${activeTab === 'login' ? 'active' : ''}`}
-            onClick={() => setActiveTab('login')}
-          >
-            Sign In
-          </button>
-          <button
-            className={`auth-tab-btn ${activeTab === 'register' ? 'active' : ''}`}
-            onClick={() => setActiveTab('register')}
-          >
-            Create Account
-          </button>
-          <button
-            className={`auth-tab-btn ${activeTab === 'forgot' ? 'active' : ''}`}
-            onClick={() => setActiveTab('forgot')}
-          >
-            Forgot Password
-          </button>
-        </div>
+        {/* Top tab navigation pills removed as requested: clean single-card view */}
 
         {/* 1. SIGN IN FORM */}
         {activeTab === 'login' && (
@@ -420,88 +461,172 @@ export const AuthView = () => {
             </form>
         )}
 
-        {/* 3. FORGOT PASSWORD FORM */}
+        {/* 3. FORGOT PASSWORD FORM WITH OTP FROM INPAND */}
         {activeTab === 'forgot' && (
-          <form onSubmit={handleForgotSubmit}>
+          <div>
             <div style={{ marginBottom: '18px', textAlign: 'center' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Reset Password
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                Enter your registered Email to set a new password
+                {forgotStep === 'request'
+                  ? 'Enter your registered Email or Username to receive an OTP'
+                  : 'Enter the OTP from INPAND sent to your registered email'}
               </p>
             </div>
 
-            <div className="alert alert-info" style={{ fontSize: '0.8rem', marginBottom: '16px' }}>
-              Enter your registered Email address, followed by your new password.
-            </div>
+            {forgotStep === 'request' ? (
+              <form onSubmit={handleSendOtp}>
+                <div className="alert alert-info" style={{ fontSize: '0.82rem', marginBottom: '16px', lineHeight: 1.5 }}>
+                  Enter your registered <strong>Email</strong> or <strong>User Name</strong>. A 6-digit <strong>OTP from INPAND</strong> will be sent to your registered email address.
+                </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                Email <span className="req">*</span>
-              </label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Enter your registered email address"
-                value={forgotIdentifier}
-                onChange={(e) => setForgotIdentifier(e.target.value)}
-                required
-              />
-            </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Email or Username <span className="req">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter registered Email or Username (e.g. admin or admin1@inpand.com)"
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Email ID or username is enough to request OTP
+                  </div>
+                </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                New Password <span className="req">*</span>
-              </label>
-              <PasswordInput
-                placeholder="Minimum 6 characters"
-                value={forgotNewPass}
-                onChange={(e) => setForgotNewPass(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '10px', padding: '11px', fontWeight: 600 }}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? 'Sending OTP from INPAND...' : 'Send OTP'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleForgotSubmit}>
+                <div className="alert alert-success" style={{ fontSize: '0.82rem', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    OTP sent to: <strong>{forgotOtpSentTo}</strong>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Check your email with subject <em>OTP from INPAND</em>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep('request')}
+                    style={{ background: 'none', border: 'none', color: '#4338ca', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Change
+                  </button>
+                </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                Confirm New Password <span className="req">*</span>
-              </label>
-              <PasswordInput
-                placeholder="Re-enter new password"
-                value={forgotConfirmPass}
-                onChange={(e) => setForgotConfirmPass(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
+                {forgotDevOtp && (
+                  <div style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '8px 12px', marginBottom: '14px', fontSize: '0.8rem', color: '#3730a3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>OTP from INPAND: <strong style={{ letterSpacing: '2px', fontFamily: 'monospace', fontSize: '0.95rem' }}>{forgotDevOtp}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setForgotOtp(forgotDevOtp)}
+                      style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '0.74rem', cursor: 'pointer' }}
+                    >
+                      Fill OTP
+                    </button>
+                  </div>
+                )}
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '10px' }}
-              disabled={forgotLoading}
-            >
-              {forgotLoading ? 'Resetting Password...' : 'Reset & Update Password'}
-            </button>
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>
+                      Enter 6-Digit OTP <span className="req">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={forgotCountdown > 0 || forgotLoading}
+                      onClick={handleSendOtp}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: forgotCountdown > 0 ? 'var(--text-muted)' : 'var(--accent-primary)',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: forgotCountdown > 0 ? 'default' : 'pointer'
+                      }}
+                    >
+                      {forgotCountdown > 0 ? `Resend OTP in ${forgotCountdown}s` : 'Resend OTP'}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    className="form-input"
+                    placeholder="Enter 6-digit OTP from INPAND"
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                    style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    New Password <span className="req">*</span>
+                  </label>
+                  <PasswordInput
+                    placeholder="Minimum 6 characters"
+                    value={forgotNewPass}
+                    onChange={(e) => setForgotNewPass(e.target.value)}
+                    minLength={6}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Confirm New Password <span className="req">*</span>
+                  </label>
+                  <PasswordInput
+                    placeholder="Re-enter new password"
+                    value={forgotConfirmPass}
+                    onChange={(e) => setForgotConfirmPass(e.target.value)}
+                    minLength={6}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '10px', padding: '11px', fontWeight: 600 }}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? 'Verifying & Resetting...' : 'Reset & Update Password'}
+                </button>
+              </form>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
               <button
                 type="button"
-                onClick={() => setActiveTab('login')}
+                onClick={() => { setActiveTab('login'); setForgotStep('request'); }}
                 style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 700 }}
               >
                 Remembered your password? Sign In
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('register')}
+                onClick={() => { setActiveTab('register'); setForgotStep('request'); }}
                 style={{ background: 'none', border: 'none', color: '#7e22ce', cursor: 'pointer', fontWeight: 700 }}
               >
                 Need an account? Create Account
               </button>
             </div>
-          </form>
+          </div>
         )}
       </div>
     </section>
