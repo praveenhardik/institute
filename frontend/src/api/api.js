@@ -638,17 +638,23 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     }
     const targetEmail = user.email.toLowerCase().trim();
     const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const nowTime = String(Date.now());
     try {
       sessionStorage.setItem("active_forgot_otp_" + targetEmail, otp);
       localStorage.setItem("active_forgot_otp_" + targetEmail, otp);
       sessionStorage.setItem("active_forgot_otp_" + identifier, otp);
       localStorage.setItem("active_forgot_otp_" + identifier, otp);
+      sessionStorage.setItem("active_forgot_otp_time_" + targetEmail, nowTime);
+      localStorage.setItem("active_forgot_otp_time_" + targetEmail, nowTime);
+      sessionStorage.setItem("active_forgot_otp_time_" + identifier, nowTime);
+      localStorage.setItem("active_forgot_otp_time_" + identifier, nowTime);
     } catch {}
     const masked = targetEmail.includes("@") ? targetEmail[0] + "***" + targetEmail.slice(targetEmail.indexOf("@") - 1) : targetEmail;
     return {
-      message: `OTP from INPAND has been sent to your registered official email address (${masked}). Please check your Mail inbox.`,
+      message: `OTP from INPAND has been sent to your registered official email address (${masked}). Please check your Mail inbox. Valid for 10 minutes.`,
       email_masked: masked,
-      otp_sent: true
+      otp_sent: true,
+      expires_in: 600
     };
   }
 
@@ -665,20 +671,51 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error(`❌ No registered account found with Email or Username "${identifier}". Please check and try again.`);
     }
     const targetEmail = (user.email || "").toLowerCase().trim();
+
+    if (!enteredOtp) {
+      throw new Error("❌ OTP verification is mandatory. Please enter the 6-digit OTP sent to your registered email.");
+    }
+
     let expectedOtp = null;
+    let otpTimestamp = null;
     try {
       expectedOtp = sessionStorage.getItem("active_forgot_otp_" + targetEmail) || 
                     localStorage.getItem("active_forgot_otp_" + targetEmail) ||
                     sessionStorage.getItem("active_forgot_otp_" + identifier) || 
                     localStorage.getItem("active_forgot_otp_" + identifier);
+      otpTimestamp = sessionStorage.getItem("active_forgot_otp_time_" + targetEmail) || 
+                     localStorage.getItem("active_forgot_otp_time_" + targetEmail) ||
+                     sessionStorage.getItem("active_forgot_otp_time_" + identifier) || 
+                     localStorage.getItem("active_forgot_otp_time_" + identifier);
     } catch {}
 
-    if (expectedOtp && enteredOtp && enteredOtp !== expectedOtp) {
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found. Please click 'Send OTP' or 'Resend OTP' first.");
+    }
+
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
+      throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP.");
+    }
+
+    if (enteredOtp !== expectedOtp) {
       throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP.");
     }
     if (!body.new_password || body.new_password.length < 6) {
       throw new Error("New password must be at least 6 characters long.");
     }
+
+    // Clear used OTP
+    try {
+      sessionStorage.removeItem("active_forgot_otp_" + targetEmail);
+      localStorage.removeItem("active_forgot_otp_" + targetEmail);
+      sessionStorage.removeItem("active_forgot_otp_" + identifier);
+      localStorage.removeItem("active_forgot_otp_" + identifier);
+      sessionStorage.removeItem("active_forgot_otp_time_" + targetEmail);
+      localStorage.removeItem("active_forgot_otp_time_" + targetEmail);
+      sessionStorage.removeItem("active_forgot_otp_time_" + identifier);
+      localStorage.removeItem("active_forgot_otp_time_" + identifier);
+    } catch {}
+
     user.password = body.new_password;
     saveStoredUsers(users);
     return {
@@ -707,14 +744,18 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("This email address is already registered. Please sign in or use Forgot Password.");
     }
     const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const nowTime = String(Date.now());
     try {
       sessionStorage.setItem("active_reg_otp_" + email, otp);
       localStorage.setItem("active_reg_otp_" + email, otp);
+      sessionStorage.setItem("active_reg_otp_time_" + email, nowTime);
+      localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
     return {
-      message: `OTP from INPAND has been sent to your official email (${email}). Please check your Mail inbox.`,
+      message: `OTP from INPAND has been sent to your official email (${email}). Please check your Mail inbox. Valid for 10 minutes.`,
       email_masked: email,
-      otp_sent: true
+      otp_sent: true,
+      expires_in: 600
     };
   }
 
@@ -728,14 +769,37 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     const users = getStoredUsers();
     const email = (body.email_or_phone || body.email || "").toLowerCase().trim();
     const enteredOtp = String(body.otp || (body.meta && body.meta.otp) || "").trim();
+
+    if (!enteredOtp) {
+      throw new Error("❌ Email OTP verification is mandatory. Please enter the 6-digit OTP sent to your email.");
+    }
+
     let expectedOtp = null;
+    let otpTimestamp = null;
     try {
       expectedOtp = sessionStorage.getItem("active_reg_otp_" + email) || localStorage.getItem("active_reg_otp_" + email);
+      otpTimestamp = sessionStorage.getItem("active_reg_otp_time_" + email) || localStorage.getItem("active_reg_otp_time_" + email);
     } catch {}
 
-    if (expectedOtp && enteredOtp && enteredOtp !== expectedOtp) {
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first.");
+    }
+
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
+      throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
+    }
+
+    if (enteredOtp !== expectedOtp) {
       throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct 6-digit OTP sent to your email.");
     }
+
+    // Clear used registration OTP
+    try {
+      sessionStorage.removeItem("active_reg_otp_" + email);
+      localStorage.removeItem("active_reg_otp_" + email);
+      sessionStorage.removeItem("active_reg_otp_time_" + email);
+      localStorage.removeItem("active_reg_otp_time_" + email);
+    } catch {}
 
     const newId = users.length ? Math.max(...users.map(u => u.id || 0)) + 1 : 100;
     const role = (body.role || "student").toLowerCase();

@@ -497,6 +497,10 @@ def create_app() -> Flask:
         if not email or "@" not in email:
             return jsonify({"error": "A valid email address is required to receive OTP."}), 400
 
+        # Validate standard email format
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            return jsonify({"error": "Please enter a valid email address format (e.g. user@domain.com)."}), 400
+
         # Check if already registered
         existing = query_one("SELECT id FROM users WHERE lower(email) = lower(?)", (email,))
         if existing:
@@ -509,6 +513,9 @@ def create_app() -> Flask:
         otp_code = f"{random.randint(100000, 999999)}"
         expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
 
+        # Invalidate previous unused OTPs for this email upon Resend
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE email = ? AND used = 0", (email,))
+
         execute_write("""
             INSERT INTO password_reset_otps (user_id, email, otp_code, expires_at, used)
             VALUES (0, ?, ?, ?, 0)
@@ -518,9 +525,10 @@ def create_app() -> Flask:
 
         masked = mask_email(email)
         return jsonify({
-            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox.",
+            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox. Valid for 10 minutes.",
             "email_masked": masked,
-            "email_sent": bool(sent)
+            "email_sent": bool(sent),
+            "expires_in": 600
         }), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -590,18 +598,26 @@ def create_app() -> Flask:
         if existing:
             return jsonify({"error": "This email address is already registered. Please sign in or use Forgot Password."}), 400
 
-        # Verify registration OTP if provided
+        # MANDATORY email OTP verification for account creation
         otp = (data.get("otp") or "").strip()
-        if otp:
-            matched_otp = query_one("""
-                SELECT id FROM password_reset_otps
-                WHERE email = ? AND otp_code = ? AND used = 0
-                ORDER BY id DESC LIMIT 1
-            """, (identifier, otp))
-            if matched_otp:
-                execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
-            else:
-                return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
+        if not otp:
+            return jsonify({"error": "❌ Email OTP verification is mandatory. Please enter the 6-digit OTP sent to your email."}), 400
+
+        import datetime
+        now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        matched_otp = query_one("""
+            SELECT id, expires_at FROM password_reset_otps
+            WHERE email = ? AND otp_code = ? AND used = 0
+            ORDER BY id DESC LIMIT 1
+        """, (identifier, otp))
+
+        if not matched_otp:
+            return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
+
+        if str(matched_otp["expires_at"]) < now_str:
+            return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
+
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
 
         hashed = hash_password(password)
         # All newly created accounts are active straight away so they show immediately in the directory
@@ -757,6 +773,9 @@ def create_app() -> Flask:
         if not user or not user.get("email"):
             return jsonify({"error": f"❌ No registered account found with this Email or Username. Please check and try again, or Create Account."}), 404
 
+        # Invalidate previous unused OTPs for this user upon Resend
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE user_id = ? AND used = 0", (user["id"],))
+
         otp_code = f"{random.randint(100000, 999999)}"
         expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -777,9 +796,10 @@ def create_app() -> Flask:
 
         masked = mask_email(user["email"])
         return jsonify({
-            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox.",
+            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox. Valid for 10 minutes.",
             "email_masked": masked,
-            "email_sent": bool(sent)
+            "email_sent": bool(sent),
+            "expires_in": 600
         }), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -804,29 +824,23 @@ def create_app() -> Flask:
 
         now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-        if otp:
-            otp_record = query_one("""
-                SELECT id, expires_at FROM password_reset_otps
-                WHERE user_id = ? AND otp_code = ? AND used = 0
-                ORDER BY id DESC LIMIT 1
-            """, (user["id"], otp))
+        # MANDATORY OTP VERIFICATION
+        if not otp:
+            return jsonify({"error": "❌ OTP verification is mandatory. Please enter the 6-digit OTP sent to your registered email."}), 400
 
-            if not otp_record:
-                return jsonify({"error": "❌ Wrong OTP! The code you entered is incorrect. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP."}), 400
+        otp_record = query_one("""
+            SELECT id, expires_at FROM password_reset_otps
+            WHERE user_id = ? AND otp_code = ? AND used = 0
+            ORDER BY id DESC LIMIT 1
+        """, (user["id"], otp))
 
-            if str(otp_record["expires_at"]) < now_str:
-                return jsonify({"error": "The OTP has expired. Please request a new OTP."}), 400
+        if not otp_record:
+            return jsonify({"error": "❌ Wrong OTP! The code you entered is incorrect. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP."}), 400
 
-            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (otp_record["id"],))
-        else:
-            # Check if an unused active OTP was generated for this user
-            pending_otp = query_one("""
-                SELECT id FROM password_reset_otps
-                WHERE user_id = ? AND used = 0 AND expires_at > ?
-                ORDER BY id DESC LIMIT 1
-            """, (user["id"], now_str))
-            if pending_otp:
-                return jsonify({"error": "Please enter the 6-digit OTP sent to your registered email."}), 400
+        if str(otp_record["expires_at"]) < now_str:
+            return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP."}), 400
+
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (otp_record["id"],))
 
         new_hash = hash_password(new_password)
         execute_write("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
