@@ -280,6 +280,42 @@ export const TeacherView = () => {
   const [ctFacultyDeptIds, setCtFacultyDeptIds] = useState([]);
   const [ctFacultyLoading, setCtFacultyLoading] = useState(false);
   const [ctNameEligibilityNotice, setCtNameEligibilityNotice] = useState('');
+  const [ctFacultyOtp, setCtFacultyOtp] = useState('');
+  const [ctFacultyOtpSent, setCtFacultyOtpSent] = useState(false);
+  const [ctFacultyOtpLoading, setCtFacultyOtpLoading] = useState(false);
+  const [ctFacultyCountdown, setCtFacultyCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer = null;
+    if (ctFacultyCountdown > 0) {
+      timer = setInterval(() => {
+        setCtFacultyCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [ctFacultyCountdown]);
+
+  const handleSendCtFacultyOtp = async () => {
+    const email = ctFacultyContact.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showAlert('Please enter a valid email address first to receive OTP', 'danger');
+      return;
+    }
+    try {
+      setCtFacultyOtpLoading(true);
+      const res = await API.sendRegisterOtp(email, ctFacultyName.trim() || 'New User', user?.email || '');
+      setCtFacultyOtpSent(true);
+      setCtFacultyCountdown(30);
+      const senderText = user?.email ? ` from ${user.email}` : '';
+      showAlert(res.message || `OTP from INPAND has been sent to ${email}${senderText}.`, 'success');
+    } catch (err) {
+      showAlert(err.message || 'Failed to send OTP.', 'danger');
+    } finally {
+      setCtFacultyOtpLoading(false);
+    }
+  };
 
   const [ctSection, setCtSection] = useState('');
   const [ctBatchId, setCtBatchId] = useState('');
@@ -1006,6 +1042,16 @@ export const TeacherView = () => {
       return;
     }
 
+    if (!ctFacultyOtp.trim()) {
+      if (!ctFacultyOtpSent) {
+        await handleSendCtFacultyOtp();
+        showAlert('OTP has been sent to the email! Please enter the 6-digit OTP from the received mail to create the account.', 'info');
+        return;
+      }
+      showAlert('Please enter the 6-digit OTP from the received email to create the account.', 'danger');
+      return;
+    }
+
     try {
       setCtFacultyLoading(true);
       const checkRes = await API.checkName(ctFacultyName.trim());
@@ -1049,6 +1095,7 @@ export const TeacherView = () => {
         if (ctGuardianPhone.trim()) extra.guardian_phone = ctGuardianPhone.trim();
         if (ctGuardianEmail.trim()) extra.guardian_email = ctGuardianEmail.trim();
       }
+      extra.otp = ctFacultyOtp.trim();
       const effectiveRole = (ctFacultyRole === 'student' && ctIsClassLeader) ? 'class_leader' : ctFacultyRole;
       const res = await API.createAccount(
         ctFacultyName.trim(),
@@ -1068,6 +1115,9 @@ export const TeacherView = () => {
           roll_number: ctRollNumber.trim() || `REG-${res.user.id}`
         }, ...prev.filter(s => s.id !== res.user.id)]);
       }
+      setCtFacultyOtp('');
+      setCtFacultyOtpSent(false);
+      setCtFacultyCountdown(0);
       setCtFacultyName('');
       setCtNameEligibilityNotice('');
       setCtFacultyContact('');
@@ -5118,6 +5168,47 @@ export const TeacherView = () => {
                 maxLength={60}
                 required
               />
+            </div>
+
+            {/* Email Verification OTP */}
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>
+                  Email Verification OTP <span className="req">*</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={ctFacultyCountdown > 0 || ctFacultyOtpLoading || !ctFacultyContact.trim()}
+                  onClick={handleSendCtFacultyOtp}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: (ctFacultyCountdown > 0 || !ctFacultyContact.trim()) ? 'var(--text-muted)' : '#4338ca',
+                    fontSize: '0.80rem',
+                    fontWeight: 700,
+                    cursor: (ctFacultyCountdown > 0 || !ctFacultyContact.trim()) ? 'default' : 'pointer'
+                  }}
+                >
+                  {ctFacultyOtpLoading ? 'Sending...' : ctFacultyCountdown > 0 ? `Resend in ${ctFacultyCountdown}s` : (ctFacultyOtpSent ? 'Resend OTP' : 'Send OTP')}
+                </button>
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                className="form-input"
+                placeholder="Enter 6-digit OTP from received mail"
+                value={ctFacultyOtp}
+                onChange={(e) => setCtFacultyOtp(e.target.value.replace(/\D/g, ''))}
+                style={{ letterSpacing: '4px', fontSize: '1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                required
+              />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                {ctFacultyOtpSent ? (
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent to {ctFacultyContact}!</span>
+                ) : (
+                  <span>Click "Send OTP" to receive verification code in mail</span>
+                )}
+              </div>
             </div>
 
             <div className="form-group">

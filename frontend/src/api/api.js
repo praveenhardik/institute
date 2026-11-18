@@ -772,6 +772,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/register-send-otp") {
     const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
+    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "").trim();
     if (!email || !email.includes("@")) {
       throw new Error("A valid official email address is required to receive OTP.");
     }
@@ -787,9 +788,12 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       sessionStorage.setItem("active_reg_otp_time_" + email, nowTime);
       localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
+    const senderNote = sender ? ` from ${sender}` : '';
     return {
-      message: `OTP from INPAND has been sent to your official email (${email}). Please check your Mail inbox. Valid for 10 minutes.`,
+      message: `OTP from INPAND has been sent to ${email}${senderNote}. Please check your Mail inbox. Valid for 10 minutes.`,
       email_masked: email,
+      sender_email: sender,
+      receiver_email: email,
       otp_sent: true,
       expires_in: 600
     };
@@ -2050,12 +2054,15 @@ export const API = {
     });
   },
 
-  async sendRegisterOtp(email, name = "New User") {
+  async sendRegisterOtp(email, name = "New User", senderEmail = "") {
+    const cur = this.getCurrentUser();
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     return this.request("/api/auth/register-send-otp", {
       method: "POST",
       body: JSON.stringify({
         email: (email || '').trim(),
-        name: (name || '').trim()
+        name: (name || '').trim(),
+        sender_email: effectiveSender
       })
     });
   },
