@@ -5108,19 +5108,16 @@ export const TeacherView = () => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Email or Phone Number (8 to 15 digits) <span className="req">*</span></label>
+              <label className="form-label">Email <span className="req">*</span></label>
               <input
-                type="text"
+                type="email"
                 className="form-input"
-                placeholder="e.g. user@gmail.com or 9876543210"
+                placeholder="Enter email address (e.g. user@gmail.com)"
                 value={ctFacultyContact}
                 onChange={(e) => setCtFacultyContact(e.target.value)}
-                maxLength={30}
+                maxLength={60}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Phone numbers are accepted up to 15 digits from 8 characters, or enter your email address.
-              </span>
             </div>
 
             <div className="form-group">

@@ -542,15 +542,15 @@ export const CreateAccountModal = ({
               </div>
             )}
 
-            {/* Contact Email / Phone */}
+            {/* Contact Email */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">
-                Email Address or Phone <span className="req">*</span>
+                Email <span className="req">*</span>
               </label>
               <input
-                type="text"
+                type="email"
                 className="form-input"
-                placeholder="e.g. user@gmail.com or 9876543210"
+                placeholder="Enter email address (e.g. user@gmail.com)"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 required

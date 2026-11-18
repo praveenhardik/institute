@@ -143,12 +143,13 @@ export const AuthView = () => {
       showAlert(emailRegisteredNotice, 'danger');
       return;
     }
-    if (regContactType === 'email' && !regOtpSent) {
-      showAlert('Please click "Send Verification OTP" to verify your email address.', 'danger');
-      return;
-    }
-    if (regContactType === 'email' && !regOtp.trim()) {
-      showAlert('Please enter the 6-digit OTP from INPAND sent to your email.', 'danger');
+    if (!regOtp.trim()) {
+      if (!regOtpSent) {
+        await handleSendRegisterOtp();
+        showAlert('OTP has been sent to your email! Please check your received mail and enter the 6-digit OTP.', 'info');
+        return;
+      }
+      showAlert('Please enter the 6-digit OTP from your received mail to create your account.', 'danger');
       return;
     }
     if (regPassword.length < 6) {
@@ -469,37 +470,14 @@ export const AuthView = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Register With <span className="req">*</span></label>
-                <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                    <input
-                      type="radio"
-                      name="contact-type"
-                      value="email"
-                      checked={regContactType === 'email'}
-                      onChange={() => {
-                        setRegContactType('email');
-                        setEmailRegisteredNotice('');
-                      }}
-                    /> Email
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                    <input
-                      type="radio"
-                      name="contact-type"
-                      value="phone"
-                      checked={regContactType === 'phone'}
-                      onChange={() => {
-                        setRegContactType('phone');
-                        setEmailRegisteredNotice('');
-                      }}
-                    /> Phone Number
-                  </label>
-                </div>
+                <label className="form-label" htmlFor="reg-email">
+                  Email <span className="req">*</span>
+                </label>
                 <input
-                  type="text"
+                  id="reg-email"
+                  type="email"
                   className="form-input"
-                  placeholder={regContactType === 'email' ? 'Enter your email (e.g. user@gmail.com)' : 'e.g. 9876543210 (8-15 digits)'}
+                  placeholder="Enter your email address (e.g. user@gmail.com)"
                   value={regContact}
                   style={{
                     borderColor: emailRegisteredNotice ? '#ef4444' : undefined,
@@ -513,7 +491,7 @@ export const AuthView = () => {
                     }
                   }}
                   onBlur={() => {
-                    if (regContactType === 'email' && regContact.trim() && regContact.includes('@')) {
+                    if (regContact.trim() && regContact.includes('@')) {
                       API.checkEmail(regContact.trim()).then((res) => {
                         if (res && res.registered) {
                           setEmailRegisteredNotice(res.message);
@@ -523,7 +501,7 @@ export const AuthView = () => {
                       }).catch(() => {});
                     }
                   }}
-                  maxLength={50}
+                  maxLength={60}
                   required
                 />
 
@@ -542,50 +520,48 @@ export const AuthView = () => {
                     <span>{emailRegisteredNotice}</span>
                   </div>
                 )}
+              </div>
 
-                {/* Email Verification OTP Section */}
-                {regContactType === 'email' && (
-                  <div style={{ marginTop: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        Email Verification (OTP) <span className="req">*</span>
-                      </span>
-                      <button
-                        type="button"
-                        disabled={regCountdown > 0 || regOtpLoading || !regContact.trim() || !!emailRegisteredNotice}
-                        onClick={handleSendRegisterOtp}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'var(--text-muted)' : 'var(--accent-primary)',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
-                        }}
-                      >
-                        {regOtpLoading ? 'Sending OTP...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP' : 'Send Verification OTP')}
-                      </button>
-                    </div>
+              {/* Email Verification OTP Section - Always Visible */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>
+                    Email Verification OTP <span className="req">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={regCountdown > 0 || regOtpLoading || !regContact.trim() || !!emailRegisteredNotice}
+                    onClick={handleSendRegisterOtp}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'var(--text-muted)' : '#4338ca',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
+                    }}
+                  >
+                    {regOtpLoading ? 'Sending OTP to Mail...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                  </button>
+                </div>
 
-                    {regOtpSent && (
-                      <div>
-                        <input
-                          type="text"
-                          maxLength={6}
-                          className="form-input"
-                          placeholder="Enter 6-digit OTP from INPAND"
-                          value={regOtp}
-                          onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, ''))}
-                          style={{ letterSpacing: '4px', fontSize: '1.05rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
-                          required
-                        />
-                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Please check your Mail inbox for the 6-digit OTP sent to {regContact}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <input
+                  type="text"
+                  maxLength={6}
+                  className="form-input"
+                  placeholder="Enter 6-digit OTP from received mail"
+                  value={regOtp}
+                  onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, ''))}
+                  style={{ letterSpacing: '4px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                  required
+                />
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px' }}>
+                  {regOtpSent ? (
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {regContact}</span>
+                  ) : (
+                    <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                  )}
+                </div>
               </div>
 
               <div className="form-group">
