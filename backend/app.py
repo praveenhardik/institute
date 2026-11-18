@@ -200,25 +200,28 @@ def find_user_by_email_or_username(identifier: str):
     return None
 
 
-def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset") -> bool:
-    """Send 'OTP from INPAND' email via standard SMTP (generic sender, no @inpand.com email in headers/footer)."""
+def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset"):
+    """Send 'OTP from INPAND' email via standard SMTP or transactional email API."""
     import smtplib
+    import email.utils
+    import urllib.request
+    import json
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     from email.header import Header
 
-    smtp_host = os.getenv("SMTP_HOST", "localhost")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", ""))
-    # Generic, clean sender address - NO @inpand.com in headers/footer
-    smtp_from = os.getenv("SMTP_FROM", "INPAND Security <noreply@collegeportal.edu>")
-    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
+    to_email = (to_email or "").strip()
+    if not to_email or "@" not in to_email:
+        return False, "Invalid destination email address."
 
     subject = "OTP from INPAND"
 
     action_title = "Account Registration Verification" if purpose == "registration" else "Password Reset Verification"
-    action_desc = "We received a request to create a new portal account. Use the One-Time Password (OTP) below to complete your email verification:" if purpose == "registration" else "We received a request to reset the password for your portal account. Use the One-Time Password (OTP) below to complete your verification:"
+    action_desc = (
+        "We received a request to create a new portal account. Use the One-Time Password (OTP) below to complete your email verification:"
+        if purpose == "registration"
+        else "We received a request to reset the password for your portal account. Use the One-Time Password (OTP) below to complete your verification:"
+    )
 
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -255,40 +258,105 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
         f"INPAND Institute of Engineering and Technology"
     )
 
+    # 1. Try Resend API if configured
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    if resend_key:
+        try:
+            req_data = json.dumps({
+                "from": os.getenv("RESEND_FROM", "INPAND Security <onboarding@resend.dev>"),
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+                "text": text_content
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=req_data,
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if 200 <= resp.status < 300:
+                    print(f"[MAIL SUCCESS] Dispatched 'OTP from INPAND' to {to_email} via Resend API")
+                    return True, "Email delivered successfully via Resend API."
+        except Exception as e:
+            print(f"[MAIL WARNING] Resend API error: {e}")
+
+    # 2. Try Brevo API if configured
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
+    if brevo_key:
+        try:
+            req_data = json.dumps({
+                "sender": {"name": "INPAND Security", "email": os.getenv("BREVO_FROM", "security@inpand-portal.edu")},
+                "to": [{"email": to_email, "name": user_name}],
+                "subject": subject,
+                "htmlContent": html_content,
+                "textContent": text_content
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=req_data,
+                headers={
+                    "api-key": brevo_key,
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if 200 <= resp.status < 300:
+                    print(f"[MAIL SUCCESS] Dispatched 'OTP from INPAND' to {to_email} via Brevo API")
+                    return True, "Email delivered successfully via Brevo API."
+        except Exception as e:
+            print(f"[MAIL WARNING] Brevo API error: {e}")
+
+    # 3. Standard SMTP (Gmail SMTP, Outlook, SendGrid SMTP, etc.)
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+    smtp_port = int(os.getenv("SMTP_PORT", "465"))
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", "")).strip().replace(" ", "")
+    smtp_from = os.getenv("SMTP_FROM", f"INPAND Security <{smtp_user or 'noreply@gmail.com'}>").strip()
+    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
+
+    if not smtp_user or not smtp_pass:
+        msg_err = (
+            "SMTP email credentials (SMTP_USER & SMTP_PASSWORD) are not set. "
+            "Please configure your Gmail address and 16-character App Password in .env to deliver real OTP emails to your inbox."
+        )
+        print(f"[MAIL NOTICE] {msg_err}")
+        return False, msg_err
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = Header(subject, "utf-8")
     msg["From"] = smtp_from
     msg["To"] = to_email
+    msg["Date"] = email.utils.formatdate(localtime=True)
+    msg["Message-ID"] = email.utils.make_msgid(domain="inpand-portal.edu")
     msg.attach(MIMEText(text_content, "plain", "utf-8"))
     msg.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
-        if smtp_user and smtp_pass:
-            if smtp_port == 465:
-                server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=8)
-            else:
-                server = smtplib.SMTP(smtp_host, smtp_port, timeout=8)
-                if use_tls:
-                    server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_from, [to_email], msg.as_string())
-            server.quit()
-            print(f"[MAIL] Sent 'OTP from INPAND' to {to_email}")
-            return True
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12)
+            server.ehlo()
         else:
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=3)
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=12)
+            server.ehlo()
             if use_tls:
-                try:
-                    server.starttls()
-                except Exception:
-                    pass
-            server.sendmail(smtp_from, [to_email], msg.as_string())
-            server.quit()
-            print(f"[MAIL] Sent 'OTP from INPAND' to {to_email}")
-            return True
+                server.starttls()
+                server.ehlo()
+
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_from, [to_email], msg.as_string())
+        server.quit()
+        print(f"[MAIL SUCCESS] Sent 'OTP from INPAND' to {to_email} via {smtp_host}:{smtp_port}")
+        return True, "Email delivered successfully to your inbox."
     except Exception as e:
-        print(f"[MAIL NOTICE] SMTP delivery to {to_email} ({e}). OTP recorded in database and notifications.")
-        return False
+        err_detail = str(e)
+        print(f"[MAIL ERROR] Failed sending to {to_email} via SMTP: {err_detail}")
+        return False, f"Failed to send email via SMTP ({err_detail}). Please verify your SMTP credentials."
 
 
 def create_app() -> Flask:
@@ -446,13 +514,19 @@ def create_app() -> Flask:
             VALUES (0, ?, ?, ?, 0)
         """, (email, otp_code, expires_at))
 
-        send_inpand_otp_email(email, name, otp_code, purpose="registration")
+        sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration")
 
         masked = mask_email(email)
-        return jsonify({
-            "message": f"OTP from INPAND has been sent to your email address ({masked}). Please check your Mail inbox.",
-            "email_masked": masked
-        }), 200
+        if sent:
+            return jsonify({
+                "message": f"OTP from INPAND has been sent to your email address ({masked}). Please check your Mail inbox.",
+                "email_masked": masked
+            }), 200
+        else:
+            return jsonify({
+                "error": f"Email delivery failed: {mail_msg}",
+                "email_masked": masked
+            }), 500
 
     @app.route("/api/auth/register-student", methods=["POST"])
     def register_student():
@@ -697,7 +771,7 @@ def create_app() -> Flask:
         """, (user["id"], user["email"], otp_code, expires_at))
 
         # Send via email with Subject 'OTP from INPAND'
-        send_inpand_otp_email(user["email"], user["name"], otp_code)
+        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="password_reset")
 
         # Also store notification for the user
         execute_write("""
@@ -706,10 +780,16 @@ def create_app() -> Flask:
         """, (user["id"], f"Your password reset OTP is {otp_code}. Valid for 10 minutes."))
 
         masked = mask_email(user["email"])
-        return jsonify({
-            "message": f"OTP from INPAND has been sent to your registered email address ({masked}). Please check your Mail inbox.",
-            "email_masked": masked
-        }), 200
+        if sent:
+            return jsonify({
+                "message": f"OTP from INPAND has been sent to your registered email address ({masked}). Please check your Mail inbox.",
+                "email_masked": masked
+            }), 200
+        else:
+            return jsonify({
+                "error": f"Email delivery failed: {mail_msg}",
+                "email_masked": masked
+            }), 500
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
     @app.route("/api/auth/forgot-password/verify-reset", methods=["POST"])
