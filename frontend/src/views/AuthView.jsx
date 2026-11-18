@@ -82,6 +82,41 @@ export const AuthView = () => {
     };
   }, [loginCountdown]);
 
+  // Handle incoming verification link parameters (?otp=...&email=...&tab=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlOtp = params.get('otp') || params.get('code') || params.get('oobCode');
+      const urlEmail = params.get('email');
+      const urlTab = params.get('tab') || params.get('mode');
+
+      if (urlEmail) {
+        setLoginIdentifier(urlEmail);
+        setRegContact(urlEmail);
+        setForgotIdentifier(urlEmail);
+      }
+      if (urlTab === 'register' || urlTab === 'signUp') {
+        setActiveTab('register');
+      } else if (urlTab === 'forgot' || urlTab === 'resetPassword') {
+        setActiveTab('forgot');
+        if (urlOtp) setForgotStep('verify');
+      } else if (urlTab === 'login' || urlTab === 'signIn') {
+        setActiveTab('login');
+      }
+
+      if (urlOtp) {
+        setLoginOtp(urlOtp);
+        setRegOtp(urlOtp);
+        setForgotOtp(urlOtp);
+        setLoginOtpSent(true);
+        setRegOtpSent(true);
+        showAlert(`✓ Verification link opened! Your OTP is ${urlOtp}. You can now proceed.`, 'success');
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, []);
+
   // 1. Send OTP for Login
   const handleSendLoginOtp = async () => {
     const email = loginIdentifier.trim();
@@ -91,12 +126,12 @@ export const AuthView = () => {
     }
     try {
       setLoginOtpLoading(true);
-      const res = await API.sendLoginOtp(email, 'praveenrpps3008@gmail.com');
+      const res = await API.sendLoginOtp(email, 'praveenrps3008@gmail.com');
       setLoginOtpSent(true);
       setLoginCountdown(30);
       if (res && res.otp_code) {
         setLoginOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
       } else {
         showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
       }
@@ -171,14 +206,14 @@ export const AuthView = () => {
         return;
       }
 
-      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrpps3008@gmail.com');
+      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrps3008@gmail.com');
       setRegOtpSent(true);
       setRegCountdown(30);
       if (res && res.otp_code) {
         setRegOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
       } else {
-        showAlert(res.message || `OTP from praveenrpps3008@gmail.com has been sent to your email address (${email}).`, 'success');
+        showAlert(res.message || `OTP from praveenrps3008@gmail.com has been sent to your email address (${email}).`, 'success');
       }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
@@ -286,13 +321,13 @@ export const AuthView = () => {
 
     try {
       setForgotLoading(true);
-      const res = await API.sendForgotPasswordOtp(idVal, 'praveenrpps3008@gmail.com');
+      const res = await API.sendForgotPasswordOtp(idVal, 'praveenrps3008@gmail.com');
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
       if (res && res.otp_code) {
         setForgotOtp(res.otp_code);
-        showAlert(res.message || `OTP sent from praveenrpps3008@gmail.com! Code: ${res.otp_code}`, 'success');
+        showAlert(res.message || `OTP sent from praveenrps3008@gmail.com! Code: ${res.otp_code}`, 'success');
       } else {
         showAlert(res.message || "OTP from INPAND has been sent to your registered email address.", 'success');
       }

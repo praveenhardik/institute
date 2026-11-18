@@ -200,7 +200,7 @@ def find_user_by_email_or_username(identifier: str):
     return None
 
 
-def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset", sender_email: str = None):
+def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset", sender_email: str = None, sender_name: str = None):
     """Send 'OTP from INPAND' email via standard SMTP or transactional email API."""
     import smtplib
     import email.utils
@@ -214,7 +214,7 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     if not to_email or "@" not in to_email:
         return False, "Invalid destination email address."
 
-    subject = "OTP from INPAND"
+    subject = f"OTP from INPAND - Verification Code {otp_code}"
 
     if purpose == "registration":
         action_title = "Account Registration Verification"
@@ -226,7 +226,12 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
         action_title = "Password Reset Verification"
         action_desc = "We received a request to reset the password for your portal account. Use the One-Time Password (OTP) below to complete your verification:"
 
-    sender_info_line = f"<p style='font-size: 13px; color: #64748b; margin: 4px 0;'>Sent by authorized login: <strong>{sender_email}</strong></p>" if sender_email else ""
+    tab_mode = "register" if purpose == "registration" else ("login" if purpose == "login" else "forgot")
+    verify_url = f"https://institute-dun.vercel.app/?otp={otp_code}&email={to_email}&tab={tab_mode}"
+
+    effective_sender = sender_email if (sender_email and "@" in sender_email) else "praveenrps3008@gmail.com"
+    display_name = sender_name.strip() if (sender_name and sender_name.strip()) else "INPAND Security"
+    sender_info_line = f"<p style='font-size: 13px; color: #64748b; margin: 4px 0;'>Sent by: <strong>{display_name}</strong> &lt;{effective_sender}&gt;</p>"
 
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -247,7 +252,14 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
       <div style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #4338ca; font-family: monospace;">{otp_code}</div>
       <div style="font-size: 13px; color: #64748b; margin-top: 8px;">Valid for 10 minutes (Single use only)</div>
     </div>
-    <p style="font-size: 13px; color: #64748b; line-height: 1.5;">If you did not request this OTP, you can safely ignore this message. Your security remains intact.</p>
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{verify_url}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">
+        Verify Email & View OTP
+      </a>
+      <div style="font-size: 12px; color: #64748b; margin-top: 10px;">Or click this verification link directly:</div>
+      <div style="font-size: 12px; margin-top: 4px;"><a href="{verify_url}" style="color: #4338ca; word-break: break-all;">{verify_url}</a></div>
+    </div>
+    <p style="font-size: 13px; color: #64748b; line-height: 1.5;">If you clicked the received link, your account page will show the OTP automatically. If you did not request this OTP, you can safely ignore this message.</p>
     <div style="margin-top: 32px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
       &copy; 2026 INPAND Institute of Engineering and Technology. All rights reserved.
     </div>
@@ -255,11 +267,13 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
 </body>
 </html>"""
 
-    sender_text_info = f"\nSent by authorized login: {sender_email}\n" if sender_email else ""
+    sender_text_info = f"\nSent by: {display_name} <{effective_sender}>\n"
     text_content = (
         f"Hello {user_name},\n\n"
         f"Your One-Time Password (OTP) from INPAND is: {otp_code}\n\n"
-        f"{action_desc}\n"
+        f"{action_desc}\n\n"
+        f"Follow this link to verify your email address and view your OTP:\n"
+        f"{verify_url}\n"
         f"{sender_text_info}\n"
         f"This OTP is valid for 10 minutes.\n"
         f"If you did not request this, please ignore this email.\n\n"
@@ -270,7 +284,7 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     resend_key = os.getenv("RESEND_API_KEY", "").strip()
     if resend_key:
         try:
-            from_resend = f"INPAND Security <{sender_email}>" if (sender_email and "@" in sender_email) else os.getenv("RESEND_FROM", "INPAND Security <onboarding@resend.dev>")
+            from_resend = f"{display_name} <{effective_sender}>" if effective_sender else os.getenv("RESEND_FROM", "INPAND Security <onboarding@resend.dev>")
             req_data = json.dumps({
                 "from": from_resend,
                 "to": [to_email],
@@ -298,9 +312,9 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     brevo_key = os.getenv("BREVO_API_KEY", "").strip()
     if brevo_key:
         try:
-            brevo_from_mail = sender_email if (sender_email and "@" in sender_email) else os.getenv("BREVO_FROM", "security@inpand-portal.edu")
+            brevo_from_mail = effective_sender if effective_sender else os.getenv("BREVO_FROM", "security@inpand-portal.edu")
             req_data = json.dumps({
-                "sender": {"name": "INPAND Security", "email": brevo_from_mail},
+                "sender": {"name": display_name, "email": brevo_from_mail},
                 "to": [{"email": to_email, "name": user_name}],
                 "subject": subject,
                 "htmlContent": html_content,
@@ -325,11 +339,11 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     # 3. Standard SMTP (Gmail SMTP, Outlook, SendGrid SMTP, etc.)
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
-    smtp_user = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", "praveenrpps3008@gmail.com"))).strip()
+    smtp_user = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", "praveenrps3008@gmail.com"))).strip()
     smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", os.getenv("MAIL_PASSWORD", os.getenv("GMAIL_PASSWORD", "")))).strip().replace(" ", "")
     
-    sender_mail = sender_email if (sender_email and "@" in sender_email) else (smtp_user or "praveenrpps3008@gmail.com")
-    smtp_from = os.getenv("SMTP_FROM", f"INPAND Security <{sender_mail}>").strip()
+    sender_mail = effective_sender or (smtp_user or "praveenrps3008@gmail.com")
+    smtp_from = f"{display_name} <{sender_mail}>"
         
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
 
@@ -551,14 +565,15 @@ def create_app() -> Flask:
             VALUES (NULL, ?, ?, ?, 0)
         """, (email, otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrpps3008@gmail.com").strip()
-        sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration", sender_email=sender_email)
+        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
+        sender_name = (data.get("sender_name") or "").strip()
+        sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration", sender_email=sender_email, sender_name=sender_name)
 
         masked = mask_email(email)
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox. Valid for 10 minutes.",
+            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrpps3008@gmail.com"),
+            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": email,
             "email_sent": bool(sent),
             "expires_in": 600
@@ -822,9 +837,10 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrpps3008@gmail.com").strip()
+        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
+        sender_name = (data.get("sender_name") or "").strip()
         # Send via email with Subject 'OTP from INPAND'
-        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="password_reset", sender_email=sender_email)
+        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="password_reset", sender_email=sender_email, sender_name=sender_name)
 
         # Also store notification for the user
         execute_write("""
@@ -834,9 +850,9 @@ def create_app() -> Flask:
 
         masked = mask_email(user["email"])
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox. Valid for 10 minutes.",
+            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrpps3008@gmail.com"),
+            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": user["email"],
             "email_sent": bool(sent),
             "expires_in": 600
@@ -955,13 +971,14 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrpps3008@gmail.com").strip()
-        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="login", sender_email=sender_email)
+        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
+        sender_name = (data.get("sender_name") or "").strip()
+        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
         masked = mask_email(user["email"])
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your registered email ({masked}). Please check your Mail inbox. Valid for 10 minutes.",
+            "message": f"OTP from INPAND has been sent to your registered email ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrpps3008@gmail.com"),
+            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": user["email"],
             "email_sent": bool(sent),
             "expires_in": 600

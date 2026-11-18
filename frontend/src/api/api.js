@@ -2021,14 +2021,16 @@ export const API = {
     throw new Error("Invalid email address or password");
   },
 
-  async sendLoginOtp(email, senderEmail = "") {
+  async sendLoginOtp(email, senderEmail = "praveenrps3008@gmail.com") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "";
+    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
+    const effectiveName = (cur && cur.name) || "INPAND Security";
     return this.request("/api/auth/login-send-otp", {
       method: "POST",
       body: JSON.stringify({
         email: (email || '').trim(),
-        sender_email: effectiveSender
+        sender_email: effectiveSender,
+        sender_name: effectiveName
       })
     });
   },
@@ -2061,15 +2063,17 @@ export const API = {
     });
   },
 
-  async sendRegisterOtp(email, name = "New User", senderEmail = "praveenrpps3008@gmail.com") {
+  async sendRegisterOtp(email, name = "New User", senderEmail = "praveenrps3008@gmail.com") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrpps3008@gmail.com";
+    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
+    const effectiveName = (cur && cur.name) || "INPAND Security";
     return this.request("/api/auth/register-send-otp", {
       method: "POST",
       body: JSON.stringify({
         email: (email || '').trim(),
         name: (name || '').trim(),
-        sender_email: effectiveSender
+        sender_email: effectiveSender,
+        sender_name: effectiveName
       })
     });
   },
@@ -2082,16 +2086,18 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async sendForgotPasswordOtp(identifier, senderEmail = "praveenrpps3008@gmail.com") {
+  async sendForgotPasswordOtp(identifier, senderEmail = "praveenrps3008@gmail.com") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrpps3008@gmail.com";
+    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
+    const effectiveName = (cur && cur.name) || "INPAND Security";
     return this.request("/api/auth/forgot-password/send-otp", {
       method: "POST",
       body: JSON.stringify({
         identifier: (identifier || "").trim(),
         email: (identifier || "").trim(),
         username: (identifier || "").trim(),
-        sender_email: effectiveSender
+        sender_email: effectiveSender,
+        sender_name: effectiveName
       })
     });
   },
