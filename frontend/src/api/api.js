@@ -614,6 +614,24 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return { message: "Password has been successfully reset! You can now sign in with your registered email and new password." };
   }
 
+  if (path === "/api/auth/check-email") {
+    const users = getStoredUsers();
+    const emailLower = (body?.email || "").toLowerCase().trim();
+    const exists = users.some(u => (u.email && u.email.toLowerCase() === emailLower));
+    return {
+      registered: exists,
+      message: exists ? "This email address is already registered. Please sign in or use Forgot Password." : "Email is available"
+    };
+  }
+
+  if (path === "/api/auth/register-send-otp") {
+    return {
+      message: "OTP from INPAND has been sent to your email address.",
+      email_masked: body?.email || "user@email.com",
+      dev_otp: "123456"
+    };
+  }
+
   // 7. /api/auth/change-password
   if (path === "/api/auth/change-password") {
     return { message: "Password updated successfully!" };
@@ -1705,6 +1723,23 @@ export const API = {
     const params = new URLSearchParams({ name: (name || '').trim() });
     if (excludeId) params.append('exclude_id', excludeId);
     return this.request(`/api/auth/check-name?${params.toString()}`);
+  },
+
+  async checkEmail(email) {
+    return this.request("/api/auth/check-email", {
+      method: "POST",
+      body: JSON.stringify({ email: (email || '').trim() })
+    });
+  },
+
+  async sendRegisterOtp(email, name = "New User") {
+    return this.request("/api/auth/register-send-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        email: (email || '').trim(),
+        name: (name || '').trim()
+      })
+    });
   },
 
   async getSuperAdminStatus() {

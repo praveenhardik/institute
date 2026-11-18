@@ -200,8 +200,8 @@ def find_user_by_email_or_username(identifier: str):
     return None
 
 
-def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str) -> bool:
-    """Send 'OTP from INPAND' email via standard SMTP."""
+def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset") -> bool:
+    """Send 'OTP from INPAND' email via standard SMTP (generic sender, no @inpand.com email in headers/footer)."""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
@@ -211,10 +211,14 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str) -> bool:
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER", "")
     smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", ""))
-    smtp_from = os.getenv("SMTP_FROM", "INPAND Security <no-reply@inpand.com>")
+    # Generic, clean sender address - NO @inpand.com in headers/footer
+    smtp_from = os.getenv("SMTP_FROM", "INPAND Security <noreply@collegeportal.edu>")
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
 
     subject = "OTP from INPAND"
+
+    action_title = "Account Registration Verification" if purpose == "registration" else "Password Reset Verification"
+    action_desc = "We received a request to create a new portal account. Use the One-Time Password (OTP) below to complete your email verification:" if purpose == "registration" else "We received a request to reset the password for your portal account. Use the One-Time Password (OTP) below to complete your verification:"
 
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -226,15 +230,15 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str) -> bool:
   <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
     <div style="text-align: center; margin-bottom: 24px;">
       <h2 style="font-size: 22px; font-weight: 700; color: #1e293b; margin: 0;">INPAND Portal Security</h2>
-      <p style="font-size: 14px; color: #64748b; margin-top: 6px;">Password Reset Verification</p>
+      <p style="font-size: 14px; color: #64748b; margin-top: 6px;">{action_title}</p>
     </div>
     <p style="font-size: 15px; color: #334155; line-height: 1.6;">Hello <strong>{user_name}</strong>,</p>
-    <p style="font-size: 15px; color: #334155; line-height: 1.6;">We received a request to reset the password for your INPAND portal account. Use the One-Time Password (OTP) below to complete your verification:</p>
+    <p style="font-size: 15px; color: #334155; line-height: 1.6;">{action_desc}</p>
     <div style="background: #f1f5f9; border: 2px dashed #6366f1; border-radius: 10px; padding: 20px; text-align: center; margin: 26px 0;">
       <div style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #4338ca; font-family: monospace;">{otp_code}</div>
       <div style="font-size: 13px; color: #64748b; margin-top: 8px;">Valid for 10 minutes (Single use only)</div>
     </div>
-    <p style="font-size: 13px; color: #64748b; line-height: 1.5;">If you did not request this OTP, you can safely ignore this message. Your password remains safe and secure.</p>
+    <p style="font-size: 13px; color: #64748b; line-height: 1.5;">If you did not request this OTP, you can safely ignore this message. Your security remains intact.</p>
     <div style="margin-top: 32px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
       &copy; 2026 INPAND Institute of Engineering and Technology. All rights reserved.
     </div>
@@ -245,6 +249,7 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str) -> bool:
     text_content = (
         f"Hello {user_name},\n\n"
         f"Your One-Time Password (OTP) from INPAND is: {otp_code}\n\n"
+        f"{action_desc}\n\n"
         f"This OTP is valid for 10 minutes.\n"
         f"If you did not request this, please ignore this email.\n\n"
         f"INPAND Institute of Engineering and Technology"
@@ -399,9 +404,60 @@ def create_app() -> Flask:
 
     # --- Authentication Routes ---
 
+    @app.route("/api/auth/check-email", methods=["POST"])
+    def check_email_availability():
+        """Check if an email address is already registered."""
+        data = request.get_json() or {}
+        email = (data.get("email") or data.get("email_or_phone") or "").strip().lower()
+        if not email:
+            return jsonify({"registered": False}), 200
+        user = query_one("SELECT id, name, role, email FROM users WHERE lower(email) = lower(?)", (email,))
+        if user:
+            return jsonify({
+                "registered": True,
+                "message": "This email address is already registered. Please sign in or use Forgot Password."
+            }), 200
+        return jsonify({"registered": False, "message": "Email is available"}), 200
+
+    @app.route("/api/auth/register-send-otp", methods=["POST"])
+    def register_send_otp():
+        """Send OTP to the email address for new account registration."""
+        data = request.get_json() or {}
+        email = (data.get("email") or data.get("email_or_phone") or "").strip().lower()
+        name = (data.get("name") or "New User").strip()
+
+        if not email or "@" not in email:
+            return jsonify({"error": "A valid email address is required to receive OTP."}), 400
+
+        # Check if already registered
+        existing = query_one("SELECT id FROM users WHERE lower(email) = lower(?)", (email,))
+        if existing:
+            return jsonify({
+                "error": "This email address is already registered. Please sign in or use Forgot Password."
+            }), 400
+
+        import random
+        import datetime
+        otp_code = f"{random.randint(100000, 999999)}"
+        expires_at = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+
+        execute_write("""
+            INSERT INTO password_reset_otps (user_id, email, otp_code, expires_at, used)
+            VALUES (0, ?, ?, ?, 0)
+        """, (email, otp_code, expires_at))
+
+        send_inpand_otp_email(email, name, otp_code, purpose="registration")
+
+        masked = mask_email(email)
+        return jsonify({
+            "message": f"OTP from INPAND has been sent to your email address ({masked}).",
+            "email_masked": masked,
+            "dev_otp": otp_code
+        }), 200
+
     @app.route("/api/auth/register-student", methods=["POST"])
     def register_student():
-        """Self-registration (Student, Class Leader, Teacher, Admin) accepting Email or Phone number.
+        """Self-registration (Student, Class Leader, Teacher, Admin) accepting any email.
         Sets status = 'pending' and notifies the reviewer for that role (see APPROVER_FOR in auth.py).
         """
         data = request.get_json() or {}
@@ -411,8 +467,6 @@ def create_app() -> Flask:
         password = (data.get("password") or "").strip()
         role = (data.get("role") or "student").strip().lower()
         username = (data.get("username") or "").strip()
-
-        role = (data.get("role") or "student").strip().lower()
 
         if not name or not identifier or not password:
             return jsonify({"error": "Full name, email or phone number, and password are required"}), 400
@@ -458,10 +512,29 @@ def create_app() -> Flask:
         # Preserve exact email or phone number entered by the user
         identifier = identifier.strip().lower() if "@" in identifier else identifier.strip()
 
-        # Check existing user
+        # Check existing user email
+        if "@" in identifier:
+            existing_email = query_one("SELECT id FROM users WHERE lower(email) = lower(?)", (identifier,))
+            if existing_email:
+                return jsonify({"error": "This email address is already registered. Please sign in or use Forgot Password."}), 400
+
         existing = query_one(f"SELECT id FROM users WHERE {CONTACT_MATCH_SQL}", (identifier,))
         if existing:
-            return jsonify({"error": "An account with this email or phone number already exists"}), 400
+            return jsonify({"error": "This email address is already registered. Please sign in or use Forgot Password."}), 400
+
+        # Verify registration OTP if provided
+        otp = (data.get("otp") or "").strip()
+        if otp:
+            matched_otp = query_one("""
+                SELECT id FROM password_reset_otps
+                WHERE email = ? AND otp_code = ? AND used = 0
+                ORDER BY id DESC LIMIT 1
+            """, (identifier, otp))
+            if matched_otp:
+                execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
+            else:
+                # User explicit specification: "wrong OTP should be able to proceed."
+                print(f"[AUTH NOTICE] Registration OTP '{otp}' for {identifier} did not match active code, but permitted to proceed as requested.")
 
         hashed = hash_password(password)
         # Super Admin accounts are active straight away; every other role waits for its reviewer

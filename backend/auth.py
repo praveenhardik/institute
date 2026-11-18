@@ -70,9 +70,7 @@ def validate_contact(value: str, contact_type: Optional[str] = None) -> Optional
 
     if contact_type == "email":
         if not EMAIL_PATTERN.match(value):
-            return "Please enter a valid email address (e.g. name1@inpand.com)"
-        if not (value.lower().endswith("@inpand.com") or value.lower().endswith("@inpand.in")):
-            return "Email address must end with @inpand.com (e.g. username1@inpand.com)"
+            return "Please enter a valid email address (e.g. user@gmail.com)"
     elif contact_type == "phone":
         if not PHONE_PATTERN.match(value):
             return "Please enter a valid phone number (8 to 15 digits, optional + at the start)"

@@ -23,7 +23,13 @@ export const AuthView = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [nameEligibilityNotice, setNameEligibilityNotice] = useState('');
+  const [emailRegisteredNotice, setEmailRegisteredNotice] = useState('');
   const [regRole, setRegRole] = useState('student');
+  const [regOtp, setRegOtp] = useState('');
+  const [regOtpSent, setRegOtpSent] = useState(false);
+  const [regOtpLoading, setRegOtpLoading] = useState(false);
+  const [regDevOtp, setRegDevOtp] = useState('');
+  const [regCountdown, setRegCountdown] = useState(0);
 
   // Forgot password state
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -36,7 +42,7 @@ export const AuthView = () => {
   const [forgotCountdown, setForgotCountdown] = useState(0);
   const [forgotDevOtp, setForgotDevOtp] = useState('');
 
-  // Resend OTP countdown timer
+  // Resend OTP countdown timers
   useEffect(() => {
     let timer = null;
     if (forgotCountdown > 0) {
@@ -48,6 +54,18 @@ export const AuthView = () => {
       if (timer) clearInterval(timer);
     };
   }, [forgotCountdown]);
+
+  useEffect(() => {
+    let timer = null;
+    if (regCountdown > 0) {
+      timer = setInterval(() => {
+        setRegCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [regCountdown]);
 
   // 1. Submit Login
   const handleLoginSubmit = async (e) => {
@@ -75,7 +93,44 @@ export const AuthView = () => {
     }
   };
 
-  // 2. Submit Register
+  // 2. Send OTP for Registration
+  const handleSendRegisterOtp = async () => {
+    const email = regContact.trim();
+    if (!email || !email.includes('@')) {
+      showAlert('Please enter a valid email address to receive the verification OTP', 'danger');
+      return;
+    }
+    if (emailRegisteredNotice) {
+      showAlert(emailRegisteredNotice, 'danger');
+      return;
+    }
+
+    try {
+      setRegOtpLoading(true);
+      // Pre-check if already registered
+      const checkRes = await API.checkEmail(email);
+      if (checkRes && checkRes.registered) {
+        setEmailRegisteredNotice(checkRes.message);
+        showAlert(checkRes.message, 'danger');
+        return;
+      }
+
+      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
+      setRegOtpSent(true);
+      setRegDevOtp(res.dev_otp || '');
+      setRegCountdown(30);
+      showAlert(res.message || "OTP from INPAND has been sent to your email address.", 'success');
+    } catch (err) {
+      showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
+      if (err.message && err.message.toLowerCase().includes('already registered')) {
+        setEmailRegisteredNotice(err.message);
+      }
+    } finally {
+      setRegOtpLoading(false);
+    }
+  };
+
+  // 3. Submit Register
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
@@ -85,6 +140,18 @@ export const AuthView = () => {
     }
     if (nameEligibilityNotice) {
       showAlert(nameEligibilityNotice, 'danger');
+      return;
+    }
+    if (emailRegisteredNotice) {
+      showAlert(emailRegisteredNotice, 'danger');
+      return;
+    }
+    if (regContactType === 'email' && !regOtpSent) {
+      showAlert('Please click "Send Verification OTP" to verify your email address.', 'danger');
+      return;
+    }
+    if (regContactType === 'email' && !regOtp.trim()) {
+      showAlert('Please enter the 6-digit OTP from INPAND sent to your email.', 'danger');
       return;
     }
     if (regPassword.length < 6) {
@@ -102,21 +169,44 @@ export const AuthView = () => {
         return;
       }
 
+      // Check email duplicate
+      if (regContactType === 'email') {
+        const emailCheck = await API.checkEmail(regContact.trim());
+        if (emailCheck && emailCheck.registered) {
+          setEmailRegisteredNotice(emailCheck.message);
+          showAlert(emailCheck.message, 'danger');
+          return;
+        }
+      }
+
       const res = await API.registerStudent(
         regName.trim(),
         regContact.trim(),
         regPassword.trim(),
         regRole || 'student',
         regContactType,
-        regUsername.trim()
+        regUsername.trim(),
+        { otp: regOtp.trim() }
       );
       const registeredFullName = res.name || regName.trim();
-      showAlert(res.message || `Account for ${registeredFullName} created successfully! You can sign in now.`, 'success');
+      showAlert(res.message || `Account for ${registeredFullName} created successfully! You can sign in now with your email.`, 'success');
       setActiveTab('login');
-      setLoginIdentifier(registeredFullName);
+      setLoginIdentifier(regContact.trim());
       setLoginPassword('');
+      // Reset registration state
+      setRegName('');
+      setRegUsername('');
+      setRegContact('');
+      setRegPassword('');
+      setRegOtp('');
+      setRegOtpSent(false);
+      setRegDevOtp('');
+      setEmailRegisteredNotice('');
     } catch (err) {
       showAlert(err.message, 'danger');
+      if (err.message && err.message.toLowerCase().includes('already registered')) {
+        setEmailRegisteredNotice(err.message);
+      }
       if (err.message && err.message.toLowerCase().includes('not eligible')) {
         setNameEligibilityNotice(err.message);
       }
@@ -330,9 +420,6 @@ export const AuthView = () => {
                     if (!regUsername || regUsername === prevUval || !regUsername.trim()) {
                       setRegUsername(uval);
                     }
-                    if (regContactType === 'email' && (!regContact || regContact.includes('@inpand.com') || regContact === `${prevUval}1@inpand.com` || !regContact.trim())) {
-                      setRegContact(uval ? `${uval}1@inpand.com` : '');
-                    }
                     if (val.trim()) {
                       API.checkName(val.trim()).then((res) => {
                         if (!res.eligible) {
@@ -396,7 +483,10 @@ export const AuthView = () => {
                       name="contact-type"
                       value="email"
                       checked={regContactType === 'email'}
-                      onChange={() => setRegContactType('email')}
+                      onChange={() => {
+                        setRegContactType('email');
+                        setEmailRegisteredNotice('');
+                      }}
                     /> Email
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
@@ -405,19 +495,116 @@ export const AuthView = () => {
                       name="contact-type"
                       value="phone"
                       checked={regContactType === 'phone'}
-                      onChange={() => setRegContactType('phone')}
+                      onChange={() => {
+                        setRegContactType('phone');
+                        setEmailRegisteredNotice('');
+                      }}
                     /> Phone Number
                   </label>
                 </div>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder={regContactType === 'email' ? 'e.g. user1@inpand.com' : 'e.g. 9876543210 (8-15 digits)'}
+                  placeholder={regContactType === 'email' ? 'Enter your email (e.g. user@gmail.com)' : 'e.g. 9876543210 (8-15 digits)'}
                   value={regContact}
-                  onChange={(e) => setRegContact(e.target.value)}
-                  maxLength={30}
+                  style={{
+                    borderColor: emailRegisteredNotice ? '#ef4444' : undefined,
+                    boxShadow: emailRegisteredNotice ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRegContact(val);
+                    if (emailRegisteredNotice) {
+                      setEmailRegisteredNotice('');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (regContactType === 'email' && regContact.trim() && regContact.includes('@')) {
+                      API.checkEmail(regContact.trim()).then((res) => {
+                        if (res && res.registered) {
+                          setEmailRegisteredNotice(res.message);
+                        } else {
+                          setEmailRegisteredNotice('');
+                        }
+                      }).catch(() => {});
+                    }
+                  }}
+                  maxLength={50}
                   required
                 />
+
+                {emailRegisteredNotice && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    lineHeight: 1.4
+                  }}>
+                    <span>{emailRegisteredNotice}</span>
+                  </div>
+                )}
+
+                {/* Email Verification OTP Section */}
+                {regContactType === 'email' && (
+                  <div style={{ marginTop: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        Email Verification (OTP) <span className="req">*</span>
+                      </span>
+                      <button
+                        type="button"
+                        disabled={regCountdown > 0 || regOtpLoading || !regContact.trim() || !!emailRegisteredNotice}
+                        onClick={handleSendRegisterOtp}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'var(--text-muted)' : 'var(--accent-primary)',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
+                        }}
+                      >
+                        {regOtpLoading ? 'Sending OTP...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP' : 'Send Verification OTP')}
+                      </button>
+                    </div>
+
+                    {regDevOtp && (
+                      <div style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '6px 12px', marginBottom: '8px', fontSize: '0.8rem', color: '#3730a3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>OTP from INPAND: <strong style={{ letterSpacing: '2px', fontFamily: 'monospace' }}>{regDevOtp}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => setRegOtp(regDevOtp)}
+                          style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '0.74rem', cursor: 'pointer' }}
+                        >
+                          Fill OTP
+                        </button>
+                      </div>
+                    )}
+
+                    {regOtpSent && (
+                      <div>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          className="form-input"
+                          placeholder="Enter 6-digit OTP from INPAND"
+                          value={regOtp}
+                          onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, ''))}
+                          style={{ letterSpacing: '4px', fontSize: '1.05rem', fontWeight: 700, textAlign: 'center', fontFamily: 'monospace' }}
+                          required
+                        />
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Enter the OTP sent from INPAND to {regContact}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
@@ -439,7 +626,7 @@ export const AuthView = () => {
                 style={{ width: '100%', marginTop: '10px' }}
                 disabled={regLoading}
               >
-                {regLoading ? 'Creating Account...' : 'Create Super Admin Account'}
+                {regLoading ? 'Creating Account...' : 'Create Account'}
               </button>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
