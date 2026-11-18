@@ -572,8 +572,8 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {email}. Please check your mail inbox or spam to enter your 6-digit OTP."
+        res_payload["otp_code"] = otp_code
+        res_payload["message"] = f"✓ Website Verification OTP for {email}: {otp_code}. Valid for 10 minutes."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -850,8 +850,8 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {user['email']}. Please check your mail inbox or spam to enter your 6-digit OTP."
+        res_payload["otp_code"] = otp_code
+        res_payload["message"] = f"✓ Website Verification OTP for {user['email']}: {otp_code}. Valid for 10 minutes."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -975,8 +975,8 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            res_payload["message"] = f"OTP has been dispatched from {sender_email} to {user['email']}. Please check your mail inbox or spam to enter your 6-digit OTP."
+        res_payload["otp_code"] = otp_code
+        res_payload["message"] = f"✓ Website Verification OTP for {user['email']}: {otp_code}. Valid for 10 minutes."
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/login", methods=["POST"])

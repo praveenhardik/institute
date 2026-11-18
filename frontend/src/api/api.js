@@ -173,6 +173,7 @@ const DEFAULT_PORTAL_USERS = [
   { id: 81, name: "teacher5 MECH", username: "teacher5 MECH", email: "teacher5mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 5)" },
   { id: 8, name: "Student", username: "student", email: "student1@inpand.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026001", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
   { id: 9, name: "Class Leader", username: "classleader", email: "classleader1@inpand.com", role: "class_leader", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026002", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
+  { id: 999, name: "Praveen", username: "praveen", email: "praveeninpand@gmail.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026099", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1, designation: "Student", access: "granted", can_edit: true, can_delete: false },
   { id: 10, name: "Accountant", username: "accountant", email: "accountant1@inpand.com", role: "accountant", status: "active", designation: "Senior Accountant / Bursar" },
   { id: 11, name: "Librarian", username: "librarian", email: "librarian1@inpand.com", role: "librarian", status: "active", designation: "Chief Librarian" },
   { id: 12, name: "Parent", username: "parent", email: "parent1@inpand.com", role: "parent", status: "active", designation: "Parent / Guardian" }
@@ -270,18 +271,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v15_clean_praveen_all_pages_access";
-
-// Clean up any legacy praveen user completely on script initialization:
-try {
-  ["portal_all_users", "cached_registered_profiles", "cached_approved_students", "quiz_auth_user"].forEach(key => {
-    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
-    if (raw && (raw.includes("praveeninpand@gmail.com") || raw.includes('"username":"praveen"') || raw.includes('"name":"praveen"'))) {
-      localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
-    }
-  });
-} catch {}
+const USERS_SCHEMA_VERSION = "v16_retain_all_registered_accounts";
 
 function getStoredUsers() {
   try {
@@ -294,30 +284,22 @@ function getStoredUsers() {
     const raw = localStorage.getItem("portal_all_users");
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Remove praveen and praveeninpand@gmail.com completely
-      const cleaned = parsed
-        .filter(u => {
-          const uEmail = (u.email || '').toLowerCase().trim();
-          const uUsername = (u.username || '').toLowerCase().trim();
-          const uName = (u.name || '').toLowerCase().trim();
-          return uEmail !== 'praveeninpand@gmail.com' && uUsername !== 'praveen' && uName !== 'praveen';
-        })
-        .map(u => {
-          const lowerName = (u.name || '').toLowerCase();
-          if (lowerName === 'eleanor') u = { ...DEFAULT_PORTAL_USERS[1] };
-          else if (lowerName === 'xavier') u = { ...DEFAULT_PORTAL_USERS[4] };
-          else if (lowerName === 'alan') u = { ...DEFAULT_PORTAL_USERS[5] };
-          else if (lowerName === 'lovelace') u = { ...DEFAULT_PORTAL_USERS[6] };
-          else if (lowerName === 'alex') u = { ...DEFAULT_PORTAL_USERS[7] };
-          else if (lowerName === 'leader') u = { ...DEFAULT_PORTAL_USERS[8] };
-          else if (lowerName === 'arthur') u = { ...DEFAULT_PORTAL_USERS[9] };
+      const cleaned = parsed.map(u => {
+        const lowerName = (u.name || '').toLowerCase();
+        if (lowerName === 'eleanor') u = { ...DEFAULT_PORTAL_USERS[1] };
+        else if (lowerName === 'xavier') u = { ...DEFAULT_PORTAL_USERS[4] };
+        else if (lowerName === 'alan') u = { ...DEFAULT_PORTAL_USERS[5] };
+        else if (lowerName === 'lovelace') u = { ...DEFAULT_PORTAL_USERS[6] };
+        else if (lowerName === 'alex') u = { ...DEFAULT_PORTAL_USERS[7] };
+        else if (lowerName === 'leader') u = { ...DEFAULT_PORTAL_USERS[8] };
+        else if (lowerName === 'arthur') u = { ...DEFAULT_PORTAL_USERS[9] };
 
-          if (!['student', 'class_leader'].includes(u.role)) {
-            u.academic_year = null;
-            u.previous_year = null;
-          }
-          return u;
-        });
+        if (!['student', 'class_leader'].includes(u.role)) {
+          u.academic_year = null;
+          u.previous_year = null;
+        }
+        return u;
+      });
       return cleaned.length > 0 ? cleaned : [...DEFAULT_PORTAL_USERS];
     }
   } catch {}
@@ -686,8 +668,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     } catch {}
     const masked = targetEmail.includes("@") ? targetEmail[0] + "***" + targetEmail.slice(targetEmail.indexOf("@") - 1) : targetEmail;
     return {
-      message: `OTP from INPAND has been sent to your registered official email address (${masked}). Please check your Mail inbox. Valid for 10 minutes.`,
+      message: `✓ Website Verification OTP for ${targetEmail}: ${otp}. Valid for 10 minutes.`,
       email_masked: masked,
+      otp_code: otp,
       otp_sent: true,
       expires_in: 600
     };
@@ -789,10 +772,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
     return {
-      message: `OTP from INPAND has been sent to your email address (${email}). Please check your mail inbox or spam to enter your 6-digit OTP.`,
+      message: `✓ Website Verification OTP for ${email}: ${otp}. Valid for 10 minutes.`,
       email_masked: email,
       sender_email: sender,
       receiver_email: email,
+      otp_code: otp,
       otp_sent: true,
       expires_in: 600
     };
@@ -819,10 +803,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     } catch {}
     const masked = email[0] + "***" + email.slice(email.indexOf("@") - 1);
     return {
-      message: `OTP from INPAND has been sent to your registered email (${masked}). Please check your mail inbox or spam to enter your 6-digit OTP.`,
+      message: `✓ Website Verification OTP for ${email}: ${otp}. Valid for 10 minutes.`,
       email_masked: masked,
       sender_email: sender,
       receiver_email: email,
+      otp_code: otp,
       otp_sent: true,
       expires_in: 600
     };
@@ -1871,12 +1856,7 @@ export const API = {
       const raw = sessionStorage.getItem("cached_registered_profiles") || localStorage.getItem("cached_registered_profiles");
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(u => {
-        const uEmail = (u.email || '').toLowerCase().trim();
-        const uUsername = (u.username || '').toLowerCase().trim();
-        const uName = (u.name || '').toLowerCase().trim();
-        return uEmail !== 'praveeninpand@gmail.com' && uUsername !== 'praveen' && uName !== 'praveen';
-      }) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -1885,13 +1865,7 @@ export const API = {
   setCachedProfiles(profiles) {
     try {
       if (Array.isArray(profiles)) {
-        const filtered = profiles.filter(u => {
-          const uEmail = (u.email || '').toLowerCase().trim();
-          const uUsername = (u.username || '').toLowerCase().trim();
-          const uName = (u.name || '').toLowerCase().trim();
-          return uEmail !== 'praveeninpand@gmail.com' && uUsername !== 'praveen' && uName !== 'praveen';
-        });
-        const json = JSON.stringify(filtered);
+        const json = JSON.stringify(profiles);
         sessionStorage.setItem("cached_registered_profiles", json);
         localStorage.setItem("cached_registered_profiles", json);
       }
@@ -1905,12 +1879,7 @@ export const API = {
       const raw = sessionStorage.getItem("cached_approved_students") || localStorage.getItem("cached_approved_students");
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(u => {
-        const uEmail = (u.email || '').toLowerCase().trim();
-        const uUsername = (u.username || '').toLowerCase().trim();
-        const uName = (u.name || '').toLowerCase().trim();
-        return uEmail !== 'praveeninpand@gmail.com' && uUsername !== 'praveen' && uName !== 'praveen';
-      }) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -1919,13 +1888,7 @@ export const API = {
   setCachedApprovedStudents(students) {
     try {
       if (Array.isArray(students)) {
-        const filtered = students.filter(u => {
-          const uEmail = (u.email || '').toLowerCase().trim();
-          const uUsername = (u.username || '').toLowerCase().trim();
-          const uName = (u.name || '').toLowerCase().trim();
-          return uEmail !== 'praveeninpand@gmail.com' && uUsername !== 'praveen' && uName !== 'praveen';
-        });
-        const json = JSON.stringify(filtered);
+        const json = JSON.stringify(students);
         sessionStorage.setItem("cached_approved_students", json);
         localStorage.setItem("cached_approved_students", json);
       }

@@ -45,6 +45,10 @@ export const AuthView = () => {
   const [forgotOtpSentTo, setForgotOtpSentTo] = useState('');
   const [forgotCountdown, setForgotCountdown] = useState(0);
 
+  // Real-time website verification code state
+  const [websiteOtp, setWebsiteOtp] = useState('');
+  const [websiteOtpFor, setWebsiteOtpFor] = useState('');
+
   // Resend OTP countdown timers
   useEffect(() => {
     let timer = null;
@@ -129,8 +133,14 @@ export const AuthView = () => {
       const res = await API.sendLoginOtp(email, 'praveenrps3008@gmail.com');
       setLoginOtpSent(true);
       setLoginCountdown(30);
-      setLoginOtp('');
-      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${email}. Please check your inbox or spam to enter your 6-digit OTP (or click the email link).`, 'success');
+      if (res && res.otp_code) {
+        setWebsiteOtp(res.otp_code);
+        setWebsiteOtpFor(email);
+        setLoginOtp(res.otp_code);
+        showAlert(`✓ Website Verification OTP for ${email}: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(`✓ OTP generated from website for ${email}`, 'success');
+      }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
     } finally {
@@ -205,8 +215,14 @@ export const AuthView = () => {
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrps3008@gmail.com');
       setRegOtpSent(true);
       setRegCountdown(30);
-      setRegOtp('');
-      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${email}. Please check your inbox or spam to enter your 6-digit OTP (or click the email link).`, 'success');
+      if (res && res.otp_code) {
+        setWebsiteOtp(res.otp_code);
+        setWebsiteOtpFor(email);
+        setRegOtp(res.otp_code);
+        showAlert(`✓ Website Verification OTP for ${email}: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(`✓ OTP generated from website for ${email}`, 'success');
+      }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -317,8 +333,14 @@ export const AuthView = () => {
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
-      setForgotOtp('');
-      showAlert(`✓ OTP from praveenrps3008@gmail.com has been sent to ${res.email_masked || idVal}. Please check your inbox or spam to enter your 6-digit OTP.`, 'success');
+      if (res && res.otp_code) {
+        setWebsiteOtp(res.otp_code);
+        setWebsiteOtpFor(res.email_masked || idVal);
+        setForgotOtp(res.otp_code);
+        showAlert(`✓ Website Verification OTP for ${res.email_masked || idVal}: ${res.otp_code}`, 'success');
+      } else {
+        showAlert(`✓ OTP generated from website for ${res.email_masked || idVal}`, 'success');
+      }
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
@@ -473,9 +495,37 @@ export const AuthView = () => {
                     cursor: (loginCountdown > 0 || !loginIdentifier.trim() || !!loginEmailError) ? 'default' : 'pointer'
                   }}
                 >
-                  {loginOtpLoading ? 'Sending OTP to Mail...' : loginCountdown > 0 ? `Resend OTP in ${loginCountdown}s` : (loginOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                  {loginOtpLoading ? 'Sending OTP...' : loginCountdown > 0 ? `Resend OTP in ${loginCountdown}s` : (loginOtpSent ? 'Resend OTP' : 'Send OTP')}
                 </button>
               </div>
+
+              {websiteOtp && (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1.5px dashed #22c55e',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  marginBottom: '10px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.80rem', color: '#15803d', fontWeight: 700 }}>
+                    🔑 Website Verification OTP Code:
+                  </div>
+                  <div style={{
+                    fontSize: '1.85rem',
+                    fontWeight: 800,
+                    letterSpacing: '8px',
+                    color: '#16a34a',
+                    fontFamily: 'monospace',
+                    margin: '4px 0'
+                  }}>
+                    {websiteOtp}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#15803d', fontWeight: 600 }}>
+                    ✓ Provided directly from website for receiver: <strong>{websiteOtpFor || loginIdentifier}</strong>
+                  </div>
+                </div>
+              )}
 
               <input
                 type="text"
@@ -497,9 +547,9 @@ export const AuthView = () => {
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {loginIdentifier} (or click the email link)</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP provided by website! Single-use code active for {loginIdentifier}</span>
                 ) : (
-                  <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                  <span>Click "Send OTP" to receive the 6-digit OTP from website directly</span>
                 )}
               </div>
             </div>
@@ -722,9 +772,37 @@ export const AuthView = () => {
                       cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
                     }}
                   >
-                    {regOtpLoading ? 'Sending OTP to Mail...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                    {regOtpLoading ? 'Sending OTP...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP' : 'Send OTP')}
                   </button>
                 </div>
+
+                {websiteOtp && (
+                  <div style={{
+                    background: '#f0fdf4',
+                    border: '1.5px dashed #22c55e',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    marginBottom: '10px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.80rem', color: '#15803d', fontWeight: 700 }}>
+                      🔑 Website Verification OTP Code:
+                    </div>
+                    <div style={{
+                      fontSize: '1.85rem',
+                      fontWeight: 800,
+                      letterSpacing: '8px',
+                      color: '#16a34a',
+                      fontFamily: 'monospace',
+                      margin: '4px 0'
+                    }}>
+                      {websiteOtp}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#15803d', fontWeight: 600 }}>
+                      ✓ Provided directly from website for receiver: <strong>{websiteOtpFor || regContact}</strong>
+                    </div>
+                  </div>
+                )}
 
                 <input
                   type="text"
@@ -746,9 +824,9 @@ export const AuthView = () => {
                 />
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                   {regOtpSent ? (
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {regContact} (or click the email link)</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP provided by website! Code is active for {regContact}</span>
                   ) : (
-                    <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                    <span>Click "Send OTP" to receive the 6-digit OTP from website directly</span>
                   )}
                 </div>
               </div>
@@ -882,6 +960,35 @@ export const AuthView = () => {
                       {forgotCountdown > 0 ? `Resend OTP in ${forgotCountdown}s` : 'Resend OTP'}
                     </button>
                   </div>
+
+                  {websiteOtp && (
+                    <div style={{
+                      background: '#f0fdf4',
+                      border: '1.5px dashed #22c55e',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      marginBottom: '10px',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '0.80rem', color: '#15803d', fontWeight: 700 }}>
+                        🔑 Website Verification OTP Code:
+                      </div>
+                      <div style={{
+                        fontSize: '1.85rem',
+                        fontWeight: 800,
+                        letterSpacing: '8px',
+                        color: '#16a34a',
+                        fontFamily: 'monospace',
+                        margin: '4px 0'
+                      }}>
+                        {websiteOtp}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#15803d', fontWeight: 600 }}>
+                        ✓ Provided directly from website for receiver: <strong>{websiteOtpFor || forgotOtpSentTo || forgotIdentifier}</strong>
+                      </div>
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     maxLength={6}
@@ -902,7 +1009,7 @@ export const AuthView = () => {
                     autoFocus
                   />
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP from the email received at {forgotOtpSentTo || forgotIdentifier}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP provided by website! Code is active for {forgotOtpSentTo || forgotIdentifier}</span>
                   </div>
                 </div>
 
