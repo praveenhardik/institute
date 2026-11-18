@@ -50,7 +50,7 @@ function previewNewCredentials(name, username, email, currentYear, targetYearOve
     }
     newEmail = `${newLocal}@${domain}`;
   } else {
-    newEmail = `${newUsername}@inpand.com`;
+    newEmail = `${newUsername}@gmail.com`;
   }
 
   return { name: newName, username: newUsername, email: newEmail, passedOut: false, nextYear: `Year ${ty}` };

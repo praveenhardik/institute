@@ -440,7 +440,7 @@ def create_account():
             return jsonify({"error": "Phone number must be between 8 and 15 digits (optional + at the start)"}), 400
     else:
         if not EMAIL_PATTERN.match(identifier):
-            return jsonify({"error": "Please enter a valid email address (e.g. username1@inpand.com)"}), 400
+            return jsonify({"error": "Please enter a valid email address (e.g. user@gmail.com)"}), 400
 
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters long"}), 400
@@ -576,15 +576,9 @@ def create_account():
             return jsonify({"error": dept_err}), 400
         new_dept_name = new_dept_code = ""
 
-    # Accounts created by the Super Admin or College Admin are active straight away.
-    # Class Leader accounts created by Super Admin, Admin, Teacher, or Class Teacher do not need approval (active straight away).
-    if target_role == "class_leader" and creator["role"] in ("super_admin", "admin", "teacher", "class_teacher"):
-        needs_approval = False
-    elif creator["role"] in ("teacher", "class_teacher", "student", "class_leader"):
-        needs_approval = True
-    else:
-        needs_approval = False
-    status = "pending" if needs_approval else "active"
+    # Accounts created through Create Account are active straight away so they show immediately in the directory
+    status = "active"
+    needs_approval = False
 
     pwd_hash = hash_password(password)
     user_id = execute_write(
@@ -645,8 +639,8 @@ def create_account():
             acad_year = int(acad_year)
         else:
             from backend.routes_teacher import extract_dept_and_year
-            _, ext_y = extract_dept_and_year({"username": new_username, "name": name, "email": email, "roll_number": roll_number})
-            acad_year = ext_y
+            _, ext_y = extract_dept_and_year({"username": username, "name": name, "email": identifier, "roll_number": roll_number})
+            acad_year = ext_y or 1
 
         execute_write(
             """INSERT INTO student_profiles (user_id, department_id, batch_id, section_id, roll_number, guardian_name, guardian_phone, guardian_email, academic_year)
@@ -780,7 +774,7 @@ def update_user_account(user_id: int):
             return jsonify({"error": "Phone number must be between 8 and 15 digits (optional + at the start)"}), 400
     else:
         if not EMAIL_PATTERN.match(raw_contact):
-            return jsonify({"error": "Please enter a valid email address (e.g. username1@inpand.com)"}), 400
+            return jsonify({"error": "Please enter a valid email address (e.g. user@gmail.com)"}), 400
 
     identifier = raw_contact.strip().lower() if "@" in raw_contact else raw_contact.strip()
 

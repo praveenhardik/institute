@@ -272,10 +272,6 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
                 if (!username || username === name.trim().toLowerCase().replace(/\s+/g, '')) {
                   const newU = val.trim().toLowerCase().replace(/\s+/g, '');
                   setUsername(newU);
-                  if (emailOrPhone.includes('@') || !emailOrPhone.trim()) {
-                    const isTeacherOrClassTeacher = ['teacher', 'class_teacher'].includes(user?.role);
-                    setEmailOrPhone(newU ? (isTeacherOrClassTeacher ? `${newU}@inpand.com` : `${newU}1@inpand.com`) : '');
-                  }
                 }
                 if (val.trim()) {
                   if (val.trim().toLowerCase() === (user.name || '').trim().toLowerCase()) {
@@ -340,10 +336,6 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
                   onChange={(e) => {
                     const newU = e.target.value;
                     setUsername(newU);
-                    if (emailOrPhone.includes('@') || !emailOrPhone.trim()) {
-                      const isTeacherOrClassTeacher = ['teacher', 'class_teacher'].includes(user?.role);
-                      setEmailOrPhone(newU ? (isTeacherOrClassTeacher ? `${newU.toLowerCase()}@inpand.com` : `${newU.toLowerCase()}1@inpand.com`) : '');
-                    }
                   }}
                   placeholder="e.g. jane.doe"
                 />
@@ -374,10 +366,6 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
                 onChange={(e) => {
                   const newU = e.target.value;
                   setUsername(newU);
-                  if (emailOrPhone.includes('@') || !emailOrPhone.trim()) {
-                    const isTeacherOrClassTeacher = ['teacher', 'class_teacher'].includes(user?.role);
-                    setEmailOrPhone(newU ? (isTeacherOrClassTeacher ? `${newU.toLowerCase()}@inpand.com` : `${newU.toLowerCase()}1@inpand.com`) : '');
-                  }
                 }}
                 placeholder="e.g. jane.doe"
               />
@@ -391,7 +379,7 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
               className="form-input"
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
-              placeholder={['teacher', 'class_teacher'].includes(user?.role) ? "e.g. 9876543210 (8-15 digits) or username@inpand.com" : "e.g. 9876543210 (8-15 digits) or username1@inpand.com"}
+              placeholder="e.g. user@gmail.com or 9876543210"
               maxLength={30}
               required
             />

@@ -138,9 +138,6 @@ export const DeanView = () => {
     if (!newUsername || newUsername === prevUval || !newUsername.trim()) {
       setNewUsername(uval);
     }
-    if (!newContact || newContact.includes('@inpand.com') || newContact === `${prevUval}1@inpand.com` || !newContact.trim()) {
-      setNewContact(uval ? `${uval}1@inpand.com` : '');
-    }
     if (!val.trim()) {
       setNameEligibilityNotice('');
       return;
@@ -1107,7 +1104,10 @@ export const DeanView = () => {
       <CreateAccountModal
         isOpen={showCreateAccountModal}
         onClose={() => setShowCreateAccountModal(false)}
-        onCreated={() => loadMonitorData()}
+        onCreated={() => {
+          loadMonitorData();
+          loadDirectory();
+        }}
         currentUser={currentUser}
         allowedRoles={['super_admin']}
       />

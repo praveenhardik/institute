@@ -675,7 +675,7 @@ export const AuthView = () => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Enter registered Email or Username (e.g. admin or admin1@inpand.com)"
+                    placeholder="Enter registered Email or Username (e.g. admin or user@gmail.com)"
                     value={forgotIdentifier}
                     onChange={(e) => setForgotIdentifier(e.target.value)}
                     required

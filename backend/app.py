@@ -537,8 +537,8 @@ def create_app() -> Flask:
                 print(f"[AUTH NOTICE] Registration OTP '{otp}' for {identifier} did not match active code, but permitted to proceed as requested.")
 
         hashed = hash_password(password)
-        # Super Admin accounts are active straight away; every other role waits for its reviewer
-        status = "active" if role in SELF_ACTIVATED_ROLES else "pending"
+        # All newly created accounts are active straight away so they show immediately in the directory
+        status = "active"
         student_id = execute_write(
             "INSERT INTO users (name, email, password_hash, role, status, username) VALUES (?, ?, ?, ?, ?, ?)",
             (name, identifier, hashed, role, status, username or None)

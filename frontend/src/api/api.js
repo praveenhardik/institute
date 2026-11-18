@@ -605,7 +605,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   if (path === "/api/auth/forgot-password/send-otp") {
     return {
       message: "OTP from INPAND has been sent to your registered email address.",
-      email_masked: "s***1@inpand.com",
+      email_masked: "u***r@gmail.com",
       dev_otp: "123456"
     };
   }
@@ -645,12 +645,12 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       id: newId,
       name: body.name || "New User",
       username: body.username || (body.name || "").toLowerCase().replace(/\s+/g, ""),
-      email: body.email_or_phone || `${(body.username || "user")}1@inpand.com`,
+      email: body.email_or_phone || `${(body.username || "user")}@gmail.com`,
       role: body.role || "student",
       status: "active",
       password: body.password || "Admin@123"
     };
-    users.push(newUser);
+    users.unshift(newUser);
     saveStoredUsers(users);
     return {
       message: `${newUser.role.replace("_", " ")} account for ${newUser.name} created successfully! You can sign in now.`,
@@ -915,20 +915,24 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       id: newId,
       name: body.name || "New User",
       username: body.username || (body.name || "").toLowerCase().replace(/\s+/g, ""),
-      email: body.email_or_phone || `${(body.username || "user")}1@inpand.com`,
+      email: body.email_or_phone || `${(body.username || "user")}@gmail.com`,
       role: body.role || "student",
       status: "active",
       password: body.password || "Admin@123",
       designation: body.designation,
-      qualification: body.qualification
+      qualification: body.qualification,
+      department_id: body.department_id || 1,
+      academic_year: body.academic_year || 1,
+      roll_number: body.roll_number || `REG-${newId}`
     };
-    users.push(newUser);
+    users.unshift(newUser);
     saveStoredUsers(users);
     return {
       message: `Account for ${newUser.name} created successfully!`,
       user_id: newId,
       student_id: newId,
-      status: "active"
+      status: "active",
+      user: newUser
     };
   }
 
@@ -1364,7 +1368,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
           ...body,
           name: (body.name || "User").trim(),
           username: (body.username || body.name || "user").trim(),
-          email: (body.email_or_phone || body.email || "user@inpand.com").trim(),
+          email: (body.email_or_phone || body.email || "user@gmail.com").trim(),
           role: body.role || "student",
           department_id: chosenDeptId,
           department_name: chosenDeptName,

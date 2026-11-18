@@ -5033,11 +5033,6 @@ export const TeacherView = () => {
                   if (!ctFacultyUsername || ctFacultyUsername === prevUval || !ctFacultyUsername.trim()) {
                     setCtFacultyUsername(uval);
                   }
-                  const isTeacherOrClassTeacher = ['teacher', 'class_teacher'].includes(ctFacultyRole);
-                  const targetContact = uval ? (isTeacherOrClassTeacher ? `${uval}@inpand.com` : `${uval}1@inpand.com`) : '';
-                  if (!ctFacultyContact || ctFacultyContact.includes('@inpand.com') || ctFacultyContact === `${prevUval}1@inpand.com` || ctFacultyContact === `${prevUval}@inpand.com` || !ctFacultyContact.trim()) {
-                    setCtFacultyContact(targetContact);
-                  }
                   if (val.trim()) {
                     API.checkName(val.trim()).then((res) => {
                       if (!res.eligible) {
@@ -5117,14 +5112,14 @@ export const TeacherView = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder={['teacher', 'class_teacher'].includes(ctFacultyRole) ? "e.g. 9876543210 (8-15 digits) or user@inpand.com" : "e.g. 9876543210 (8-15 digits) or user1@inpand.com"}
+                placeholder="e.g. user@gmail.com or 9876543210"
                 value={ctFacultyContact}
                 onChange={(e) => setCtFacultyContact(e.target.value)}
                 maxLength={30}
                 required
               />
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Phone numbers are accepted up to 15 digits from 8 characters. Official email ends with @inpand.com.
+                Phone numbers are accepted up to 15 digits from 8 characters, or enter your email address.
               </span>
             </div>
 
@@ -5145,13 +5140,7 @@ export const TeacherView = () => {
                 className="form-select"
                 value={ctFacultyRole}
                 onChange={(e) => {
-                  const r = e.target.value;
-                  setCtFacultyRole(r);
-                  const uval = ctFacultyName.trim().toLowerCase().replace(/\s+/g, '');
-                  if (uval && (!ctFacultyContact || ctFacultyContact.includes('@inpand.com'))) {
-                    const isTeacherOrClassTeacher = ['teacher', 'class_teacher'].includes(r);
-                    setCtFacultyContact(isTeacherOrClassTeacher ? `${uval}@inpand.com` : `${uval}1@inpand.com`);
-                  }
+                  setCtFacultyRole(e.target.value);
                 }}
                 required
               >

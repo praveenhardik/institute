@@ -225,9 +225,6 @@ export const CreateAccountModal = ({
     if (!username || username === prevUval || !username.trim()) {
       setUsername(uval);
     }
-    if (!contact || contact.includes('@inpand.com') || contact === `${prevUval}1@inpand.com` || !contact.trim()) {
-      setContact(uval ? `${uval}1@inpand.com` : '');
-    }
 
     if (val.trim().length >= 2) {
       try {
@@ -553,7 +550,7 @@ export const CreateAccountModal = ({
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. teacher1@inpand.com"
+                placeholder="e.g. user@gmail.com or 9876543210"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 required

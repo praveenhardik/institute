@@ -697,7 +697,11 @@ export const SuperAdminView = () => {
         <CreateAccountModal
           isOpen={showCreateAccountModal}
           onClose={() => setShowCreateAccountModal(false)}
-          onCreated={() => loadProfiles(true)}
+          onCreated={() => {
+            loadProfiles(true);
+            setActiveTab('all');
+            setCurrentPage(1);
+          }}
           currentUser={currentUser}
         />
 
