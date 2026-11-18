@@ -529,11 +529,11 @@ export const AuthView = () => {
 
               <input
                 type="text"
-                maxLength={6}
+                maxLength={12}
                 className="form-input"
-                placeholder="Enter 6-digit OTP"
+                placeholder="Enter OTP (text and numbers)"
                 value={loginOtp}
-                onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setLoginOtp(e.target.value)}
                 style={{
                   letterSpacing: loginOtp ? '4px' : 'normal',
                   fontSize: loginOtp ? '1.15rem' : '0.95rem',
@@ -806,11 +806,11 @@ export const AuthView = () => {
 
                 <input
                   type="text"
-                  maxLength={6}
+                  maxLength={12}
                   className="form-input"
-                  placeholder="Enter 6-digit OTP"
+                  placeholder="Enter OTP (text and numbers)"
                   value={regOtp}
-                  onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setRegOtp(e.target.value)}
                   style={{
                     letterSpacing: regOtp ? '4px' : 'normal',
                     fontSize: regOtp ? '1.15rem' : '0.95rem',
@@ -991,11 +991,11 @@ export const AuthView = () => {
 
                   <input
                     type="text"
-                    maxLength={6}
+                    maxLength={12}
                     className="form-input"
-                    placeholder="Enter 6-digit OTP"
+                    placeholder="Enter OTP (text and numbers)"
                     value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setForgotOtp(e.target.value)}
                     style={{
                       letterSpacing: forgotOtp ? '4px' : 'normal',
                       fontSize: forgotOtp ? '1.15rem' : '0.95rem',

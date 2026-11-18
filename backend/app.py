@@ -652,7 +652,7 @@ def create_app() -> Flask:
         now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         matched_otp = query_one("""
             SELECT id, expires_at FROM password_reset_otps
-            WHERE email = ? AND otp_code = ? AND used = 0
+            WHERE lower(email) = lower(?) AND lower(otp_code) = lower(?) AND used = 0
             ORDER BY id DESC LIMIT 1
         """, (identifier, otp))
 
@@ -882,7 +882,7 @@ def create_app() -> Flask:
 
         otp_record = query_one("""
             SELECT id, expires_at FROM password_reset_otps
-            WHERE user_id = ? AND otp_code = ? AND used = 0
+            WHERE user_id = ? AND lower(otp_code) = lower(?) AND used = 0
             ORDER BY id DESC LIMIT 1
         """, (user["id"], otp))
 
@@ -1045,7 +1045,7 @@ def create_app() -> Flask:
             now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             matched_otp = query_one("""
                 SELECT id, expires_at FROM password_reset_otps
-                WHERE (lower(email) = lower(?) OR user_id = ?) AND otp_code = ? AND used = 0
+                WHERE (lower(email) = lower(?) OR user_id = ?) AND lower(otp_code) = lower(?) AND used = 0
                 ORDER BY id DESC LIMIT 1
             """, (norm_email, user["id"], otp))
 

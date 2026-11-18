@@ -576,8 +576,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
     }
 
-    if (enteredOtp !== expectedOtp) {
-      throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email.");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct verification OTP.");
     }
 
     try {
@@ -716,8 +716,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP.");
     }
 
-    if (enteredOtp !== expectedOtp) {
-      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP.");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP.");
     }
     if (!body.new_password || body.new_password.length < 6) {
       throw new Error("New password must be at least 6 characters long.");
@@ -843,8 +843,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
     }
 
-    if (enteredOtp !== expectedOtp) {
-      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct 6-digit OTP sent to your email.");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP.");
     }
 
     // Clear used registration OTP
