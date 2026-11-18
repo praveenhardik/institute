@@ -719,7 +719,7 @@ def create_app() -> Flask:
                 "name": name,
                 "status": "active"
             }), 201
-        approver_role = APPROVER_FOR[role]
+        approver_role = APPROVER_FOR.get(role, "super_admin")
         approver_display = approver_role.replace("_", " ").title()
 
         # Dispatch notification to the role's reviewer for approval/rejection

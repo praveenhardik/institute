@@ -427,9 +427,16 @@ export const AuthView = () => {
                 }}
               >
                 <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-                <option value="parent">Parent</option>
                 <option value="class_leader">Class Leader</option>
+                <option value="teacher">Teacher</option>
+                <option value="class_teacher">Class Teacher</option>
+                <option value="hod">HOD (Head of Department)</option>
+                <option value="dean">Dean</option>
+                <option value="principal">Principal</option>
+                <option value="admin">Admin</option>
+                <option value="accountant">Accountant</option>
+                <option value="librarian">Librarian</option>
+                <option value="parent">Parent</option>
               </select>
             </div>
 

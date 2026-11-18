@@ -631,7 +631,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       const uEmail = (u.email || '').toLowerCase().trim();
       const uUsername = (u.username || '').toLowerCase().trim();
       const fName = (u.name || '').toLowerCase().trim();
-      return uEmail === identifier || uName === identifier || fName === identifier;
+      return uEmail === identifier || uUsername === identifier || fName === identifier;
     });
     if (!user || !user.email) {
       throw new Error(`❌ No registered account found with Email or Username "${identifier}". Please check and try again, or Create Account.`);
@@ -665,7 +665,8 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     const user = users.find(u => {
       const uEmail = (u.email || '').toLowerCase().trim();
       const uUsername = (u.username || '').toLowerCase().trim();
-      return uEmail === identifier || uName === identifier;
+      const fName = (u.name || '').toLowerCase().trim();
+      return uEmail === identifier || uUsername === identifier || fName === identifier;
     });
     if (!user) {
       throw new Error(`❌ No registered account found with Email or Username "${identifier}". Please check and try again.`);
@@ -823,7 +824,17 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       academic_year: isStudent ? (Number(body.academic_year) || 1) : null,
       previous_year: null,
       roll_number: isStudent ? (body.roll_number || `${deptCode}2026${String(newId).padStart(3, "0")}`) : undefined,
-      designation: !isStudent ? (role === "teacher" ? "Faculty" : role === "admin" ? "Administrator" : "Staff") : undefined,
+      designation: !isStudent ? (
+        role === "admin" ? "Administrator" :
+        role === "dean" ? "Dean of Academics" :
+        role === "principal" ? "Principal" :
+        role === "hod" ? "Head of Department" :
+        role === "class_teacher" ? "Class Teacher & Faculty" :
+        role === "teacher" ? "Faculty" :
+        role === "accountant" ? "Senior Accountant / Bursar" :
+        role === "librarian" ? "Chief Librarian" :
+        role === "parent" ? "Parent / Guardian" : "Staff"
+      ) : (role === "class_leader" ? "Class Leader" : undefined),
       can_edit: true,
       can_delete: role !== "super_admin",
       access: "granted"

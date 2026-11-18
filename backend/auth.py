@@ -29,6 +29,8 @@ PHONE_PATTERN = re.compile(r"^\+?\d{8,15}$")
 #   Teacher / Class Teacher / Student / Class Leader registration -> College Admin
 APPROVER_FOR = {
     "admin": "super_admin",
+    "dean": "super_admin",
+    "principal": "super_admin",
     "hod": "admin",
     "teacher": "admin",
     "class_teacher": "admin",
