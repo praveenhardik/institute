@@ -126,11 +126,11 @@ export const AuthView = () => {
     }
     try {
       setLoginOtpLoading(true);
-      const res = await API.sendLoginOtp(email, 'praveenrps3008@gmail.com');
+      const res = await API.sendLoginOtp(email);
       setLoginOtpSent(true);
       setLoginCountdown(30);
       setLoginOtp('');
-      showAlert(`✓ Verification OTP has been sent to your email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
+      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
     } finally {
@@ -203,11 +203,11 @@ export const AuthView = () => {
         return;
       }
 
-      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User', 'praveenrps3008@gmail.com');
+      const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
       setRegOtpSent(true);
       setRegCountdown(30);
       setRegOtp('');
-      showAlert(`✓ Verification OTP has been sent to your email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
+      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -319,7 +319,7 @@ export const AuthView = () => {
 
     try {
       setForgotLoading(true);
-      const res = await API.sendForgotPasswordOtp(idVal, 'praveenrps3008@gmail.com');
+      const res = await API.sendForgotPasswordOtp(idVal);
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
@@ -499,7 +499,7 @@ export const AuthView = () => {
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received from noreply@iiet at {loginIdentifier}</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({loginIdentifier})</span>
                 ) : (
                   <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
                 )}
@@ -748,7 +748,7 @@ export const AuthView = () => {
                 />
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                   {regOtpSent ? (
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received from noreply@iiet at {regContact}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({regContact})</span>
                   ) : (
                     <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
                   )}

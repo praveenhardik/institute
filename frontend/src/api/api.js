@@ -272,7 +272,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v17_admin2_praveeninpand_student_praveenrps";
+const USERS_SCHEMA_VERSION = "v18_direct_entered_email_otp";
 
 function getStoredUsers() {
   try {

@@ -41,6 +41,15 @@ ALL_PORTIONS_ACCOUNTS = [
         "portal": "College Admin Portal"
     },
     {
+        "role": "admin",
+        "name": "admin2",
+        "username": "admin2",
+        "email": "praveeninpand@gmail.com",
+        "designation": "College Administrator",
+        "qualification": "B.Tech",
+        "portal": "College Admin Portal"
+    },
+    {
         "role": "principal",
         "name": "Principal",
         "username": "principal",
@@ -210,6 +219,19 @@ ALL_PORTIONS_ACCOUNTS.extend([
         "portal": "Student Portal"
     },
     {
+        "role": "student",
+        "name": "Praveen",
+        "username": "praveenrps3008",
+        "email": "praveenrps3008@gmail.com",
+        "dept_code": "CSE",
+        "roll_number": "CSE2026099",
+        "academic_year": 1,
+        "guardian_name": "Parent",
+        "guardian_phone": "9876543210",
+        "guardian_email": "parent1@inpand.com",
+        "portal": "Student Portal"
+    },
+    {
         "role": "class_leader",
         "name": "Class Leader",
         "username": "classleader",
@@ -301,7 +323,7 @@ def seed_database():
             pass
 
     # Ensure all legacy personal name accounts are completely removed or cleaned
-    execute_write("DELETE FROM users WHERE lower(username) = 'praveen' OR lower(email) = 'praveeninpand@gmail.com'")
+    execute_write("DELETE FROM users WHERE lower(username) = 'praveen_legacy'")
     execute_write("DELETE FROM users WHERE lower(name) IN ('eleanor', 'alan', 'xavier', 'lovelace', 'alex', 'arthur') OR lower(email) IN ('eleanor1@inpand.com', 'alan1@inpand.com', 'xavier1@inpand.com', 'lovelace1@inpand.com', 'alex1@inpand.com', 'arthur1@inpand.com')")
     execute_write("DELETE FROM users WHERE role IN ('teacher', 'class_teacher') AND lower(username) IN ('teacher', 'classteacher')")
     execute_write("DELETE FROM staff_profiles WHERE user_id NOT IN (SELECT id FROM users)")

@@ -339,10 +339,10 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     # 3. Standard SMTP (Gmail SMTP, Outlook, SendGrid SMTP, etc.)
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
-    smtp_user = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", "praveenrps3008@gmail.com"))).strip()
+    smtp_user = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", ""))).strip()
     smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", os.getenv("MAIL_PASSWORD", os.getenv("GMAIL_PASSWORD", "")))).strip().replace(" ", "")
     
-    sender_mail = effective_sender or (smtp_user or "praveenrps3008@gmail.com")
+    sender_mail = effective_sender or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")
     smtp_from = f"{display_name} <{sender_mail}>"
         
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
@@ -461,6 +461,36 @@ def create_app() -> Flask:
         WHERE hod_user_id IS NULL
     """)
 
+    # Ensure requested user accounts are active and properly configured
+    try:
+        from backend.auth import hash_password
+        default_hash = hash_password("Admin@123")
+        u_admin2 = query_one("SELECT id FROM users WHERE lower(email) = 'praveeninpand@gmail.com'")
+        if not u_admin2:
+            execute_write(
+                "INSERT INTO users (name, username, email, password_hash, role, status) VALUES ('admin2', 'admin2', 'praveeninpand@gmail.com', ?, 'admin', 'active')",
+                (default_hash,)
+            )
+        else:
+            execute_write(
+                "UPDATE users SET password_hash = ?, status = 'active', role = 'admin' WHERE id = ?",
+                (default_hash, u_admin2["id"])
+            )
+
+        u_praveen = query_one("SELECT id FROM users WHERE lower(email) = 'praveenrps3008@gmail.com'")
+        if not u_praveen:
+            execute_write(
+                "INSERT INTO users (name, username, email, password_hash, role, status) VALUES ('Praveen', 'praveenrps3008', 'praveenrps3008@gmail.com', ?, 'student', 'active')",
+                (default_hash,)
+            )
+        else:
+            execute_write(
+                "UPDATE users SET password_hash = ?, status = 'active', role = 'student' WHERE id = ?",
+                (default_hash, u_praveen["id"])
+            )
+    except Exception as e:
+        print(f"[INIT NOTICE] User ensure notice: {e}")
+
     # --- Health & Diagnostic Endpoints ---
 
     @app.route("/api/health", methods=["GET"])
@@ -559,14 +589,14 @@ def create_app() -> Flask:
             VALUES (NULL, ?, ?, ?, 0)
         """, (email, otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
-        sender_name = (data.get("sender_name") or "").strip()
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
         sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration", sender_email=sender_email, sender_name=sender_name)
 
         masked = mask_email(email)
         res_payload = {
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
+            "sender_email": sender_email,
             "receiver_email": email,
             "email_sent": bool(sent),
             "expires_in": 600
@@ -831,21 +861,21 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
-        sender_name = (data.get("sender_name") or "").strip()
-        # Send via email with Subject 'OTP from INPAND'
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
+        # Send via email with Subject 'OTP from IIET'
         sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="password_reset", sender_email=sender_email, sender_name=sender_name)
 
         # Also store notification for the user
         execute_write("""
             INSERT INTO notifications (recipient_id, sender_name, sender_role, type, title, message, is_read)
-            VALUES (?, 'INPAND Security', 'system', 'security', 'OTP from INPAND', ?, 0)
+            VALUES (?, 'IIET Portal Security', 'system', 'security', 'OTP from IIET', ?, 0)
         """, (user["id"], f"Your password reset OTP is {otp_code}. Valid for 10 minutes."))
 
         masked = mask_email(user["email"])
         res_payload = {
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
+            "sender_email": sender_email,
             "receiver_email": user["email"],
             "email_sent": bool(sent),
             "expires_in": 600
@@ -965,19 +995,19 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or "praveenrps3008@gmail.com").strip()
-        sender_name = (data.get("sender_name") or "").strip()
-        sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
-        masked = mask_email(user["email"])
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
+        sent, mail_msg = send_inpand_otp_email(email, user.get("name") or "User", otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
+        masked = mask_email(email)
         res_payload = {
             "email_masked": masked,
-            "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
-            "receiver_email": user["email"],
+            "sender_email": sender_email,
+            "receiver_email": email,
             "email_sent": bool(sent),
             "expires_in": 600
         }
         if sent:
-            res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+            res_payload["message"] = f"✓ Verification OTP has been sent to your entered email ({masked}). Please check your inbox or spam to enter your OTP."
         else:
             res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
