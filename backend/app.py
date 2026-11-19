@@ -992,6 +992,23 @@ def create_app() -> Flask:
             return jsonify({"error": "A valid registered email address is required to receive login OTP."}), 400
 
         user = query_one("SELECT id, name, email FROM users WHERE lower(email) = ?", (email,))
+        if not user and "@" in email:
+            local_part, domain = email.split("@", 1)
+            candidates = []
+            if local_part.endswith("1"):
+                candidates.append(f"{local_part[:-1]}@{domain}")
+            else:
+                candidates.append(f"{local_part}1@{domain}")
+            if local_part in ("super", "superadmin"):
+                candidates.extend([f"superadmin1@{domain}", f"super1@{domain}", f"super@{domain}", f"superadmin@{domain}"])
+            elif local_part in ("admin", "collegeadmin"):
+                candidates.extend([f"admin1@{domain}", f"admin@{domain}"])
+            for cand in candidates:
+                if cand != email:
+                    user = query_one("SELECT id, name, email FROM users WHERE lower(email) = ?", (cand.lower(),))
+                    if user:
+                        break
+
         if not user:
             return jsonify({"error": "❌ This email is not registered in the portal. Please Create Account first."}), 404
 

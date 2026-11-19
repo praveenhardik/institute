@@ -669,9 +669,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     } catch {}
     const masked = targetEmail.includes("@") ? targetEmail[0] + "***" + targetEmail.slice(targetEmail.indexOf("@") - 1) : targetEmail;
     return {
-      message: `✓ Verification OTP has been sent to your email (${masked}). Please check your inbox or spam to enter your OTP.`,
+      message: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD is not configured in .env.`,
+      error: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD (Google App Password) is not configured in .env. Please configure your 16-character Google App Password in .env to deliver real emails to ${targetEmail}.`,
       email_masked: masked,
-      otp_sent: true,
+      email_sent: false,
+      otp_sent: false,
       expires_in: 600
     };
   }
@@ -772,11 +774,13 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
     return {
-      message: `✓ Verification OTP has been sent to your email (${email}). Please check your inbox or spam to enter your OTP.`,
+      message: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD is not configured in .env.`,
+      error: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD (Google App Password) is not configured in .env. Please configure your 16-character Google App Password in .env to deliver real emails to ${email}.`,
       email_masked: email,
       sender_email: sender,
       receiver_email: email,
-      otp_sent: true,
+      email_sent: false,
+      otp_sent: false,
       expires_in: 600
     };
   }
@@ -802,11 +806,13 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     } catch {}
     const masked = email[0] + "***" + email.slice(email.indexOf("@") - 1);
     return {
-      message: `✓ Verification OTP has been sent to your email (${masked}). Please check your inbox or spam to enter your OTP.`,
+      message: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD is not configured in .env.`,
+      error: `❌ Email delivery failed: Backend email service is currently unavailable or SMTP_PASSWORD (Google App Password) is not configured in .env. Please configure your 16-character Google App Password in .env to deliver real emails to ${email}.`,
       email_masked: masked,
       sender_email: sender,
       receiver_email: email,
-      otp_sent: true,
+      email_sent: false,
+      otp_sent: false,
       expires_in: 600
     };
   }
