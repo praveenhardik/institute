@@ -50,7 +50,8 @@ services:
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-INPAND Security <noreply@collegeportal.edu>}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-IIET Portal Security}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "127.0.0.1:5000:5000"

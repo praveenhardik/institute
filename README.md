@@ -5,8 +5,9 @@ Flask API, React/Vite frontend, and PostgreSQL. The API and production database 
 ## Local development
 
 1. Copy `.env.example` to `.env` and replace the local passwords.
-2. Run `docker compose up --build` from the repository root.
-3. Open `http://localhost` for the frontend. For Vite hot reload, run `npm ci --prefix frontend` and `npm run dev:frontend`; keep the local API running on port 5000.
+2. Set `SMTP_USER` to the sending mailbox and `SMTP_PASSWORD` to its SMTP credential. For Gmail, enable 2-Step Verification and create a 16-character App Password; the normal Gmail password will not work. Leave `SMTP_FROM_EMAIL` blank unless it is a verified sender alias for that account. Without valid SMTP credentials, OTP requests return a delivery error and no email can be sent.
+3. Run `docker compose up --build` from the repository root.
+4. Open `http://localhost` for the frontend. For Vite hot reload, run `npm ci --prefix frontend` and `npm run dev:frontend`; keep the local API running on port 5000.
 
 The local PostgreSQL data lives in the `pgdata` Docker volume. Production data is stored in RDS, not in the source tree.
 
@@ -27,9 +28,15 @@ Create a Systems Manager Parameter Store **SecureString** with dotenv-formatted 
 DATABASE_URL=postgresql://APP_USER:URL_ENCODED_PASSWORD@RDS_ENDPOINT:5432/college_live?sslmode=require
 JWT_SECRET_KEY=REPLACE_WITH_A_LONG_RANDOM_SECRET
 CORS_ORIGINS=https://YOUR_VERCEL_DOMAIN
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=YOUR_SENDING_GMAIL_ADDRESS
+SMTP_PASSWORD=YOUR_16_CHARACTER_GMAIL_APP_PASSWORD
+SMTP_FROM_NAME=IIET Portal Security
+SMTP_USE_TLS=true
 ```
 
-Use the actual RDS endpoint, URL-encode special characters in the database username/password, generate a unique JWT secret, and list the exact Vercel origin(s), comma-separated if using more than one. Never commit this value or put it in GitHub variables.
+Use the actual RDS endpoint, URL-encode special characters in the database username/password, generate a unique JWT secret, and list the exact Vercel origin(s), comma-separated if using more than one. For Gmail, enable 2-Step Verification and create a 16-character App Password. Set `SMTP_FROM_EMAIL` only when using a verified sender alias; otherwise the app sends as `SMTP_USER`. Never commit this value or put it in GitHub variables.
 
 Create an IAM role for GitHub OIDC using `role-trust-policy.json` and `deploy/iam-github-deployer-policy.example.json` as templates. Replace the placeholders with your AWS account ID and the exact GitHub owner/repository IDs printed by the workflow. Restrict the trust policy to the `main` branch. This deployer role does not need account-wide administrator access. See [AWS_OIDC_FIX.md](AWS_OIDC_FIX.md) for the red ❌ troubleshooting steps. Configure GitHub Actions repository variables:
 
