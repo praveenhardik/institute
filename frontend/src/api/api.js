@@ -173,7 +173,8 @@ const DEFAULT_PORTAL_USERS = [
   { id: 81, name: "teacher5 MECH", username: "teacher5 MECH", email: "teacher5mech@inpand.com", role: "teacher", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Teacher (MECH Year 5)" },
   { id: 8, name: "Student", username: "student", email: "student1@inpand.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026001", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
   { id: 9, name: "Class Leader", username: "classleader", email: "classleader1@inpand.com", role: "class_leader", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026002", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1 },
-  { id: 999, name: "Praveen", username: "praveen", email: "praveeninpand@gmail.com", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026099", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1, designation: "Student", access: "granted", can_edit: true, can_delete: false },
+  { id: 308, name: "admin2", username: "admin2", email: "praveeninpand@gmail.com", password: "Admin@123", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator", access: "granted", can_edit: true, can_delete: false },
+  { id: 309, name: "Praveen", username: "praveenrps3008", email: "praveenrps3008@gmail.com", password: "Admin@123", role: "student", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", roll_number: "CSE2026099", batch_name: "Batch 2026-2030", section_name: "A", academic_year: 1, designation: "Student", access: "granted", can_edit: true, can_delete: false },
   { id: 10, name: "Accountant", username: "accountant", email: "accountant1@inpand.com", role: "accountant", status: "active", designation: "Senior Accountant / Bursar" },
   { id: 11, name: "Librarian", username: "librarian", email: "librarian1@inpand.com", role: "librarian", status: "active", designation: "Chief Librarian" },
   { id: 12, name: "Parent", username: "parent", email: "parent1@inpand.com", role: "parent", status: "active", designation: "Parent / Guardian" }
@@ -271,7 +272,7 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-const USERS_SCHEMA_VERSION = "v16_retain_all_registered_accounts";
+const USERS_SCHEMA_VERSION = "v17_admin2_praveeninpand_student_praveenrps";
 
 function getStoredUsers() {
   try {
