@@ -10,7 +10,9 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-dist/
+# dist directories tracked for Vercel deployment
+!dist/
+!dist/**
 !frontend/dist/
 !frontend/dist/**
 build/

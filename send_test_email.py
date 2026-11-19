@@ -23,7 +23,7 @@ def send_test_otp(to_email="praveeninpand@gmail.com", otp_code="123456"):
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
     smtp_user = os.getenv("SMTP_USER", "").strip()
     smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", "")).strip().replace(" ", "")
-    smtp_from = os.getenv("SMTP_FROM", f"INPAND Security <{smtp_user or 'noreply@gmail.com'}>").strip()
+    smtp_from = os.getenv("SMTP_FROM", "IIET Portal Security <noreply@iiet-portal.edu>").strip()
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
 
     print(f"==================================================")

@@ -569,17 +569,16 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
                      sessionStorage.getItem("active_login_otp_time_" + rawId) || localStorage.getItem("active_login_otp_time_" + rawId);
     } catch {}
 
-    const isMasterOtp = enteredOtp === "123456" || enteredOtp.toLowerCase() === "admin@123" || enteredOtp.toLowerCase() === "admin";
-    if (!expectedOtp && !isMasterOtp) {
-      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first (or enter 123456).");
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first.");
     }
 
-    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000 && !isMasterOtp) {
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
     }
 
-    if (!isMasterOtp && expectedOtp && enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
-      throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct verification OTP sent to your email (or 123456).");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct verification OTP sent to your email.");
     }
 
     try {
@@ -656,7 +655,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error(`❌ No registered account found with Email or Username "${identifier}". Please check and try again, or Create Account.`);
     }
     const targetEmail = user.email.toLowerCase().trim();
-    const otp = "123456";
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
     const nowTime = String(Date.now());
     try {
       sessionStorage.setItem("active_forgot_otp_" + targetEmail, otp);
@@ -709,17 +708,16 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
                      localStorage.getItem("active_forgot_otp_time_" + identifier);
     } catch {}
 
-    const isMasterOtp = enteredOtp === "123456" || enteredOtp.toLowerCase() === "admin@123" || enteredOtp.toLowerCase() === "admin";
-    if (!expectedOtp && !isMasterOtp) {
-      throw new Error("❌ No active OTP found. Please click 'Send OTP' or 'Resend OTP' first (or enter 123456).");
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found. Please click 'Send OTP' or 'Resend OTP' first.");
     }
 
-    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000 && !isMasterOtp) {
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP.");
     }
 
-    if (!isMasterOtp && expectedOtp && enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
-      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP sent to your email (or 123456).");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP sent to your email.");
     }
     if (!body.new_password || body.new_password.length < 6) {
       throw new Error("New password must be at least 6 characters long.");
@@ -757,7 +755,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/register-send-otp") {
     const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
-    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "praveenrps3008@gmail.com").trim();
+    const sender = (body?.sender_email || "noreply@iiet-portal.edu").trim();
     if (!email || !email.includes("@")) {
       throw new Error("A valid official email address is required to receive OTP.");
     }
@@ -765,7 +763,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     if (users.some(u => (u.email && u.email.toLowerCase().trim() === email))) {
       throw new Error("This email address is already registered. Please sign in or use Forgot Password.");
     }
-    const otp = "123456";
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
     const nowTime = String(Date.now());
     try {
       sessionStorage.setItem("active_reg_otp_" + email, otp);
@@ -785,7 +783,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
 
   if (path === "/api/auth/login-send-otp") {
     const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
-    const sender = (body?.sender_email || (API.getCurrentUser() && API.getCurrentUser().email) || "praveenrps3008@gmail.com").trim();
+    const sender = (body?.sender_email || "noreply@iiet-portal.edu").trim();
     if (!email || !email.includes("@")) {
       throw new Error("A valid registered email address is required to receive login OTP.");
     }
@@ -794,7 +792,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     if (!user) {
       throw new Error("❌ This email is not registered in the portal. Please Create Account first.");
     }
-    const otp = "123456";
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
     const nowTime = String(Date.now());
     try {
       sessionStorage.setItem("active_login_otp_" + email, otp);
@@ -835,17 +833,16 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       otpTimestamp = sessionStorage.getItem("active_reg_otp_time_" + email) || localStorage.getItem("active_reg_otp_time_" + email);
     } catch {}
 
-    const isMasterOtp = enteredOtp === "123456" || enteredOtp.toLowerCase() === "admin@123" || enteredOtp.toLowerCase() === "admin";
-    if (!expectedOtp && !isMasterOtp) {
-      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first (or enter 123456).");
+    if (!expectedOtp) {
+      throw new Error("❌ No active OTP found for this email. Please click 'Send OTP to Mail' first.");
     }
 
-    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000 && !isMasterOtp) {
+    if (otpTimestamp && (Date.now() - Number(otpTimestamp)) > 10 * 60 * 1000) {
       throw new Error("❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP.");
     }
 
-    if (!isMasterOtp && expectedOtp && enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
-      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP sent to your email (or 123456).");
+    if (enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
+      throw new Error("❌ Wrong OTP! The OTP you entered does not match. Please enter the correct verification OTP sent to your email.");
     }
 
     // Clear used registration OTP
@@ -1983,10 +1980,10 @@ export const API = {
     throw new Error("Invalid email address or password");
   },
 
-  async sendLoginOtp(email, senderEmail = "praveenrps3008@gmail.com") {
+  async sendLoginOtp(email, senderEmail = "noreply@iiet-portal.edu") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
-    const effectiveName = (cur && cur.name) || "INPAND Security";
+    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveName = "IIET Portal Security";
     return this.request("/api/auth/login-send-otp", {
       method: "POST",
       body: JSON.stringify({
@@ -2025,10 +2022,10 @@ export const API = {
     });
   },
 
-  async sendRegisterOtp(email, name = "New User", senderEmail = "praveenrps3008@gmail.com") {
+  async sendRegisterOtp(email, name = "New User", senderEmail = "noreply@iiet-portal.edu") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
-    const effectiveName = (cur && cur.name) || "INPAND Security";
+    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveName = "IIET Portal Security";
     return this.request("/api/auth/register-send-otp", {
       method: "POST",
       body: JSON.stringify({
@@ -2048,10 +2045,10 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async sendForgotPasswordOtp(identifier, senderEmail = "praveenrps3008@gmail.com") {
+  async sendForgotPasswordOtp(identifier, senderEmail = "noreply@iiet-portal.edu") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "praveenrps3008@gmail.com";
-    const effectiveName = (cur && cur.name) || "INPAND Security";
+    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveName = "IIET Portal Security";
     return this.request("/api/auth/forgot-password/send-otp", {
       method: "POST",
       body: JSON.stringify({

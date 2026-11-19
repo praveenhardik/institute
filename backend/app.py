@@ -201,7 +201,7 @@ def find_user_by_email_or_username(identifier: str):
 
 
 def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose: str = "password_reset", sender_email: str = None, sender_name: str = None):
-    """Send 'OTP from INPAND' email via standard SMTP or transactional email API."""
+    """Send 'OTP from IIET' email from noreply@iiet-portal.edu via standard SMTP or transactional email API."""
     import smtplib
     import email.utils
     import urllib.request
@@ -214,35 +214,35 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     if not to_email or "@" not in to_email:
         return False, "Invalid destination email address."
 
-    subject = f"OTP from INPAND - Verification Code {otp_code}"
+    subject = f"OTP from IIET - Verification Code {otp_code}"
 
     if purpose == "registration":
         action_title = "Account Registration Verification"
-        action_desc = "We received a request to create a new portal account. Use the One-Time Password (OTP) below to complete your email verification:"
+        action_desc = "We received a request to create a new institutional portal account. Use the One-Time Password (OTP) below to complete your email verification:"
     elif purpose == "login":
         action_title = "Portal Login Verification"
-        action_desc = "We received a request to sign in to your portal account. Use the One-Time Password (OTP) below to complete your login verification:"
+        action_desc = "We received a request to sign in to your institutional portal account. Use the One-Time Password (OTP) below to complete your login verification:"
     else:
         action_title = "Password Reset Verification"
-        action_desc = "We received a request to reset the password for your portal account. Use the One-Time Password (OTP) below to complete your verification:"
+        action_desc = "We received a request to reset the password for your institutional portal account. Use the One-Time Password (OTP) below to complete your verification:"
 
     tab_mode = "register" if purpose == "registration" else ("login" if purpose == "login" else "forgot")
     verify_url = f"https://institute-dun.vercel.app/?otp={otp_code}&email={to_email}&tab={tab_mode}"
 
-    effective_sender = sender_email if (sender_email and "@" in sender_email) else "praveenrps3008@gmail.com"
-    display_name = sender_name.strip() if (sender_name and sender_name.strip()) else "INPAND Security"
+    effective_sender = os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")
+    display_name = os.getenv("SMTP_FROM_NAME", "IIET Portal Security")
     sender_info_line = f"<p style='font-size: 13px; color: #64748b; margin: 4px 0;'>Sent by: <strong>{display_name}</strong> &lt;{effective_sender}&gt;</p>"
 
     html_content = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>OTP from INPAND</title>
+  <title>OTP from IIET</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
   <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
     <div style="text-align: center; margin-bottom: 24px;">
-      <h2 style="font-size: 22px; font-weight: 700; color: #1e293b; margin: 0;">INPAND Portal Security</h2>
+      <h2 style="font-size: 22px; font-weight: 700; color: #1e293b; margin: 0;">IIET Institutional Portal</h2>
       <p style="font-size: 14px; color: #64748b; margin-top: 6px;">{action_title}</p>
       {sender_info_line}
     </div>
@@ -270,14 +270,14 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     sender_text_info = f"\nSent by: {display_name} <{effective_sender}>\n"
     text_content = (
         f"Hello {user_name},\n\n"
-        f"Your One-Time Password (OTP) from INPAND is: {otp_code}\n\n"
+        f"Your One-Time Password (OTP) from IIET is: {otp_code}\n\n"
         f"{action_desc}\n\n"
         f"Follow this link to verify your email address and view your OTP:\n"
         f"{verify_url}\n"
         f"{sender_text_info}\n"
         f"This OTP is valid for 10 minutes.\n"
         f"If you did not request this, please ignore this email.\n\n"
-        f"INPAND Institute of Engineering and Technology"
+        f"INPAND Institute of Engineering and Technology (IIET)"
     )
 
     # 1. Try Resend API if configured
@@ -657,14 +657,13 @@ def create_app() -> Flask:
             ORDER BY id DESC LIMIT 1
         """, (identifier, otp))
 
-        is_master_otp = (otp == "123456" or otp.lower() in ("admin@123", "admin123"))
-        if not matched_otp and not is_master_otp:
-            return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email (or 123456)."}), 400
+        if not matched_otp:
+            return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
 
-        if matched_otp:
-            if str(matched_otp["expires_at"]) < now_str:
-                return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
-            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
+        if str(matched_otp["expires_at"]) < now_str:
+            return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
+
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
 
         hashed = hash_password(password)
         # All newly created accounts are active straight away so they show immediately in the directory
@@ -889,14 +888,13 @@ def create_app() -> Flask:
             ORDER BY id DESC LIMIT 1
         """, (user["id"], otp))
 
-        is_master_otp = (otp == "123456" or otp.lower() in ("admin@123", "admin123"))
-        if not otp_record and not is_master_otp:
-            return jsonify({"error": "❌ Wrong OTP! The code you entered is incorrect. Please check the email with subject 'OTP from INPAND' and enter the correct 6-digit OTP (or 123456)."}), 400
+        if not otp_record:
+            return jsonify({"error": "❌ Wrong OTP! The code you entered is incorrect. Please check the email with subject 'OTP from IIET' and enter the correct 6-digit OTP."}), 400
 
-        if otp_record:
-            if str(otp_record["expires_at"]) < now_str:
-                return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP."}), 400
-            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (otp_record["id"],))
+        if str(otp_record["expires_at"]) < now_str:
+            return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP' to receive a new OTP."}), 400
+
+        execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (otp_record["id"],))
 
         new_hash = hash_password(new_password)
         execute_write("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
@@ -1054,14 +1052,13 @@ def create_app() -> Flask:
                 ORDER BY id DESC LIMIT 1
             """, (norm_email, user["id"], otp))
 
-            is_master_otp = (otp == "123456" or otp.lower() in ("admin@123", "admin123"))
-            if not matched_otp and not is_master_otp:
-                return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email (or 123456)."}), 400
+            if not matched_otp:
+                return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
 
-            if matched_otp:
-                if str(matched_otp["expires_at"]) < now_str:
-                    return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
-                execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
+            if str(matched_otp["expires_at"]) < now_str:
+                return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
+
+            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
 
         # Check approval status
         if user["status"] == "pending":
