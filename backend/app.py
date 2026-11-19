@@ -471,7 +471,6 @@ def create_app() -> Flask:
 
     # Ensure requested user accounts are active and properly configured
     try:
-        from backend.auth import hash_password
         default_hash = hash_password("Admin@123")
         u_admin2 = query_one("SELECT id FROM users WHERE lower(email) = 'praveeninpand@gmail.com'")
         if not u_admin2:
