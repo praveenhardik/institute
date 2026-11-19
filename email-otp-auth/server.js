@@ -172,11 +172,14 @@ async function handleSendOtp(req, res) {
     return res.status(200).json({
       success: true,
       message: emailSent
-        ? `A 6-digit OTP has been sent to ${normalizedEmail}. Please check your inbox or spam.`
-        : `OTP generated for ${normalizedEmail}. (Nodemailer ready; configure EMAIL_PASS in .env for real inbox delivery).`,
+        ? `✓ Success! A 6-digit OTP has been sent to your Gmail inbox (${normalizedEmail}). Please check your inbox or spam.`
+        : (mailError
+            ? `⚠️ Email delivery failed (${mailError}). Please check your 16-character Google App Password in .env.`
+            : `⚠️ Email not delivered to inbox: EMAIL_PASS is empty in .env. Enter your 16-character Google App Password in .env to receive real emails.`),
       email: normalizedEmail,
       expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
       emailSent,
+      mailError,
       devCode: !emailSent ? otp : undefined
     });
   } catch (error) {

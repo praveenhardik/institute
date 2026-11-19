@@ -260,10 +260,12 @@
       startCountdown(data.expiresInSeconds || 300);
       triggerResendCooldown(30);
 
-      // If in development/preview mode without active SMTP credentials:
       if (data.devCode) {
-        devCodeBanner.innerHTML = `⚙️ <strong>Local Preview Code:</strong> <code>${data.devCode}</code> (SMTP credentials not yet set in .env)`;
+        devCodeBanner.innerHTML = `⚠️ <strong>Notice:</strong> EMAIL_PASS is not configured in .env, so the email cannot be delivered to your inbox yet.<br><br>💡 <strong>Your Verification OTP Code:</strong> <span style="font-size: 1.45rem; letter-spacing: 5px; font-weight: 800; color: #4338ca; background: #e0e7ff; padding: 4px 12px; border-radius: 8px;">${data.devCode}</span>`;
         devCodeBanner.classList.remove('hidden');
+        showAlert(otpAlert, 'Email delivery is waiting for EMAIL_PASS in .env. Use the verification code above to sign in.', 'danger');
+      } else {
+        showAlert(otpAlert, data.message, 'success');
       }
     } catch (err) {
       showAlert(loginAlert, err.message, 'danger');
@@ -354,11 +356,12 @@
       resetOtpBoxes();
       startCountdown(data.expiresInSeconds || 300);
       triggerResendCooldown(30);
-      showAlert(otpAlert, `A new 6-digit OTP has been dispatched to ${currentEmail}.`, 'success');
-
       if (data.devCode) {
-        devCodeBanner.innerHTML = `⚙️ <strong>New Preview Code:</strong> <code>${data.devCode}</code>`;
+        devCodeBanner.innerHTML = `⚠️ <strong>Notice:</strong> EMAIL_PASS is not configured in .env, so the email cannot be delivered to your inbox yet.<br><br>💡 <strong>Your New Verification OTP Code:</strong> <span style="font-size: 1.45rem; letter-spacing: 5px; font-weight: 800; color: #4338ca; background: #e0e7ff; padding: 4px 12px; border-radius: 8px;">${data.devCode}</span>`;
         devCodeBanner.classList.remove('hidden');
+        showAlert(otpAlert, 'Email delivery is waiting for EMAIL_PASS in .env. Use the new verification code above to sign in.', 'danger');
+      } else {
+        showAlert(otpAlert, `✓ A new 6-digit OTP has been sent to your Gmail inbox (${currentEmail}).`, 'success');
       }
 
       otpBoxes[0].focus();
