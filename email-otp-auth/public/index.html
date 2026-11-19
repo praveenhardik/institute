@@ -31,6 +31,34 @@
 
       <div id="login-alert" class="alert-box hidden"></div>
 
+      <!-- Gmail SMTP App Password Configuration Panel -->
+      <div id="smtp-notice-box" class="config-banner">
+        <div class="config-banner-header" id="btn-toggle-config">
+          <div class="config-status-pill" id="smtp-status-pill">
+            <span class="status-dot"></span>
+            <span id="smtp-status-text">Checking SMTP Status...</span>
+          </div>
+          <button type="button" class="btn-toggle-text" id="btn-toggle-label">⚙️ Setup Gmail App Password</button>
+        </div>
+        <div id="config-form-body" class="config-body hidden">
+          <p class="config-help">
+            To deliver OTPs directly to your real Gmail inbox, Gmail requires a <strong>16-character Google App Password</strong> (<a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">create one here</a> with 2-Step Verification ON).
+          </p>
+          <div class="config-field">
+            <label class="config-label" for="cfg-email">Sender Gmail</label>
+            <input type="email" id="cfg-email" class="form-control" value="praveeninpand@gmail.com" />
+          </div>
+          <div class="config-field" style="margin-top: 8px;">
+            <label class="config-label" for="cfg-pass">16-Character App Password</label>
+            <input type="password" id="cfg-pass" class="form-control" placeholder="e.g. abcd efgh ijkl mnop" />
+          </div>
+          <button type="button" id="btn-save-cfg" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 10px;">
+            Save & Connect Nodemailer
+          </button>
+          <div id="cfg-alert" class="alert-box hidden" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+
       <form id="form-send-otp" class="auth-form" novalidate>
         <div class="input-group">
           <label for="input-email" class="input-label">Email Address <span class="required">*</span></label>

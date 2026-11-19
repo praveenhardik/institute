@@ -423,8 +423,83 @@
     showAlert(loginAlert, 'You have signed out successfully.', 'success');
   });
 
+  // --- SMTP CONFIGURATION PANEL LOGIC ---
+  const btnToggleConfig = document.getElementById('btn-toggle-config');
+  const configFormBody = document.getElementById('config-form-body');
+  const smtpStatusPill = document.getElementById('smtp-status-pill');
+  const smtpStatusText = document.getElementById('smtp-status-text');
+  const cfgEmail = document.getElementById('cfg-email');
+  const cfgPass = document.getElementById('cfg-pass');
+  const btnSaveCfg = document.getElementById('btn-save-cfg');
+  const cfgAlert = document.getElementById('cfg-alert');
+
+  if (btnToggleConfig) {
+    btnToggleConfig.addEventListener('click', () => {
+      configFormBody.classList.toggle('hidden');
+    });
+  }
+
+  async function checkSmtpStatus() {
+    try {
+      const res = await fetch('/api/smtp-status');
+      const data = await res.json();
+      if (data.configured) {
+        smtpStatusPill.className = 'config-status-pill connected';
+        smtpStatusText.textContent = 'Gmail SMTP Connected';
+        if (data.emailUser) cfgEmail.value = data.emailUser;
+      } else {
+        smtpStatusPill.className = 'config-status-pill not-connected';
+        smtpStatusText.textContent = 'EMAIL_PASS Needed for Real Inbox';
+        configFormBody.classList.remove('hidden'); // Automatically expand so user sees how to connect!
+      }
+    } catch {}
+  }
+
+  if (btnSaveCfg) {
+    btnSaveCfg.addEventListener('click', async () => {
+      const emailUser = cfgEmail.value.trim();
+      const emailPass = cfgPass.value.trim();
+
+      if (!emailUser || !emailPass) {
+        showAlert(cfgAlert, 'Please enter your Gmail and 16-character App Password.', 'danger');
+        return;
+      }
+
+      btnSaveCfg.disabled = true;
+      btnSaveCfg.textContent = 'Verifying with Gmail...';
+      clearAlerts();
+
+      try {
+        const res = await fetch('/api/save-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emailUser, emailPass })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to authenticate with Gmail.');
+        }
+
+        showAlert(cfgAlert, data.message, 'success');
+        smtpStatusPill.className = 'config-status-pill connected';
+        smtpStatusText.textContent = 'Gmail SMTP Connected';
+        inputEmail.value = emailUser; // Pre-fill in step 1
+        setTimeout(() => {
+          configFormBody.classList.add('hidden');
+        }, 2000);
+      } catch (err) {
+        showAlert(cfgAlert, err.message, 'danger');
+      } finally {
+        btnSaveCfg.disabled = false;
+        btnSaveCfg.textContent = 'Save & Connect Nodemailer';
+      }
+    });
+  }
+
   // --- INITIALIZATION ---
   setupOtpInputs();
+  checkSmtpStatus();
 
   // Check if already authenticated
   const existingToken = sessionStorage.getItem('otp_auth_token');

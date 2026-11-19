@@ -333,6 +333,79 @@ app.post('/api/verify-otp', handleVerifyOtp);
 app.post('/resend-otp', handleSendOtp);
 app.post('/api/resend-otp', handleSendOtp);
 
+// Check SMTP configuration status
+app.get('/api/smtp-status', (req, res) => {
+  const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').trim();
+  res.json({
+    configured: !!(user && pass),
+    emailUser: user || null,
+    hasPassword: !!pass
+  });
+});
+
+// Configure and test Gmail App Password dynamically
+app.post('/api/save-credentials', async (req, res) => {
+  try {
+    const { emailUser, emailPass } = req.body;
+    if (!emailUser || !emailPass) {
+      return res.status(400).json({ success: false, error: 'Both Gmail address and 16-character App Password are required.' });
+    }
+
+    const cleanUser = emailUser.trim();
+    const cleanPass = emailPass.trim().replace(/\s+/g, '');
+
+    // Test connection with Nodemailer
+    const testTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '465', 10),
+      secure: true,
+      auth: { user: cleanUser, pass: cleanPass },
+      tls: { rejectUnauthorized: false }
+    });
+
+    try {
+      await testTransporter.verify();
+    } catch (verifyErr) {
+      return res.status(400).json({
+        success: false,
+        error: `Gmail connection failed: ${verifyErr.message}. Make sure 2-Step Verification is ON in your Google Account and you generated an App Password from https://myaccount.google.com/apppasswords`
+      });
+    }
+
+    // Update in-memory environment
+    process.env.EMAIL_USER = cleanUser;
+    process.env.EMAIL_PASS = cleanPass;
+
+    // Update .env file on disk
+    const fs = require('fs');
+    const envPath = path.join(__dirname, '.env');
+    let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+
+    if (envContent.includes('EMAIL_USER=')) {
+      envContent = envContent.replace(/^EMAIL_USER=.*$/m, `EMAIL_USER=${cleanUser}`);
+    } else {
+      envContent += `\nEMAIL_USER=${cleanUser}`;
+    }
+
+    if (envContent.includes('EMAIL_PASS=')) {
+      envContent = envContent.replace(/^EMAIL_PASS=.*$/m, `EMAIL_PASS=${cleanPass}`);
+    } else {
+      envContent += `\nEMAIL_PASS=${cleanPass}`;
+    }
+
+    fs.writeFileSync(envPath, envContent, 'utf8');
+
+    console.log(`[SMTP Configured] Successfully verified and saved credentials for ${cleanUser}`);
+    return res.json({
+      success: true,
+      message: `✓ Connected to Gmail SMTP! OTP emails will now be sent directly to real inboxes.`
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/dashboard', requireAuth, handleDashboard);
 app.post('/api/logout', (req, res) => res.json({ success: true, message: 'Logged out successfully' }));
 

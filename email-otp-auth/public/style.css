@@ -222,6 +222,93 @@ body {
   font-weight: 600;
 }
 
+/* Config Banner */
+.config-banner {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  font-size: 0.84rem;
+}
+
+.config-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.config-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.config-status-pill.connected {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.config-status-pill.not-connected {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.btn-toggle-text {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.config-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.config-help {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.config-help a {
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.config-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+}
+
 /* Forms & Inputs */
 .auth-form {
   display: flex;
