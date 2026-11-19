@@ -229,7 +229,9 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     tab_mode = "register" if purpose == "registration" else ("login" if purpose == "login" else "forgot")
     verify_url = f"https://institute-dun.vercel.app/?otp={otp_code}&email={to_email}&tab={tab_mode}"
 
-    effective_sender = os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")
+    effective_sender = (os.getenv("SMTP_FROM_EMAIL") or os.getenv(
+        "SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", ""))
+    )).strip()
     display_name = os.getenv("SMTP_FROM_NAME", "IIET Portal Security")
     sender_info_line = f"<p style='font-size: 13px; color: #64748b; margin: 4px 0;'>Sent by: <strong>{display_name}</strong> &lt;{effective_sender}&gt;</p>"
 
@@ -341,9 +343,13 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
     smtp_user = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", os.getenv("GMAIL_USER", ""))).strip()
     smtp_pass = os.getenv("SMTP_PASSWORD", os.getenv("SMTP_PASS", os.getenv("MAIL_PASSWORD", os.getenv("GMAIL_PASSWORD", "")))).strip().replace(" ", "")
-    
-    sender_mail = effective_sender or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")
-    smtp_from = f"{display_name} <{sender_mail}>"
+
+    # Gmail and most authenticated SMTP providers expect the visible From address
+    # to be the authenticated account (or a verified alias). Never default to a
+    # fictional institute domain, which can cause rejection or spam filtering.
+    sender_mail = (os.getenv("SMTP_FROM_EMAIL") or smtp_user).strip()
+    effective_sender = sender_mail
+    smtp_from_header = email.utils.formataddr((display_name, sender_mail)) if sender_mail else smtp_user
         
     use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ("1", "true", "yes")
 
@@ -357,7 +363,7 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = smtp_from
+    msg["From"] = smtp_from_header
     msg["To"] = to_email
     if sender_email and "@" in sender_email:
         msg["Reply-To"] = sender_email
@@ -378,7 +384,9 @@ def send_inpand_otp_email(to_email: str, user_name: str, otp_code: str, purpose:
                 server.ehlo()
 
         server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_from, [to_email], msg.as_string())
+        # SMTP's envelope sender must be a bare address; the display-name form
+        # belongs only in the RFC 5322 From header above.
+        server.sendmail(sender_mail or smtp_user, [to_email], msg.as_string())
         server.quit()
         print(f"[MAIL SUCCESS] Sent 'OTP from INPAND' to {to_email} via {smtp_host}:{smtp_port}")
         return True, "Email delivered successfully to your inbox."
@@ -601,10 +609,12 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if sent:
-            res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
-        else:
-            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
+        if not sent:
+            return jsonify({
+                "error": f"❌ Email delivery failed: {mail_msg}",
+                "email_sent": False,
+                **res_payload
+            }), 400
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -880,10 +890,12 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if sent:
-            res_payload["message"] = f"✓ Verification OTP has been sent to your registered email ({masked}). Please check your inbox or spam to enter your OTP."
-        else:
-            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
+        if not sent:
+            return jsonify({
+                "error": f"❌ Email delivery failed: {mail_msg}",
+                "email_sent": False,
+                **res_payload
+            }), 400
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -1006,10 +1018,12 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if sent:
-            res_payload["message"] = f"✓ Verification OTP has been sent to your entered email ({masked}). Please check your inbox or spam to enter your OTP."
-        else:
-            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
+        if not sent:
+            return jsonify({
+                "error": f"❌ Email delivery failed: {mail_msg}",
+                "email_sent": False,
+                **res_payload
+            }), 400
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/login", methods=["POST"])

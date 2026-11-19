@@ -127,6 +127,10 @@ export const AuthView = () => {
     try {
       setLoginOtpLoading(true);
       const res = await API.sendLoginOtp(email);
+      if (res && res.email_sent === false) {
+        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
+        return;
+      }
       setLoginOtpSent(true);
       setLoginCountdown(30);
       setLoginOtp('');
@@ -204,6 +208,10 @@ export const AuthView = () => {
       }
 
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
+      if (res && res.email_sent === false) {
+        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
+        return;
+      }
       setRegOtpSent(true);
       setRegCountdown(30);
       setRegOtp('');
@@ -320,6 +328,10 @@ export const AuthView = () => {
     try {
       setForgotLoading(true);
       const res = await API.sendForgotPasswordOtp(idVal);
+      if (res && res.email_sent === false) {
+        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
+        return;
+      }
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
