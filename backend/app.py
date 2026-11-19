@@ -548,11 +548,13 @@ def create_app() -> Flask:
 
     # --- Authentication Routes ---
 
-    @app.route("/api/auth/check-email", methods=["POST"])
+    @app.route("/api/auth/check-email", methods=["GET", "POST", "OPTIONS"])
     def check_email_availability():
         """Check if an email address is already registered."""
-        data = request.get_json() or {}
-        email = (data.get("email") or data.get("email_or_phone") or "").strip().lower()
+        if request.method == "OPTIONS":
+            return "", 204
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or data.get("email_or_phone") or request.args.get("email") or "").strip().lower()
         if not email:
             return jsonify({"registered": False}), 200
         user = query_one("SELECT id, name, role, email FROM users WHERE lower(email) = lower(?)", (email,))

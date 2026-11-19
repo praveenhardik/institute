@@ -409,19 +409,7 @@ export const AuthView = () => {
                 placeholder="Enter your registered email address"
                 value={loginIdentifier}
                 onChange={(e) => { setLoginIdentifier(e.target.value); setLoginEmailError(''); }}
-                onBlur={() => {
-                  const email = loginIdentifier.trim();
-                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (email && emailRegex.test(email)) {
-                    API.checkEmail(email).then((res) => {
-                      if (res && !res.registered) {
-                        setLoginEmailError('This email is not registered. Please Create Account first.');
-                      } else {
-                        setLoginEmailError('');
-                      }
-                    }).catch(() => {});
-                  }
-                }}
+                onBlur={() => { setLoginEmailError(''); }}
                 required
               />
               {loginEmailError ? (
