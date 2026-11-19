@@ -565,14 +565,16 @@ def create_app() -> Flask:
 
         masked = mask_email(email)
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your official email address ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
             "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": email,
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -842,14 +844,16 @@ def create_app() -> Flask:
 
         masked = mask_email(user["email"])
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your registered official email address ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
             "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": user["email"],
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your registered email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -966,14 +970,16 @@ def create_app() -> Flask:
         sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
         masked = mask_email(user["email"])
         res_payload = {
-            "message": f"OTP from INPAND has been sent to your registered email ({masked}). Please check your Mail inbox or spam. Valid for 10 minutes.",
             "email_masked": masked,
             "sender_email": sender_email or os.getenv("SMTP_USER", "praveenrps3008@gmail.com"),
             "receiver_email": user["email"],
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/login", methods=["POST"])
