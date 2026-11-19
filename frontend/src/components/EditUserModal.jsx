@@ -33,11 +33,10 @@ export const EditUserModal = ({ user, isOpen, onClose, onUpdated }) => {
   // admin, teacher, class_teacher, super_admin, dean, hod.
   // It should NOT be available for entire students (student, class_leader).
   const ALLOWED_PASSWORD_ROLES = ['admin', 'teacher', 'class_teacher', 'super_admin', 'dean', 'hod', 'principal'];
-  const isSuperAdminUser = currentUser?.role === 'super_admin';
-  const isStudent = ['student', 'class_leader'].includes(user?.role);
-  const canHaveNewPassword = isSuperAdminUser || (!isStudent && (
+  const isStudent = ['student', 'class_leader'].includes(user?.role) || ['student', 'class_leader'].includes(currentUser?.role);
+  const canHaveNewPassword = !isStudent && (
     ALLOWED_PASSWORD_ROLES.includes(user?.role) || ALLOWED_PASSWORD_ROLES.includes(currentUser?.role)
-  ));
+  );
 
   const isSuperAdminOrAdmin = user && ['super_admin', 'admin', 'principal'].includes(user.role);
   const isTeacher = user && user.role === 'teacher';

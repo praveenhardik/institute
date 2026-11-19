@@ -800,7 +800,7 @@ def update_user_account(user_id: int):
 
     password = (data.get("password") or "").strip()
     if password:
-        if editor["role"] != "super_admin" and (editor["role"] in ('student', 'class_leader') or target["role"] in ('student', 'class_leader')):
+        if editor["role"] in ('student', 'class_leader') or target["role"] in ('student', 'class_leader'):
             password = ""
         elif len(password) < 6:
             return jsonify({"error": "Password must be at least 6 characters long"}), 400

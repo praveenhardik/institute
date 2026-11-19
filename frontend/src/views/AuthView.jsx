@@ -127,16 +127,14 @@ export const AuthView = () => {
     try {
       setLoginOtpLoading(true);
       const res = await API.sendLoginOtp(email);
-      if (res && res.email_sent === false) {
-        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
-        return;
-      }
       setLoginOtpSent(true);
       setLoginCountdown(30);
       setLoginOtp('');
       showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
+      return true;
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
+      return false;
     } finally {
       setLoginOtpLoading(false);
     }
@@ -154,16 +152,6 @@ export const AuthView = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.includes('@') || !emailRegex.test(email)) {
       showAlert('Only email address is accepted for login. Full name, username, or phone number cannot be used.', 'danger');
-      return;
-    }
-
-    if (!loginOtp.trim()) {
-      if (!loginOtpSent) {
-        await handleSendLoginOtp();
-        showAlert('OTP has been sent to your email! Please check your received mail and enter the OTP to sign in.', 'info');
-        return;
-      }
-      showAlert('Please enter the OTP from your received mail to sign in.', 'danger');
       return;
     }
 
@@ -208,10 +196,6 @@ export const AuthView = () => {
       }
 
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
-      if (res && res.email_sent === false) {
-        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
-        return;
-      }
       setRegOtpSent(true);
       setRegCountdown(30);
       setRegOtp('');
@@ -328,10 +312,6 @@ export const AuthView = () => {
     try {
       setForgotLoading(true);
       const res = await API.sendForgotPasswordOtp(idVal);
-      if (res && res.email_sent === false) {
-        showAlert(res.error || res.message || '⚠️ Email could not be delivered. Please check SMTP settings.', 'danger');
-        return;
-      }
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
@@ -472,7 +452,7 @@ export const AuthView = () => {
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>
-                  Email Verification OTP <span className="req">*</span>
+                  Email Verification OTP
                 </label>
                 <button
                   type="button"
@@ -507,13 +487,12 @@ export const AuthView = () => {
                   width: '100%',
                   boxSizing: 'border-box'
                 }}
-                required
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
                   <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({loginIdentifier})</span>
                 ) : (
-                  <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                  <span>Click "Send OTP to Mail", or sign in directly with your password below</span>
                 )}
               </div>
             </div>

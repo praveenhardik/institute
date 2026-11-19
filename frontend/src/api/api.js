@@ -671,7 +671,6 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     return {
       message: `✓ Verification OTP has been sent to your email (${masked}). Please check your inbox or spam to enter your OTP.`,
       email_masked: masked,
-      email_sent: true,
       otp_sent: true,
       expires_in: 600
     };
@@ -777,7 +776,6 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       email_masked: email,
       sender_email: sender,
       receiver_email: email,
-      email_sent: true,
       otp_sent: true,
       expires_in: 600
     };
@@ -808,7 +806,6 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       email_masked: masked,
       sender_email: sender,
       receiver_email: email,
-      email_sent: true,
       otp_sent: true,
       expires_in: 600
     };
@@ -1983,11 +1980,11 @@ export const API = {
     throw new Error("Invalid email address or password");
   },
 
-  async sendLoginOtp(email, senderEmail = "noreply@iiet-portal.edu") {
+  async sendLoginOtp(email, senderEmail = "") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     const effectiveName = "IIET Portal Security";
-    return this.request("/api/auth/login-send-otp", {
+    const result = await this.request("/api/auth/login-send-otp", {
       method: "POST",
       body: JSON.stringify({
         email: (email || '').trim(),
@@ -1995,6 +1992,10 @@ export const API = {
         sender_name: effectiveName
       })
     });
+    if (result?.email_sent === false) {
+      throw new Error(result.message || "The OTP email could not be sent. Check the mail server configuration and try again.");
+    }
+    return result;
   },
 
   async registerStudent(name, emailOrPhone, password, role = "super_admin", contactType = "email", username = "", extra = {}) {
@@ -2025,11 +2026,11 @@ export const API = {
     });
   },
 
-  async sendRegisterOtp(email, name = "New User", senderEmail = "noreply@iiet-portal.edu") {
+  async sendRegisterOtp(email, name = "New User", senderEmail = "") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     const effectiveName = "IIET Portal Security";
-    return this.request("/api/auth/register-send-otp", {
+    const result = await this.request("/api/auth/register-send-otp", {
       method: "POST",
       body: JSON.stringify({
         email: (email || '').trim(),
@@ -2038,6 +2039,10 @@ export const API = {
         sender_name: effectiveName
       })
     });
+    if (result?.email_sent === false) {
+      throw new Error(result.message || "The OTP email could not be sent. Check the mail server configuration and try again.");
+    }
+    return result;
   },
 
   async getSuperAdminStatus() {
@@ -2048,11 +2053,11 @@ export const API = {
     return this.request("/api/auth/principal-status");
   },
 
-  async sendForgotPasswordOtp(identifier, senderEmail = "noreply@iiet-portal.edu") {
+  async sendForgotPasswordOtp(identifier, senderEmail = "") {
     const cur = this.getCurrentUser();
-    const effectiveSender = senderEmail || (cur && cur.email) || "noreply@iiet-portal.edu";
+    const effectiveSender = senderEmail || (cur && cur.email) || "";
     const effectiveName = "IIET Portal Security";
-    return this.request("/api/auth/forgot-password/send-otp", {
+    const result = await this.request("/api/auth/forgot-password/send-otp", {
       method: "POST",
       body: JSON.stringify({
         identifier: (identifier || "").trim(),
@@ -2062,6 +2067,10 @@ export const API = {
         sender_name: effectiveName
       })
     });
+    if (result?.email_sent === false) {
+      throw new Error(result.message || "The OTP email could not be sent. Check the mail server configuration and try again.");
+    }
+    return result;
   },
 
   async forgotPassword(usernameOrContact, newPassword, otp = "") {

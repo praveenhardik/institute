@@ -471,6 +471,7 @@ def create_app() -> Flask:
 
     # Ensure requested user accounts are active and properly configured
     try:
+        from backend.auth import hash_password
         default_hash = hash_password("Admin@123")
         u_admin2 = query_one("SELECT id FROM users WHERE lower(email) = 'praveeninpand@gmail.com'")
         if not u_admin2:
@@ -596,7 +597,7 @@ def create_app() -> Flask:
             VALUES (NULL, ?, ?, ?, 0)
         """, (email, otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_USER", "")).strip()
         sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
         sent, mail_msg = send_inpand_otp_email(email, name, otp_code, purpose="registration", sender_email=sender_email, sender_name=sender_name)
 
@@ -608,12 +609,10 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            return jsonify({
-                "error": f"❌ Email delivery failed: {mail_msg}",
-                "email_sent": False,
-                **res_payload
-            }), 400
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/register-student", methods=["POST"])
@@ -870,7 +869,7 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_USER", "")).strip()
         sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
         # Send via email with Subject 'OTP from IIET'
         sent, mail_msg = send_inpand_otp_email(user["email"], user["name"], otp_code, purpose="password_reset", sender_email=sender_email, sender_name=sender_name)
@@ -889,12 +888,10 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            return jsonify({
-                "error": f"❌ Email delivery failed: {mail_msg}",
-                "email_sent": False,
-                **res_payload
-            }), 400
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your registered email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/forgot-password", methods=["POST"])
@@ -992,23 +989,6 @@ def create_app() -> Flask:
             return jsonify({"error": "A valid registered email address is required to receive login OTP."}), 400
 
         user = query_one("SELECT id, name, email FROM users WHERE lower(email) = ?", (email,))
-        if not user and "@" in email:
-            local_part, domain = email.split("@", 1)
-            candidates = []
-            if local_part.endswith("1"):
-                candidates.append(f"{local_part[:-1]}@{domain}")
-            else:
-                candidates.append(f"{local_part}1@{domain}")
-            if local_part in ("super", "superadmin"):
-                candidates.extend([f"superadmin1@{domain}", f"super1@{domain}", f"super@{domain}", f"superadmin@{domain}"])
-            elif local_part in ("admin", "collegeadmin"):
-                candidates.extend([f"admin1@{domain}", f"admin@{domain}"])
-            for cand in candidates:
-                if cand != email:
-                    user = query_one("SELECT id, name, email FROM users WHERE lower(email) = ?", (cand.lower(),))
-                    if user:
-                        break
-
         if not user:
             return jsonify({"error": "❌ This email is not registered in the portal. Please Create Account first."}), 404
 
@@ -1023,7 +1003,7 @@ def create_app() -> Flask:
             VALUES (?, ?, ?, ?, 0)
         """, (user["id"], user["email"], otp_code, expires_at))
 
-        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL", "noreply@iiet-portal.edu")).strip()
+        sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_USER", "")).strip()
         sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "IIET Portal Security")).strip()
         sent, mail_msg = send_inpand_otp_email(email, user.get("name") or "User", otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
         masked = mask_email(email)
@@ -1034,12 +1014,10 @@ def create_app() -> Flask:
             "email_sent": bool(sent),
             "expires_in": 600
         }
-        if not sent:
-            return jsonify({
-                "error": f"❌ Email delivery failed: {mail_msg}",
-                "email_sent": False,
-                **res_payload
-            }), 400
+        if sent:
+            res_payload["message"] = f"✓ Verification OTP has been sent to your entered email ({masked}). Please check your inbox or spam to enter your OTP."
+        else:
+            res_payload["message"] = f"⚠️ Email delivery notice: {mail_msg}"
         return jsonify(res_payload), 200
 
     @app.route("/api/auth/login", methods=["POST"])
