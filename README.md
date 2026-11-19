@@ -52,6 +52,36 @@ Configure Vercel to use the same GitHub repository, root directory `/`, and prod
 
 After AWS resources, IAM, GitHub variables, DNS/TLS, and Vercel variables are in place, pushes to `main` deploy the backend through GitHub Actions and trigger the connected Vercel frontend deployment.
 
+## Deploy from the AWS EC2 command prompt
+
+This direct deployment path runs in an Ubuntu shell on the EC2 instance. From AWS CLI on your computer, connect with Session Manager (replace the instance ID):
+
+```bash
+aws ssm start-session --target i-YOUR_INSTANCE_ID --region ap-south-1
+```
+
+In another local terminal, upload the ZIP to a bucket the instance can read:
+
+```bash
+aws s3 cp institute-otp-fixed.zip s3://YOUR_PRIVATE_BUCKET/institute-otp-fixed.zip --region ap-south-1
+```
+
+Back in the EC2 Session Manager shell, install `unzip` if needed, download the archive, and deploy it:
+
+```bash
+sudo apt-get update && sudo apt-get install -y unzip
+mkdir -p "$HOME/institute"
+aws s3 cp s3://YOUR_PRIVATE_BUCKET/institute-otp-fixed.zip "$HOME/institute-otp-fixed.zip" --region ap-south-1
+unzip "$HOME/institute-otp-fixed.zip" -d "$HOME/institute"
+cd "$HOME/institute/institute"
+chmod +x aws/deploy-on-ec2.sh
+./aws/deploy-on-ec2.sh /YOUR/SSM/PARAMETER/NAME ap-south-1
+```
+
+Create that Parameter Store entry as a **SecureString** with the production dotenv settings shown above, including `SMTP_USER` and `SMTP_PASSWORD`. The EC2 instance profile needs `ssm:GetParameter` permission for that exact parameter, `kms:Decrypt` if you use a customer-managed KMS key, and `s3:GetObject` for the uploaded ZIP. The deploy script fetches the secret onto the instance with file permissions `600`, builds the app, checks SMTP authentication, and only then starts the backend and frontend containers. The SMTP check does not send a test email; after deployment, request an OTP to confirm delivery to a real inbox. Ensure the instance has outbound internet access on TCP port 465 for Gmail SMTP (or the port used by your provider), and that it can reach RDS.
+
+The frontend is served on port 80. Keep port 5000 private behind your load balancer; do not expose it to the public internet. If the SMTP check fails, the script stops and prints the provider error so you can fix the SecureString or network settings before deployment.
+
 ## Check the deployed URLs from Windows PowerShell
 
 From the repository root, run `.\scripts\check-deployments.ps1`. It prompts for the actual Vercel Production Domain and AWS HTTPS API base URL, then requests the Vercel homepage and the public `GET /api/college-name` backend route. Do not enter example text such as `your-project.vercel.app` or angle-bracket placeholders. This checks that both URLs respond; it does not deploy resources or configure the Vercel environment variable. For frontend-to-backend calls, set Vercel's production `VITE_API_BASE_URL` to the AWS API base URL and set AWS `CORS_ORIGINS` to the exact Vercel origin, then redeploy both sides as needed.

@@ -16,7 +16,8 @@ __pycache__/
 !frontend/dist/
 !frontend/dist/**
 build/
-/aws/
+/aws/*
+!/aws/deploy-on-ec2.sh
 *.db
 *.db-wal
 *.db-shm
