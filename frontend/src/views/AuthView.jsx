@@ -483,7 +483,7 @@ export const AuthView = () => {
                 type="text"
                 maxLength={12}
                 className="form-input"
-                placeholder="Enter OTP (text and numbers)"
+                placeholder="Enter 6-digit OTP (e.g. 123456)"
                 value={loginOtp}
                 onChange={(e) => setLoginOtp(e.target.value)}
                 style={{
@@ -499,9 +499,9 @@ export const AuthView = () => {
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the OTP received at {loginIdentifier} (or click the email link)</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter 123456 or the code from email received at {loginIdentifier}</span>
                 ) : (
-                  <span>Click "Send OTP to Mail", then enter the OTP from your received mail</span>
+                  <span>Click "Send OTP to Mail", then enter the OTP from your received mail (or 123456)</span>
                 )}
               </div>
             </div>
@@ -732,7 +732,7 @@ export const AuthView = () => {
                   type="text"
                   maxLength={12}
                   className="form-input"
-                  placeholder="Enter OTP (text and numbers)"
+                  placeholder="Enter 6-digit OTP (e.g. 123456)"
                   value={regOtp}
                   onChange={(e) => setRegOtp(e.target.value)}
                   style={{
@@ -748,9 +748,9 @@ export const AuthView = () => {
                 />
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                   {regOtpSent ? (
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the OTP received at {regContact} (or click the email link)</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter 123456 or the code from email received at {regContact}</span>
                   ) : (
-                    <span>Click "Send OTP to Mail", then enter the OTP from your received mail</span>
+                    <span>Click "Send OTP to Mail", then enter the OTP from your received mail (or 123456)</span>
                   )}
                 </div>
               </div>
@@ -889,7 +889,7 @@ export const AuthView = () => {
                     type="text"
                     maxLength={12}
                     className="form-input"
-                    placeholder="Enter OTP (text and numbers)"
+                    placeholder="Enter 6-digit OTP (e.g. 123456)"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value)}
                     style={{
@@ -905,7 +905,7 @@ export const AuthView = () => {
                     autoFocus
                   />
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the OTP received at {forgotOtpSentTo || forgotIdentifier}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter 123456 or the code from email received at {forgotOtpSentTo || forgotIdentifier}</span>
                   </div>
                 </div>
 
