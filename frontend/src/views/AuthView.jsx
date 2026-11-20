@@ -179,6 +179,18 @@ export const AuthView = () => {
       return;
     }
 
+    const targetEmail = email.toLowerCase().trim();
+    let expectedOtp = null;
+    try {
+      expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail);
+    } catch {}
+
+    if (expectedOtp && loginOtp.trim().toUpperCase() !== String(expectedOtp).toUpperCase()) {
+      setLoginOtpError('Wrong OTP');
+      showAlert('❌ Wrong OTP! The OTP code entered does not match. Access Denied.', 'danger');
+      return;
+    }
+
     try {
       setLoginLoading(true);
       await login(email, loginPassword.trim(), loginOtp.trim());
