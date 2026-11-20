@@ -581,30 +581,39 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       throw new Error("Invalid password. Please check your password and try again.");
     }
 
-    // Email OTP Verification for Login (validated if an OTP is entered)
+    // Email OTP Verification for Login (strictly required!)
     const enteredOtp = String(body.otp || "").trim();
-    if (enteredOtp) {
-      const targetEmail = (matched.email || "").toLowerCase().trim();
-      let expectedOtp = null;
-      let otpTimestamp = null;
-      try {
-        expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail) ||
-                      sessionStorage.getItem("active_login_otp_" + rawId) || localStorage.getItem("active_login_otp_" + rawId);
-        otpTimestamp = sessionStorage.getItem("active_login_otp_time_" + targetEmail) || localStorage.getItem("active_login_otp_time_" + targetEmail) ||
-                       sessionStorage.getItem("active_login_otp_time_" + rawId) || localStorage.getItem("active_login_otp_time_" + rawId);
-      } catch {}
-
-      if (expectedOtp && enteredOtp.toLowerCase() !== String(expectedOtp).toLowerCase()) {
-        throw new Error("❌ Wrong OTP! The OTP code entered does not match. Please enter the correct verification OTP sent to your email.");
-      }
-
-      try {
-        sessionStorage.removeItem("active_login_otp_" + targetEmail);
-        localStorage.removeItem("active_login_otp_" + targetEmail);
-        sessionStorage.removeItem("active_login_otp_time_" + targetEmail);
-        localStorage.removeItem("active_login_otp_time_" + targetEmail);
-      } catch {}
+    if (!enteredOtp) {
+      throw new Error("Please enter the OTP to log in.");
     }
+
+    const targetEmail = (matched.email || "").toLowerCase().trim();
+    let expectedOtp = null;
+    let otpTimestamp = null;
+    try {
+      expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail) ||
+                    sessionStorage.getItem("active_login_otp_" + rawId) || localStorage.getItem("active_login_otp_" + rawId);
+      otpTimestamp = sessionStorage.getItem("active_login_otp_time_" + targetEmail) || localStorage.getItem("active_login_otp_time_" + targetEmail) ||
+                     sessionStorage.getItem("active_login_otp_time_" + rawId) || localStorage.getItem("active_login_otp_time_" + rawId);
+    } catch {}
+
+    if (expectedOtp && enteredOtp.toUpperCase() !== String(expectedOtp).toUpperCase()) {
+      throw new Error("Wrong OTP");
+    }
+
+    if (!expectedOtp) {
+      const fallbackOtp = generateBaseOtp(targetEmail, 36, 6);
+      if (enteredOtp.toUpperCase() !== fallbackOtp.toUpperCase()) {
+        throw new Error("Wrong OTP");
+      }
+    }
+
+    try {
+      sessionStorage.removeItem("active_login_otp_" + targetEmail);
+      localStorage.removeItem("active_login_otp_" + targetEmail);
+      sessionStorage.removeItem("active_login_otp_time_" + targetEmail);
+      localStorage.removeItem("active_login_otp_time_" + targetEmail);
+    } catch {}
 
     let tokenPayload = {
       user_id: matched.id,

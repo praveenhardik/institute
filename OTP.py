@@ -201,7 +201,9 @@ if __name__ == "__main__":
 
     user_input = input("Enter the OTP you received: ").strip().upper()
 
-    if user_input == generated_otp:
+    if not user_input:
+        print("Please enter the OTP.")
+    elif user_input == generated_otp:
         print("Verification Successful!")
     else:
-        print("Invalid OTP. Verification Failed.")
+        print("Wrong OTP. Verification Failed.")

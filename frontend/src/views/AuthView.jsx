@@ -18,6 +18,7 @@ export const AuthView = () => {
   const [loginOtp, setLoginOtp] = useState('');
   const [loginOtpSent, setLoginOtpSent] = useState(false);
   const [loginOtpLoading, setLoginOtpLoading] = useState(false);
+  const [loginOtpError, setLoginOtpError] = useState(''); // '' | 'Wrong OTP' | 'Please enter the OTP'
   const [loginCountdown, setLoginCountdown] = useState(0);
 
   // Register form state
@@ -126,6 +127,7 @@ export const AuthView = () => {
     }
     try {
       setLoginOtpLoading(true);
+      setLoginOtpError('');
       // Pre-check if email is registered before sending OTP
       const checkRes = await API.checkEmail(email);
       if (checkRes && !checkRes.registered) {
@@ -139,7 +141,8 @@ export const AuthView = () => {
       setLoginOtpSent(true);
       setLoginCountdown(30);
       setLoginOtp('');
-      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please enter the 6-digit OTP received in your mail.`, 'success');
+      setLoginOtpError('');
+      showAlert(`✓ Verification OTP sent immediately without delay! Please check your email (${email}) within 2 minutes and enter the OTP.`, 'success');
       return true;
     } catch (err) {
       const msg = err.message || '';
@@ -156,6 +159,7 @@ export const AuthView = () => {
   // 2. Submit Login
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
+    setLoginOtpError('');
     const email = loginIdentifier.trim();
     if (!email || !loginPassword.trim()) {
       showAlert('Please enter your email and password', 'danger');
@@ -168,13 +172,22 @@ export const AuthView = () => {
       return;
     }
 
+    // STRICT CHECK: OTP is mandatory. If not entered, show error notification and text next to OTP box
+    if (!loginOtp.trim()) {
+      setLoginOtpError('Please enter the OTP');
+      showAlert('Please enter the OTP to log in', 'danger');
+      return;
+    }
+
     try {
       setLoginLoading(true);
       await login(email, loginPassword.trim(), loginOtp.trim());
+      setLoginOtpError('');
       showAlert('Signed in successfully!', 'success');
     } catch (err) {
       const msg = err.message || 'Login failed';
       if (msg.toLowerCase().includes('otp') || msg.toLowerCase().includes('wrong') || msg.toLowerCase().includes('mismatch') || msg.toLowerCase().includes('code')) {
+        setLoginOtpError('Wrong OTP');
         showAlert(msg.startsWith('❌') ? msg : '❌ Wrong OTP! The OTP code entered does not match. Please enter the correct OTP sent to your email.', 'danger');
       } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
         showAlert(`❌ This email is not registered in the portal. Please Create Account first or check your email.`, 'danger');
@@ -491,7 +504,7 @@ export const AuthView = () => {
             <div className="form-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label className="form-label" style={{ marginBottom: 0 }}>
-                  Email Verification OTP
+                  Email Verification OTP <span className="req">*</span>
                 </label>
                 <button
                   type="button"
@@ -510,30 +523,44 @@ export const AuthView = () => {
                 </button>
               </div>
 
-              <input
-                type="text"
-                maxLength={6}
-                className="form-input"
-                placeholder="Enter 6-digit OTP"
-                value={loginOtp}
-                onChange={(e) => setLoginOtp(e.target.value)}
-                style={{
-                  letterSpacing: loginOtp ? '4px' : 'normal',
-                  fontSize: loginOtp ? '1.15rem' : '0.95rem',
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  fontFamily: loginOtp ? 'monospace' : 'inherit',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({loginIdentifier})</span>
-                ) : (
-                  <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
-                )}
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  maxLength={6}
+                  className="form-input"
+                  placeholder="Enter 6-digit OTP"
+                  value={loginOtp}
+                  onChange={(e) => {
+                    setLoginOtp(e.target.value.toUpperCase());
+                    setLoginOtpError('');
+                  }}
+                  style={{
+                    letterSpacing: loginOtp ? '4px' : 'normal',
+                    fontSize: loginOtp ? '1.15rem' : '0.95rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    fontFamily: loginOtp ? 'monospace' : 'inherit',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    borderColor: loginOtpError ? '#ef4444' : undefined,
+                    boxShadow: loginOtpError ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                  }}
+                />
               </div>
+
+              {loginOtpError ? (
+                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>❌ {loginOtpError}</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                  {loginOtpSent ? (
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({loginIdentifier})</span>
+                  ) : (
+                    <span>Click "Send OTP to Mail", then enter the 6-digit OTP received within 2 minutes</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <button

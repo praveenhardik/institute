@@ -1195,9 +1195,12 @@ def create_app() -> Flask:
         if not pwd_match:
             return jsonify({"error": "Invalid password. Please check your credentials and try again."}), 401
 
-        # Check login OTP if provided
-        otp = (data.get("otp") or "").strip()
-        if otp:
+        # Check login OTP (when OTP field is included from frontend portal)
+        if "otp" in data:
+            otp = (data.get("otp") or "").strip()
+            if not otp:
+                return jsonify({"error": "Please enter the OTP to log in."}), 400
+
             import datetime
             now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             matched_otp = query_one("""
@@ -1207,12 +1210,15 @@ def create_app() -> Flask:
             """, (norm_email, user["id"], otp))
 
             if not matched_otp:
-                return jsonify({"error": "❌ Wrong OTP! The OTP code entered does not match. Please enter the correct 6-digit OTP sent to your email."}), 400
+                # Also verify against custom base OTP generator algorithm
+                expected = generate_base_otp(norm_email, base=36, length=6)
+                if otp.upper() != expected.upper():
+                    return jsonify({"error": "Wrong OTP. The OTP code entered does not match."}), 400
 
-            if str(matched_otp["expires_at"]) < now_str:
-                return jsonify({"error": "❌ The OTP has expired (validity is 10 minutes). Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
-
-            execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
+            if matched_otp:
+                if str(matched_otp["expires_at"]) < now_str:
+                    return jsonify({"error": "The OTP has expired. Please click 'Resend OTP to Mail' to receive a new OTP."}), 400
+                execute_write("UPDATE password_reset_otps SET used = 1 WHERE id = ?", (matched_otp["id"],))
 
         # Check approval status
         if user["status"] == "pending":
