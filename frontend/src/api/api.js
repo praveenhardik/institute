@@ -620,15 +620,12 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
                      sessionStorage.getItem("active_login_otp_time_" + rawId) || localStorage.getItem("active_login_otp_time_" + rawId);
     } catch {}
 
-    if (expectedOtp && enteredOtp.toUpperCase() !== String(expectedOtp).toUpperCase()) {
-      throw new Error("Wrong OTP");
+    if (!expectedOtp) {
+      throw new Error("Please click 'Send OTP to Mail' first to receive your verification OTP.");
     }
 
-    if (!expectedOtp) {
-      const fallbackOtp = generateBaseOtp(targetEmail, 36, 6);
-      if (enteredOtp.toUpperCase() !== fallbackOtp.toUpperCase()) {
-        throw new Error("Wrong OTP");
-      }
+    if (enteredOtp.toUpperCase() !== String(expectedOtp).toUpperCase()) {
+      throw new Error("Wrong OTP");
     }
 
     try {
@@ -2021,7 +2018,14 @@ export const API = {
 
       return data;
     } catch (err) {
-      if (err.message && (err.message.toLowerCase().includes("invalid") || err.message.toLowerCase().includes("password"))) {
+      if (err.message && (
+        err.message.toLowerCase().includes("otp") ||
+        err.message.toLowerCase().includes("wrong") ||
+        err.message.toLowerCase().includes("invalid") ||
+        err.message.toLowerCase().includes("password") ||
+        err.message.toLowerCase().includes("denied") ||
+        err.message.toLowerCase().includes("not registered")
+      )) {
         throw err;
       }
       // If network fetch fails (CORS, offline, unreachable EC2, or Vercel 404)

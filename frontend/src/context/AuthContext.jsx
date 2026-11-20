@@ -118,10 +118,23 @@ export const AuthProvider = ({ children }) => {
   }, [user, collegeName]);
 
   const login = async (identifier, password, otp = '') => {
-    const data = await API.login(identifier, password, otp);
-    setUser(data.user);
-    setToken(data.token);
-    return data;
+    try {
+      const data = await API.login(identifier, password, otp);
+      if (!data || !data.token || !data.user) {
+        setUser(null);
+        setToken(null);
+        throw new Error("Wrong OTP");
+      }
+      setUser(data.user);
+      setToken(data.token);
+      return data;
+    } catch (err) {
+      setUser(null);
+      setToken(null);
+      API.setCurrentUser(null);
+      API.setToken(null);
+      throw err;
+    }
   };
 
   const logout = async () => {

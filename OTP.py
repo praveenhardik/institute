@@ -202,6 +202,6 @@ if __name__ == "__main__":
     if not user_input:
         print("Please enter the OTP.")
     elif user_input == generated_otp:
-        print("Verification Successful!")
+        print("Verification Successful! Access Granted.")
     else:
-        print("Wrong OTP. Verification Failed.")
+        print("Wrong OTP. Verification Failed. Access Denied.")
