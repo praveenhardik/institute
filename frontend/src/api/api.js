@@ -274,22 +274,30 @@ function getDepartmentNameById(deptId) {
   return d ? d.name : "Computer Science Engineering";
 }
 
-function generateBaseOtp(emailId, base = 36, length = 6) {
-  const emailStr = String(emailId || "");
-  let emailNum = 0;
-  for (let i = 0; i < emailStr.length; i++) {
-    emailNum += emailStr.charCodeAt(i) * (i + 1);
-  }
-  let uniqueSeed = BigInt(emailNum) + BigInt(Date.now()) + BigInt(Math.floor(100000 + Math.random() * 900000));
-  const digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  let converted = "";
+function toCustomBase(number, base = 36) {
+  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let num = BigInt(number);
+  if (num === 0n) return "0";
+  let result = "";
   const bigBase = BigInt(base);
-  while (uniqueSeed > 0n) {
-    const remainder = Number(uniqueSeed % bigBase);
-    converted = digits[remainder] + converted;
-    uniqueSeed = uniqueSeed / bigBase;
+  while (num > 0n) {
+    const remainder = Number(num % bigBase);
+    num = num / bigBase;
+    result = chars[remainder] + result;
   }
-  return converted.slice(-length).padStart(length, "0").toUpperCase();
+  return result;
+}
+
+function generateBaseOtp(emailId, base = 36, length = 6) {
+  const emailStr = String(emailId || "").trim();
+  let emailNumericVal = 0;
+  for (let i = 0; i < emailStr.length; i++) {
+    emailNumericVal += emailStr.charCodeAt(i);
+  }
+  const randomSalt = Math.floor(Math.random() * 100000000);
+  const combinedValue = BigInt(emailNumericVal) * 1000000n + BigInt(randomSalt);
+  const convertedOtp = toCustomBase(combinedValue, base);
+  return convertedOtp.slice(-length).padStart(length, "0").toUpperCase();
 }
 
 const USERS_SCHEMA_VERSION = "v19_base_otp_program";

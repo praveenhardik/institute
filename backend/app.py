@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import random
+import secrets
 import smtplib
 from email.message import EmailMessage
 
@@ -224,28 +225,33 @@ def find_user_by_email_or_username(identifier: str):
     return None
 
 
-def generate_base_otp(email_id: str, base: int = 36, length: int = 6) -> str:
-    """
-    Generates an OTP by converting an email-derived integer into a target number base.
-    Supports bases from 2 (binary) up to 36 (alphanumeric).
-    """
-    # 1. Convert email characters to a single large integer via ASCII values
-    email_num = sum(ord(char) * (index + 1) for index, char in enumerate(email_id))
+def to_custom_base(number, base=36):
+    """Converts a base-10 integer into a custom base (up to Base-36)."""
+    chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if number == 0:
+        return "0"
 
-    # 2. Combine with current timestamp and random entropy so every OTP is unique
-    unique_seed = email_num + int(time.time() * 1000) + random.randint(100000, 999999)
+    result = ""
+    while number > 0:
+        number, remainder = divmod(number, base)
+        result = chars[remainder] + result
+    return result
 
-    # 3. Perform manual number base conversion
-    digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    converted = ""
 
-    while unique_seed > 0:
-        remainder = unique_seed % base
-        converted = digits[remainder] + converted
-        unique_seed //= base
+def generate_base_otp(email_id, base=36, length=6):
+    """Generates an OTP by converting the email's ASCII sum + random salt to a target base."""
+    # 1. Sum the ASCII values of all characters in the email ID
+    email_numeric_val = sum(ord(char) for char in (email_id or "").strip())
 
-    # Return the last 'length' characters as the OTP
-    return converted[-length:].zfill(length)
+    # 2. Add a cryptographically secure random salt so every OTP is unique
+    random_salt = secrets.randbelow(100000000)
+    combined_value = (email_numeric_val * 1000000) + random_salt
+
+    # 3. Convert the combined number to the chosen base (e.g., Base-16 or Base-36)
+    converted_otp = to_custom_base(combined_value, base)
+
+    # Return the last `length` characters padded with zeros if needed
+    return converted_otp[-length:].zfill(length)
 
 
 def send_otp_email(receiver_email: str, otp: str, sender_email: str = None, app_password: str = None):
