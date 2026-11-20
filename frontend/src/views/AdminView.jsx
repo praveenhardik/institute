@@ -12,7 +12,6 @@ import { CreateAccountModal, CreateAccountButton } from '../components/CreateAcc
 import { CreateAccountPill, PendingPill, YearTransitionPill } from '../components/ActionPills';
 import YearTransitionSection from '../components/YearTransitionSection';
 import { NotificationComposer } from '../components/NotificationComposer';
-import { KarurDistrictTheaters } from '../components/KarurDistrictTheaters';
 
 export const AdminView = () => {
   const { user: currentUser } = useAuth();
@@ -37,11 +36,11 @@ export const AdminView = () => {
   };
 
   // Sub Tab
-  const [activeSubTab, setActiveSubTab] = useState('theaters'); // 'theaters' | 'dashboard' | 'setup' | 'broadcast'
+  const [activeSubTab, setActiveSubTab] = useState('dashboard'); // 'dashboard' | 'setup' | 'broadcast'
 
   useEffect(() => {
     if (currentUser?.role === 'principal' && ['setup', 'students'].includes(activeSubTab)) {
-      setActiveSubTab('theaters');
+      setActiveSubTab('dashboard');
     }
   }, [currentUser?.role, activeSubTab]);
 
@@ -509,7 +508,7 @@ export const AdminView = () => {
           <p className="card-description" style={{ marginTop: '6px' }}>
             {currentUser?.role === 'principal'
               ? 'Institutional oversight, department & direct student notifications, faculty broadcasts, and student directory.'
-              : 'Admin authority for Karur District Theatres, cinema hall specifications, theater owners directory, and staff access.'}
+              : 'Provision faculty accounts, manage institutional directory, dispatch faculty broadcasts, and manage student admissions.'}
           </p>
         </div>
       </div>
@@ -517,13 +516,6 @@ export const AdminView = () => {
       {/* 2-Column Portal Layout: Left side vertical navigation, Right side content */}
       <div className="portal-layout">
         <div className="portal-sidebar">
-          <button
-            className={`tab-btn ${activeSubTab === 'theaters' ? 'active' : ''}`}
-            onClick={() => setActiveSubTab('theaters')}
-            style={{ fontWeight: 800 }}
-          >
-            🎬 Karur Theaters & Owners
-          </button>
           <button
             className={`tab-btn ${activeSubTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('dashboard')}
@@ -569,10 +561,6 @@ export const AdminView = () => {
         />
 
         <div className="portal-main-content">
-          {activeSubTab === 'theaters' && (
-            <KarurDistrictTheaters />
-          )}
-
           {currentUser?.role !== 'principal' && activeSubTab === 'setup' && (
             <CollegeSetup canManage={true} />
           )}

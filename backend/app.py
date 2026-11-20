@@ -1146,7 +1146,7 @@ def create_app() -> Flask:
         """, (user["id"], user["email"], otp_code, expires_at))
 
         sender_email = (data.get("sender_email") or os.getenv("SMTP_FROM_EMAIL") or os.getenv("SMTP_USER", "")).strip()
-        sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "Karur District Theatres Security")).strip()
+        sender_name = (data.get("sender_name") or os.getenv("SMTP_FROM_NAME", "Campus Portal Security")).strip()
         sent, mail_msg = send_inpand_otp_email(email, user.get("name") or "User", otp_code, purpose="login", sender_email=sender_email, sender_name=sender_name)
         masked = mask_email(email)
         res_payload = {
@@ -1390,139 +1390,6 @@ def create_app() -> Flask:
         print("Component Stack:", data.get("componentStack"))
         print("="*50 + "\n")
         return jsonify({"status": "logged"}), 200
-
-    # --- Karur District Theatres & Owners Management Endpoints ---
-
-    @app.route("/api/theaters", methods=["GET"])
-    def get_theaters():
-        theaters = query_all("SELECT * FROM theaters ORDER BY id ASC")
-        return jsonify({"theaters": theaters}), 200
-
-    @app.route("/api/theaters", methods=["POST"])
-    def add_theater():
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
-        location = (data.get("location") or "").strip()
-        phone = (data.get("phone") or "").strip()
-        email = (data.get("email") or "").strip()
-        screens = int(data.get("screens") or 1)
-        capacity = int(data.get("capacity") or 500)
-        sound_system = (data.get("sound_system") or "Dolby Atmos 7.1").strip()
-        projection_type = (data.get("projection_type") or "4K RGB Laser").strip()
-        owner_name = (data.get("owner_name") or "").strip()
-
-        if not name or not location or not phone:
-            return jsonify({"error": "Theater name, location, and phone number are required"}), 400
-
-        tid = execute_write("""
-            INSERT INTO theaters (name, district, location, phone, email, screens, capacity, sound_system, projection_type, owner_name, status)
-            VALUES (?, 'Karur', ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
-        """, (name, location, phone, email, screens, capacity, sound_system, projection_type, owner_name))
-
-        new_theater = query_one("SELECT * FROM theaters WHERE id = ?", (tid,))
-        return jsonify({"theater": new_theater, "message": "Theater added successfully!"}), 201
-
-    @app.route("/api/theaters/<int:theater_id>", methods=["GET"])
-    def get_theater(theater_id):
-        th = query_one("SELECT * FROM theaters WHERE id = ?", (theater_id,))
-        if not th:
-            return jsonify({"error": "Theater not found"}), 404
-        return jsonify({"theater": th}), 200
-
-    @app.route("/api/theaters/<int:theater_id>", methods=["PUT"])
-    def update_theater(theater_id):
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
-        location = (data.get("location") or "").strip()
-        phone = (data.get("phone") or "").strip()
-        email = (data.get("email") or "").strip()
-        screens = int(data.get("screens") or 1)
-        capacity = int(data.get("capacity") or 500)
-        sound_system = (data.get("sound_system") or "Dolby Atmos 7.1").strip()
-        projection_type = (data.get("projection_type") or "4K RGB Laser").strip()
-        owner_name = (data.get("owner_name") or "").strip()
-        status = (data.get("status") or "Active").strip()
-
-        execute_write("""
-            UPDATE theaters
-            SET name = COALESCE(NULLIF(?, ''), name),
-                location = COALESCE(NULLIF(?, ''), location),
-                phone = COALESCE(NULLIF(?, ''), phone),
-                email = ?,
-                screens = ?,
-                capacity = ?,
-                sound_system = ?,
-                projection_type = ?,
-                owner_name = ?,
-                status = ?
-            WHERE id = ?
-        """, (name, location, phone, email, screens, capacity, sound_system, projection_type, owner_name, status, theater_id))
-
-        updated = query_one("SELECT * FROM theaters WHERE id = ?", (theater_id,))
-        return jsonify({"theater": updated, "message": "Theater updated successfully"}), 200
-
-    @app.route("/api/theaters/<int:theater_id>", methods=["DELETE"])
-    def delete_theater(theater_id):
-        execute_write("DELETE FROM theaters WHERE id = ?", (theater_id,))
-        return jsonify({"message": "Theater removed successfully"}), 200
-
-    @app.route("/api/theater-owners", methods=["GET"])
-    def get_theater_owners():
-        owners = query_all("SELECT * FROM theater_owners ORDER BY id ASC")
-        return jsonify({"owners": owners}), 200
-
-    @app.route("/api/theater-owners", methods=["POST"])
-    def add_theater_owner():
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
-        phone = (data.get("phone") or "").strip()
-        email = (data.get("email") or "").strip()
-        contact_location = (data.get("contact_location") or "").strip()
-        theater_name = (data.get("theater_name") or "").strip()
-        theater_id = data.get("theater_id")
-
-        if not name or not phone or not email or not contact_location:
-            return jsonify({"error": "Name, phone, email, and contact location (cabin) are required"}), 400
-
-        oid = execute_write("""
-            INSERT INTO theater_owners (name, phone, email, contact_location, theater_id, theater_name, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'Active')
-        """, (name, phone, email, contact_location, theater_id, theater_name))
-
-        new_owner = query_one("SELECT * FROM theater_owners WHERE id = ?", (oid,))
-        return jsonify({"owner": new_owner, "message": "Theater owner added successfully"}), 201
-
-    @app.route("/api/theater-owners/<int:owner_id>", methods=["PUT"])
-    def update_theater_owner(owner_id):
-        data = request.get_json(silent=True) or {}
-        name = (data.get("name") or "").strip()
-        phone = (data.get("phone") or "").strip()
-        email = (data.get("email") or "").strip()
-        contact_location = (data.get("contact_location") or "").strip()
-        theater_name = (data.get("theater_name") or "").strip()
-
-        if not name or not phone or not email or not contact_location:
-            return jsonify({"error": "Name, phone, email, and contact location (cabin) are required"}), 400
-
-        execute_write("""
-            UPDATE theater_owners
-            SET name = ?,
-                phone = ?,
-                email = ?,
-                contact_location = ?,
-                theater_name = COALESCE(NULLIF(?, ''), theater_name)
-            WHERE id = ?
-        """, (name, phone, email, contact_location, theater_name, owner_id))
-
-        updated = query_one("SELECT * FROM theater_owners WHERE id = ?", (owner_id,))
-        return jsonify({"owner": updated, "message": "Theater owner details updated successfully!"}), 200
-
-    @app.route("/api/theater-owners/<int:owner_id>", methods=["DELETE"])
-    def delete_theater_owner(owner_id):
-        execute_write("DELETE FROM theater_owners WHERE id = ?", (owner_id,))
-        return jsonify({"message": "Theater owner deleted"}), 200
-
-
 
     # --- Frontend Static Serving ---
 
