@@ -12,8 +12,8 @@ export const KarurDistrictTheaters = () => {
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTheater, setSelectedTheater] = useState(null); // Click to view full details
+  const [editingTheater, setEditingTheater] = useState(null); // Edit theater modal
   const [editingOwner, setEditingOwner] = useState(null); // Edit owner full details
-  const [editingTheater, setEditingTheater] = useState(null);
 
   // Search / filter
   const [filterQuery, setFilterQuery] = useState('');
@@ -31,6 +31,21 @@ export const KarurDistrictTheaters = () => {
     owner_name: ''
   });
   const [addLoading, setAddLoading] = useState(false);
+
+  // Edit Theater Form State
+  const [theaterForm, setTheaterForm] = useState({
+    name: '',
+    location: '',
+    phone: '',
+    email: '',
+    screens: 1,
+    capacity: 500,
+    sound_system: 'Dolby Atmos 7.1',
+    projection_type: '4K RGB Laser',
+    owner_name: '',
+    status: 'Active'
+  });
+  const [editTheaterLoading, setEditTheaterLoading] = useState(false);
 
   // Edit Owner Form State
   const [ownerForm, setOwnerForm] = useState({
@@ -77,7 +92,8 @@ export const KarurDistrictTheaters = () => {
         ...newTheater,
         district: 'Karur',
         screens: Number(newTheater.screens) || 1,
-        capacity: Number(newTheater.capacity) || 500
+        capacity: Number(newTheater.capacity) || 500,
+        status: 'Active'
       });
 
       showAlert(res.message || `Theater "${newTheater.name}" added successfully!`, 'success');
@@ -98,6 +114,99 @@ export const KarurDistrictTheaters = () => {
       showAlert(err.message || 'Failed to add theater', 'danger');
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  // Open Edit Theater Modal
+  const handleOpenEditTheater = (theater, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setEditingTheater(theater);
+    setTheaterForm({
+      name: theater.name || '',
+      location: theater.location || '',
+      phone: theater.phone || '',
+      email: theater.email || '',
+      screens: theater.screens || 1,
+      capacity: theater.capacity || 500,
+      sound_system: theater.sound_system || 'Dolby Atmos 7.1',
+      projection_type: theater.projection_type || '4K RGB Laser',
+      owner_name: theater.owner_name || '',
+      status: theater.status || 'Active'
+    });
+  };
+
+  // Handle Edit Theater Submit
+  const handleEditTheaterSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingTheater) return;
+
+    if (!theaterForm.name.trim() || !theaterForm.phone.trim() || !theaterForm.location.trim()) {
+      showAlert('Theater Name, Phone Number, and Location are mandatory', 'danger');
+      return;
+    }
+
+    try {
+      setEditTheaterLoading(true);
+      const res = await API.updateTheater(editingTheater.id, {
+        ...theaterForm,
+        district: 'Karur',
+        screens: Number(theaterForm.screens) || 1,
+        capacity: Number(theaterForm.capacity) || 500
+      });
+
+      showAlert(res.message || `Theater "${theaterForm.name}" updated successfully!`, 'success');
+      setTheaters(prev => prev.map(t => (t.id === editingTheater.id ? { ...t, ...theaterForm } : t)));
+      if (selectedTheater && selectedTheater.id === editingTheater.id) {
+        setSelectedTheater(prev => ({ ...prev, ...theaterForm }));
+      }
+      setEditingTheater(null);
+      loadData();
+    } catch (err) {
+      showAlert(err.message || 'Failed to update theater', 'danger');
+    } finally {
+      setEditTheaterLoading(false);
+    }
+  };
+
+  // Handle Delete Theater
+  const handleDeleteTheater = async (theater, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to permanently delete "${theater.name}" from Karur District? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await API.deleteTheater(theater.id);
+      showAlert(res.message || `Theater "${theater.name}" removed successfully!`, 'success');
+      setTheaters(prev => prev.filter(t => t.id !== theater.id));
+      if (selectedTheater && selectedTheater.id === theater.id) {
+        setSelectedTheater(null);
+      }
+      loadData();
+    } catch (err) {
+      showAlert(err.message || 'Failed to delete theater', 'danger');
+    }
+  };
+
+  // Handle Mute / Unmute Theater
+  const handleToggleMuteTheater = async (theater, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const nextStatus = theater.status === 'Muted' ? 'Active' : 'Muted';
+    try {
+      await API.updateTheater(theater.id, { status: nextStatus });
+      showAlert(
+        nextStatus === 'Muted'
+          ? `🔇 Theater "${theater.name}" is now MUTED and will not be visible to public users.`
+          : `🔊 Theater "${theater.name}" is now UNMUTED and visible to all users.`,
+        'success'
+      );
+      setTheaters(prev => prev.map(t => (t.id === theater.id ? { ...t, status: nextStatus } : t)));
+      if (selectedTheater && selectedTheater.id === theater.id) {
+        setSelectedTheater(prev => ({ ...prev, status: nextStatus }));
+      }
+      loadData();
+    } catch (err) {
+      showAlert(err.message || 'Failed to change theater visibility status', 'danger');
     }
   };
 
@@ -159,7 +268,8 @@ export const KarurDistrictTheaters = () => {
       (t.name && t.name.toLowerCase().includes(q)) ||
       (t.phone && t.phone.toLowerCase().includes(q)) ||
       (t.location && t.location.toLowerCase().includes(q)) ||
-      (t.owner_name && t.owner_name.toLowerCase().includes(q))
+      (t.owner_name && t.owner_name.toLowerCase().includes(q)) ||
+      (t.status && t.status.toLowerCase().includes(q))
     );
   });
 
@@ -192,7 +302,7 @@ export const KarurDistrictTheaters = () => {
             Karur District Theatres & Cinemas Management
           </h1>
           <p style={{ margin: 0, fontSize: '0.92rem', color: '#e0e7ff', maxWidth: '640px', lineHeight: 1.5 }}>
-            Centralized admin control for all cinema theaters located across Karur District. Oversee theaters, review technical specifications, and manage theater owners and executive cabin locations.
+            Central administration for cinema theaters in Karur. Admin can Add, Edit, Delete, Mute/Unmute theaters, and manage Theater Owner cabins.
           </p>
         </div>
 
@@ -230,8 +340,8 @@ export const KarurDistrictTheaters = () => {
             🏛️
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase' }}>Total Theaters in Karur</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary, #0f172a)' }}>{theaters.length} Theaters</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase' }}>Total Theaters</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary, #0f172a)' }}>{theaters.length} In Karur</div>
           </div>
         </div>
 
@@ -246,13 +356,13 @@ export const KarurDistrictTheaters = () => {
         </div>
 
         <div style={{ background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#f59e0b' }}>
-            💺
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: '#ef4444' }}>
+            🔇
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase' }}>Total Seating Capacity</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary, #0f172a)' }}>
-              {theaters.reduce((sum, t) => sum + (Number(t.capacity) || 0), 0).toLocaleString()} Seats
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase' }}>Muted Theaters</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#b91c1c' }}>
+              {theaters.filter(t => t.status === 'Muted').length} Hidden
             </div>
           </div>
         </div>
@@ -266,7 +376,7 @@ export const KarurDistrictTheaters = () => {
               <span>🎥</span> Theaters Available in Karur District
             </h2>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.86rem', color: 'var(--text-secondary, #64748b)' }}>
-              Click any theater card below to view its full contact details, phone number, screens, and audio-visual specifications.
+              Click any theater card to view full details. Admin can Edit, Delete, or Mute theaters to hide them from users.
             </p>
           </div>
 
@@ -306,77 +416,171 @@ export const KarurDistrictTheaters = () => {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
-            {filteredTheaters.map((theater) => (
-              <div
-                key={theater.id}
-                onClick={() => setSelectedTheater(theater)}
-                style={{
-                  border: '1.5px solid var(--border-color, #e2e8f0)',
-                  borderRadius: '12px',
-                  padding: '18px',
-                  background: 'var(--bg-secondary, #f8fafc)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                  position: 'relative'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = '#6366f1';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'var(--border-color, #e2e8f0)';
-                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>
-                    {theater.name}
-                  </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534' }}>
-                    {theater.status || 'Active'}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '0.84rem', color: '#4338ca', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                  <span>📞 Phone:</span>
-                  <a
-                    href={`tel:${theater.phone}`}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ color: '#4338ca', textDecoration: 'none' }}
-                  >
-                    {theater.phone}
-                  </a>
-                </div>
-
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #64748b)', marginBottom: '12px', lineHeight: 1.4, minHeight: '36px' }}>
-                  📍 {theater.location}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px', fontSize: '0.78rem' }}>
-                  <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    🎬 {theater.screens} {theater.screens === 1 ? 'Screen' : 'Screens'}
-                  </span>
-                  <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    💺 {theater.capacity} Seats
-                  </span>
-                  <span style={{ background: '#f1f5f9', color: '#334155', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    🔊 {theater.sound_system || 'Dolby 7.1'}
-                  </span>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--border-color, #e2e8f0)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>
-                    Owner: <strong style={{ color: 'var(--text-primary)' }}>{theater.owner_name || 'Assigned'}</strong>
+            {filteredTheaters.map((theater) => {
+              const isMuted = theater.status === 'Muted';
+              return (
+                <div
+                  key={theater.id}
+                  onClick={() => setSelectedTheater(theater)}
+                  style={{
+                    border: isMuted ? '2px dashed #f87171' : '1.5px solid var(--border-color, #e2e8f0)',
+                    borderRadius: '12px',
+                    padding: '18px',
+                    background: isMuted ? '#fff5f5' : 'var(--bg-secondary, #f8fafc)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                    position: 'relative',
+                    opacity: isMuted ? 0.9 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.borderColor = isMuted ? '#ef4444' : '#6366f1';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(99, 102, 241, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = isMuted ? '#f87171' : 'var(--border-color, #e2e8f0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.03)';
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>
+                      {theater.name}
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        background: isMuted ? '#fee2e2' : '#dcfce7',
+                        color: isMuted ? '#991b1b' : '#166534',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      {isMuted ? '🔇 Muted (Hidden)' : '✓ Active'}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.80rem', color: '#4338ca', fontWeight: 700, textDecoration: 'underline' }}>
-                    View Full Details →
-                  </span>
+
+                  <div style={{ fontSize: '0.84rem', color: '#4338ca', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <span>📞 Phone:</span>
+                    <a
+                      href={`tel:${theater.phone}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ color: '#4338ca', textDecoration: 'none' }}
+                    >
+                      {theater.phone}
+                    </a>
+                  </div>
+
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #64748b)', marginBottom: '10px', lineHeight: 1.4, minHeight: '36px' }}>
+                    📍 {theater.location}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px', fontSize: '0.78rem' }}>
+                    <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      🎬 {theater.screens} {theater.screens === 1 ? 'Screen' : 'Screens'}
+                    </span>
+                    <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      💺 {theater.capacity} Seats
+                    </span>
+                    <span style={{ background: '#f1f5f9', color: '#334155', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      🔊 {theater.sound_system || 'Dolby 7.1'}
+                    </span>
+                  </div>
+
+                  {/* Admin Quick Action Buttons: Edit, Mute/Unmute, Delete */}
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--border-color, #e2e8f0)',
+                      paddingTop: '10px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '6px'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenEditTheater(theater, e)}
+                        style={{
+                          background: '#f1f5f9',
+                          border: '1px solid #cbd5e1',
+                          color: '#334155',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                        title="Edit Theater Details"
+                      >
+                        ✏️ Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleMuteTheater(theater, e)}
+                        style={{
+                          background: isMuted ? '#fef3c7' : '#fee2e2',
+                          border: isMuted ? '1px solid #fde68a' : '1px solid #fecaca',
+                          color: isMuted ? '#92400e' : '#b91c1c',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                        title={isMuted ? 'Unmute theater to make visible to users' : 'Mute theater to hide from public users'}
+                      >
+                        {isMuted ? '🔊 Unmute' : '🔇 Mute'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteTheater(theater, e)}
+                        style={{
+                          background: '#fee2e2',
+                          border: '1px solid #fca5a5',
+                          color: '#b91c1c',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                        title="Delete Theater from Karur"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTheater(theater)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#4338ca',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Details →
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -524,11 +728,11 @@ export const KarurDistrictTheaters = () => {
               </button>
             </div>
 
-            {/* Prominent Phone Number Box as requested by user */}
+            {/* Status & Prominent Phone Number Box */}
             <div
               style={{
-                background: 'linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%)',
-                border: '1.5px solid #c7d2fe',
+                background: selectedTheater.status === 'Muted' ? '#fff1f2' : 'linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%)',
+                border: selectedTheater.status === 'Muted' ? '1.5px solid #fecdd3' : '1.5px solid #c7d2fe',
                 borderRadius: '12px',
                 padding: '16px 20px',
                 marginBottom: '20px',
@@ -538,8 +742,8 @@ export const KarurDistrictTheaters = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#3730a3', textTransform: 'uppercase' }}>
-                  Official Theater Phone Number
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: selectedTheater.status === 'Muted' ? '#be123c' : '#3730a3', textTransform: 'uppercase' }}>
+                  {selectedTheater.status === 'Muted' ? '🔇 Muted Theater (Hidden from Public)' : 'Official Theater Phone Number'}
                 </div>
                 <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1e1b4b', marginTop: '2px' }}>
                   📞 {selectedTheater.phone}
@@ -570,9 +774,9 @@ export const KarurDistrictTheaters = () => {
               </div>
 
               <div style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>EMAIL ADDRESS</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {selectedTheater.email || 'info@karurtheatres.gov.in'}
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>STATUS</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedTheater.status === 'Muted' ? '#b91c1c' : '#166534' }}>
+                  {selectedTheater.status === 'Muted' ? '🔇 Muted' : '✓ Active'}
                 </div>
               </div>
 
@@ -619,7 +823,62 @@ export const KarurDistrictTheaters = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            {/* Admin Management Buttons inside Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const th = selectedTheater;
+                    setSelectedTheater(null);
+                    handleOpenEditTheater(th);
+                  }}
+                  style={{
+                    background: '#4338ca',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✏️ Edit Details
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleMuteTheater(selectedTheater)}
+                  style={{
+                    background: selectedTheater.status === 'Muted' ? '#fef3c7' : '#fee2e2',
+                    border: 'none',
+                    color: selectedTheater.status === 'Muted' ? '#92400e' : '#b91c1c',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {selectedTheater.status === 'Muted' ? '🔊 Unmute Theater' : '🔇 Mute Theater'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTheater(selectedTheater)}
+                  style={{
+                    background: '#fee2e2',
+                    border: 'none',
+                    color: '#b91c1c',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedTheater(null)}
@@ -627,13 +886,13 @@ export const KarurDistrictTheaters = () => {
                   background: 'var(--btn-secondary-bg, #e2e8f0)',
                   color: 'var(--text-primary, #0f172a)',
                   border: 'none',
-                  padding: '10px 20px',
+                  padding: '8px 18px',
                   borderRadius: '8px',
                   fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >
-                Close Details
+                Close
               </button>
             </div>
           </div>
@@ -860,7 +1119,243 @@ export const KarurDistrictTheaters = () => {
         </div>
       )}
 
-      {/* --- MODAL 3: EDIT THEATER OWNER FULL DETAILS --- */}
+      {/* --- MODAL 3: EDIT THEATER DETAILS (NAME, PHONE, SCREENS, SOUND, STATUS...) --- */}
+      {editingTheater && (
+        <div
+          className="modal-overlay"
+          onClick={() => setEditingTheater(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--card-bg, #ffffff)',
+              borderRadius: '16px',
+              maxWidth: '580px',
+              width: '100%',
+              padding: '28px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#4338ca' }}>
+                  Admin Theater Management
+                </span>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '2px 0 0 0', color: 'var(--text-primary)' }}>
+                  ✏️ Edit Theater Details
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTheater(null)}
+                style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontSize: '1rem', fontWeight: 700 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditTheaterSubmit}>
+              <div className="form-group" style={{ marginBottom: '14px' }}>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                  Theater Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={theaterForm.name}
+                  onChange={(e) => setTheaterForm({ ...theaterForm, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Phone Number <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={theaterForm.phone}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, phone: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={theaterForm.email}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '14px' }}>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                  Location & Address in Karur <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={theaterForm.location}
+                  onChange={(e) => setTheaterForm({ ...theaterForm, location: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Number of Screens
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    className="form-input"
+                    value={theaterForm.screens}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, screens: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Total Seating Capacity
+                  </label>
+                  <input
+                    type="number"
+                    min="50"
+                    step="10"
+                    className="form-input"
+                    value={theaterForm.capacity}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, capacity: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Sound System
+                  </label>
+                  <select
+                    className="form-select"
+                    value={theaterForm.sound_system}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, sound_system: e.target.value })}
+                  >
+                    <option value="Dolby Atmos 7.1">Dolby Atmos 7.1</option>
+                    <option value="Dolby Atmos 64-Channel">Dolby Atmos 64-Channel</option>
+                    <option value="Dolby 7.1 Surround">Dolby 7.1 Surround</option>
+                    <option value="DTS:X Surround">DTS:X Surround</option>
+                    <option value="Qube 7.1 Sound">Qube 7.1 Sound</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Projection System
+                  </label>
+                  <select
+                    className="form-select"
+                    value={theaterForm.projection_type}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, projection_type: e.target.value })}
+                  >
+                    <option value="4K RGB Laser">4K RGB Laser</option>
+                    <option value="Christie 4K Laser">Christie 4K Laser</option>
+                    <option value="Barco 4K Laser">Barco 4K Laser</option>
+                    <option value="Sony 4K Digital">Sony 4K Digital</option>
+                    <option value="Qube 2K Digital">Qube 2K Digital</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Assigned Owner Name
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={theaterForm.owner_name}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, owner_name: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.86rem' }}>
+                    Theater Visibility (Status)
+                  </label>
+                  <select
+                    className="form-select"
+                    value={theaterForm.status}
+                    onChange={(e) => setTheaterForm({ ...theaterForm, status: e.target.value })}
+                  >
+                    <option value="Active">✓ Active (Visible to all users)</option>
+                    <option value="Muted">🔇 Muted (Hidden from public users)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTheater(null)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editTheaterLoading}
+                  style={{
+                    background: '#4338ca',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '10px 22px',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 10px rgba(67, 56, 202, 0.3)'
+                  }}
+                >
+                  {editTheaterLoading ? 'Saving...' : '✓ Save Theater Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 4: EDIT THEATER OWNER FULL DETAILS (CABINS, ETC.) --- */}
       {editingOwner && (
         <div
           className="modal-overlay"

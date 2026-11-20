@@ -26,11 +26,11 @@ export const AuthView = () => {
   const [regUsername, setRegUsername] = useState('');
   const [regContactType, setRegContactType] = useState('email');
   const [regContact, setRegContact] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+  const [regPassword, setRegPassword] = useState('Theter@123');
   const [regLoading, setRegLoading] = useState(false);
   const [nameEligibilityNotice, setNameEligibilityNotice] = useState('');
   const [emailRegisteredNotice, setEmailRegisteredNotice] = useState('');
-  const [regRole, setRegRole] = useState('student');
+  const [regRole, setRegRole] = useState('owner');
   const [regOtp, setRegOtp] = useState('');
   const [regOtpSent, setRegOtpSent] = useState(false);
   const [regOtpLoading, setRegOtpLoading] = useState(false);
@@ -120,20 +120,28 @@ export const AuthView = () => {
 
   // 1. Send OTP for Login
   const handleSendLoginOtp = async () => {
-    const email = loginIdentifier.trim();
-    if (!email || !email.includes('@')) {
-      showAlert('Please enter your registered email address first to receive OTP', 'danger');
+    let raw = loginIdentifier.trim();
+    if (!raw) {
+      showAlert('Please enter your registered email address or admin user name (admin karur) to receive OTP', 'danger');
+      return false;
+    }
+    const isKarurAdmin = raw.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || raw.toLowerCase() === 'admin';
+    const email = isKarurAdmin ? 'praveeninpand@gmail.com' : raw;
+
+    if (!isKarurAdmin && (!email.includes('@') || !email.includes('.'))) {
+      showAlert('Please enter your registered email address or admin user name (admin karur) to receive OTP', 'danger');
       return false;
     }
     try {
       setLoginOtpLoading(true);
       setLoginOtpError('');
-      // Pre-check if email is registered before sending OTP
-      const checkRes = await API.checkEmail(email);
-      if (checkRes && !checkRes.registered) {
-        setLoginEmailError('This email is not registered. Please Create Account first.');
-        showAlert('❌ This email is not registered. Please Create Account first.', 'danger');
-        return false;
+      if (!isKarurAdmin) {
+        const checkRes = await API.checkEmail(email);
+        if (checkRes && !checkRes.registered) {
+          setLoginEmailError('This email is not registered. Please Create Account first.');
+          showAlert('❌ This email is not registered. Please Create Account first.', 'danger');
+          return false;
+        }
       }
       setLoginEmailError('');
 
@@ -160,16 +168,21 @@ export const AuthView = () => {
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
     setLoginOtpError('');
-    const email = loginIdentifier.trim();
-    if (!email || !loginPassword.trim()) {
-      showAlert('Please enter your email and password', 'danger');
+    const raw = loginIdentifier.trim();
+    if (!raw || !loginPassword.trim()) {
+      showAlert('Please enter your email or admin user name (admin karur) and password', 'danger');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.includes('@') || !emailRegex.test(email)) {
-      showAlert('Only email address is accepted for login. Full name, username, or phone number cannot be used.', 'danger');
-      return;
+    const isKarurAdmin = raw.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || raw.toLowerCase() === 'admin';
+    const email = isKarurAdmin ? 'praveeninpand@gmail.com' : raw;
+
+    if (!isKarurAdmin) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email.includes('@') || !emailRegex.test(email)) {
+        showAlert('Please enter a valid registered email address or admin user name (admin karur).', 'danger');
+        return;
+      }
     }
 
     // STRICT CHECK: OTP is mandatory. If not entered, show error notification and text next to OTP box
@@ -182,7 +195,8 @@ export const AuthView = () => {
     const targetEmail = email.toLowerCase().trim();
     let expectedOtp = null;
     try {
-      expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail);
+      expectedOtp = sessionStorage.getItem("active_login_otp_" + targetEmail) || localStorage.getItem("active_login_otp_" + targetEmail) ||
+                    sessionStorage.getItem("active_login_otp_praveeninpand@gmail.com") || localStorage.getItem("active_login_otp_praveeninpand@gmail.com");
     } catch {}
 
     if (expectedOtp && loginOtp.trim().toUpperCase() !== String(expectedOtp).toUpperCase()) {
@@ -202,7 +216,7 @@ export const AuthView = () => {
         setLoginOtpError('Wrong OTP');
         showAlert(msg.startsWith('❌') ? msg : '❌ Wrong OTP! The OTP code entered does not match. Please enter the correct OTP sent to your email.', 'danger');
       } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
-        showAlert(`❌ This email is not registered in the portal. Please Create Account first or check your email.`, 'danger');
+        showAlert(`❌ This email or username is not registered in the portal. Please Create Account first.`, 'danger');
       } else {
         showAlert(msg, 'danger');
       }
@@ -438,19 +452,20 @@ export const AuthView = () => {
 
             <div className="form-group">
               <label className="form-label" htmlFor="login-email">
-                Email <span className="req">*</span>
+                Email or Admin Username <span className="req">*</span>
               </label>
               <input
                 id="login-email"
-                type="email"
+                type="text"
                 className="form-input"
-                placeholder="Enter your registered email address"
+                placeholder="Enter email or admin user name (admin karur)"
                 value={loginIdentifier}
                 onChange={(e) => {
                   const val = e.target.value;
                   setLoginIdentifier(val);
                   setLoginEmailError('');
-                  if (val.trim() && val.includes('@') && val.includes('.')) {
+                  const isAdm = val.trim().toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || val.trim().toLowerCase() === 'admin';
+                  if (val.trim() && val.includes('@') && val.includes('.') && !isAdm) {
                     API.checkEmail(val.trim()).then((res) => {
                       if (!res.registered) {
                         setLoginEmailError('This email is not registered. Please Create Account first.');
@@ -462,7 +477,8 @@ export const AuthView = () => {
                 }}
                 onBlur={() => {
                   const val = loginIdentifier.trim();
-                  if (val && val.includes('@') && val.includes('.')) {
+                  const isAdm = val.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || val.toLowerCase() === 'admin';
+                  if (val && val.includes('@') && val.includes('.') && !isAdm) {
                     API.checkEmail(val).then((res) => {
                       if (!res.registered) {
                         setLoginEmailError('This email is not registered. Please Create Account first.');
@@ -494,7 +510,7 @@ export const AuthView = () => {
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Only registered email address is accepted
+                  Enter your registered email address or admin user name (<strong>admin karur</strong>)
                 </div>
               )}
             </div>
@@ -585,20 +601,49 @@ export const AuthView = () => {
               {loginLoading ? 'Signing in...' : 'Sign In to Portal'}
             </button>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', fontSize: '0.85rem', paddingTop: '14px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
+            {/* Buttons in bottom of the login form as requested by user */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color, #e2e8f0)' }}>
               <button
                 type="button"
                 onClick={() => setActiveTab('register')}
-                style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 600 }}
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  color: '#1e293b',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
               >
-                Create Account
+                <span>👤</span> Create Account
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('forgot')}
-                style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 700 }}
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  color: '#0284c7',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
               >
-                Forgot Password?
+                <span>🔑</span> Forgot Password?
               </button>
             </div>
           </form>
@@ -609,10 +654,10 @@ export const AuthView = () => {
           <form onSubmit={handleRegisterSubmit}>
             <div style={{ marginBottom: '18px', textAlign: 'center' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Create Portal Account
+                🎬 Create Theatre Account
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600, marginTop: '4px' }}>
-                Join the institutional portal for quizzes & academic management
+                Register as Theater Owner or Ticket Giver
               </p>
             </div>
 
@@ -632,19 +677,12 @@ export const AuthView = () => {
                   borderColor: '#cbd5e1'
                 }}
               >
-                <option value="student">Student</option>
-                <option value="class_leader">Class Leader</option>
-                <option value="teacher">Teacher</option>
-                <option value="class_teacher">Class Teacher</option>
-                <option value="hod">HOD (Head of Department)</option>
-                <option value="dean">Dean</option>
-                <option value="principal">Principal</option>
-                <option value="admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
-                <option value="accountant">Accountant</option>
-                <option value="librarian">Librarian</option>
-                <option value="parent">Parent</option>
+                <option value="owner">Theater Owner</option>
+                <option value="ticket_giver">Ticket Giver</option>
               </select>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Admin role is restricted and cannot be created here. You can register as Theater Owner or Ticket Giver.
+              </div>
             </div>
 
               <div className="form-group">
@@ -830,12 +868,15 @@ export const AuthView = () => {
                   Password <span className="req">*</span>
                 </label>
                 <PasswordInput
-                  placeholder="Minimum 6 characters"
+                  placeholder="Default is Theter@123"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   minLength={6}
                   required
                 />
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Default password is <strong>Theter@123</strong>. If you want to change your password later, you can recreate it using <strong>Forgot Password</strong>.
+                </div>
               </div>
 
               <button

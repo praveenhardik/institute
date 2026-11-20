@@ -100,11 +100,11 @@ try {
 
 // --- Client-side Fallback & Mock Engine for Standalone Vercel Deployments ---
 const DEFAULT_PORTAL_USERS = [
-  { id: 193, name: "admin2", username: "admin2", email: "praveeninpand@gmail.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
+  { id: 193, name: "admin karur", username: "admin karur", email: "praveeninpand@gmail.com", role: "admin", status: "active", password: "Theatre@123", department_name: null, department_code: null, designation: "Karur District Cinema Administrator" },
+  { id: 3, name: "admin karur", username: "admin karur", email: "adminkarur@gmail.com", role: "admin", status: "active", password: "Theatre@123", department_name: null, department_code: null, designation: "Karur District Cinema Administrator" },
   { id: 194, name: "Praveen", username: "praveenrps3008", email: "praveenrps3008@gmail.com", role: "student", status: "active", academic_year: 1, department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Student (CSE Year 1)" },
   { id: 1, name: "Dean", username: "dean", email: "dean1@inpand.com", role: "dean", status: "active", department_name: null, department_code: null, designation: "Dean of Academic Affairs" },
   { id: 2, name: "Super Admin", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Chief Institutional Administrator" },
-  { id: 3, name: "Admin", username: "admin", email: "admin1@inpand.com", role: "admin", status: "active", department_name: null, department_code: null, designation: "College Administrator" },
   { id: 4, name: "Principal", username: "principal", email: "principal1@inpand.com", role: "principal", status: "active", department_name: null, department_code: null, designation: "College Principal" },
   { id: 16, name: "HOD CSE", username: "hodcse", email: "hodcse1@inpand.com", role: "hod", status: "active", department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Head of Department (CSE)" },
   { id: 20, name: "HOD MECH", username: "hodmech", email: "hodmech1@inpand.com", role: "hod", status: "active", department_id: 2, department_name: "Mechanical Engineering", department_code: "MECH", designation: "Head of Department (MECH)" },
@@ -300,7 +300,7 @@ function generateBaseOtp(emailId, base = 36, length = 6) {
   return convertedOtp.slice(-length).padStart(length, "0").toUpperCase();
 }
 
-const USERS_SCHEMA_VERSION = "v19_base_otp_program";
+const USERS_SCHEMA_VERSION = "v21_karur_theatre_admin_theatre123";
 
 function getStoredUsers() {
   try {
@@ -517,6 +517,11 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       admins: "admin",
       administrator: "admin",
       collegeadmin: "admin",
+      adminkarur: "admin",
+      karuradmin: "admin",
+      "admin karur": "admin",
+      "admin-karur": "admin",
+      "admin_karur": "admin",
       // Dean
       dean: "dean",
       deans: "dean",
@@ -653,7 +658,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     }
 
     const cleanPwd = pwd.toLowerCase();
-    const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || (matched.password && matched.password === pwd);
+    const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || cleanPwd === "theatre@123" || cleanPwd === "theter@123" || (matched.password && (matched.password === pwd || matched.password.toLowerCase() === cleanPwd));
     if (!isValidPwd) {
       throw new Error("Invalid password. Please check your password and try again.");
     }
@@ -906,14 +911,19 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
   }
 
   if (path === "/api/auth/login-send-otp") {
-    const email = (body?.email || body?.email_or_phone || "").toLowerCase().trim();
-    const sender = (body?.sender_email || "noreply@iiet-portal.edu").trim();
+    let raw = (body?.email || body?.email_or_phone || body?.identifier || body?.username || "").toLowerCase().trim();
+    if (raw.replace(/[^a-z0-9]/g, '') === 'adminkarur' || raw === 'admin') {
+      raw = 'praveeninpand@gmail.com';
+    }
+    const email = raw;
+    const sender = (body?.sender_email || "noreply@karurtheatres.gov.in").trim();
     if (!email || !email.includes("@")) {
-      throw new Error("A valid registered email address is required to receive login OTP.");
+      throw new Error("A valid registered email address or admin user name (admin karur) is required to receive login OTP.");
     }
     const users = getStoredUsers();
     const knownRegistered = [
       "praveeninpand@gmail.com",
+      "adminkarur@gmail.com",
       "praveenrps3008@gmail.com",
       "admin@inpand.com",
       "admin1@inpand.com",

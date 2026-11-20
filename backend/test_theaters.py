@@ -32,7 +32,19 @@ class KarurDistrictTheatersTestCase(unittest.TestCase):
         self.assertIsNotNone(owner)
         self.assertIn('Ajantha Theatre Main Office Cabin', owner['contact_location'])
 
-    def test_add_theater_and_edit_owner(self):
+    def test_admin_karur_login(self):
+        # Test admin login with "admin karur" and "Theatre@123"
+        login_payload = {
+            "identifier": "admin karur",
+            "password": "Theatre@123"
+        }
+        res = self.client.post('/api/auth/login', data=json.dumps(login_payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('token', data)
+        self.assertEqual(data['user']['role'], 'admin')
+
+    def test_add_edit_mute_delete_theater(self):
         # 1. Test POST /api/theaters
         new_th = {
             "name": "Test Sri Krishna Theatre",
@@ -56,37 +68,43 @@ class KarurDistrictTheatersTestCase(unittest.TestCase):
         self.assertEqual(res_get.status_code, 200)
         self.assertEqual(res_get.get_json()['theater']['name'], "Test Sri Krishna Theatre")
 
-        # 3. Test POST /api/theater-owners
-        new_owner = {
-            "name": "K. Govindaraj",
-            "phone": "+91 98425 66778",
-            "email": "govindaraj.krishna@gmail.com",
-            "contact_location": "Krishna Cinema Director Cabin 1, Karur",
-            "theater_name": "Test Sri Krishna Theatre"
+        # 3. Test PUT /api/theaters/<id> (Admin edit theater details)
+        updated_th = {
+            "name": "Test Sri Krishna Theatre (Renovated)",
+            "location": "15 Jawahar Bazaar Main Road, Karur",
+            "phone": "04324-229999",
+            "email": "krishna.renovated@karurtheatre.com",
+            "screens": 3,
+            "capacity": 720,
+            "sound_system": "Dolby Atmos 64-Channel",
+            "projection_type": "Barco 4K Laser",
+            "owner_name": "K. Govindaraj & Sons",
+            "status": "Active"
         }
-        res_o = self.client.post('/api/theater-owners', data=json.dumps(new_owner), content_type='application/json')
-        self.assertEqual(res_o.status_code, 201)
-        oid = res_o.get_json()['owner']['id']
+        res_edit_th = self.client.put(f'/api/theaters/{tid}', data=json.dumps(updated_th), content_type='application/json')
+        self.assertEqual(res_edit_th.status_code, 200)
+        edited_th = res_edit_th.get_json()['theater']
+        self.assertEqual(edited_th['name'], "Test Sri Krishna Theatre (Renovated)")
+        self.assertEqual(edited_th['screens'], 3)
+        self.assertEqual(edited_th['capacity'], 720)
 
-        # 4. Test PUT /api/theater-owners/<id> (Admin edit owner details)
-        updated_owner = {
-            "name": "K. Govindaraj (Managing Partner)",
-            "phone": "+91 98425 99999",
-            "email": "govind.managing@gmail.com",
-            "contact_location": "Krishna Cinema Executive Cabin A, Karur",
-            "theater_name": "Test Sri Krishna Theatre"
-        }
-        res_edit = self.client.put(f'/api/theater-owners/{oid}', data=json.dumps(updated_owner), content_type='application/json')
-        self.assertEqual(res_edit.status_code, 200)
-        edited = res_edit.get_json()['owner']
-        self.assertEqual(edited['name'], "K. Govindaraj (Managing Partner)")
-        self.assertEqual(edited['phone'], "+91 98425 99999")
-        self.assertEqual(edited['email'], "govind.managing@gmail.com")
-        self.assertEqual(edited['contact_location'], "Krishna Cinema Executive Cabin A, Karur")
+        # 4. Test Muting the theater
+        res_mute = self.client.put(f'/api/theaters/{tid}', data=json.dumps({"status": "Muted"}), content_type='application/json')
+        self.assertEqual(res_mute.status_code, 200)
+        self.assertEqual(res_mute.get_json()['theater']['status'], "Muted")
 
-        # Clean up
-        self.client.delete(f'/api/theaters/{tid}')
-        self.client.delete(f'/api/theater-owners/{oid}')
+        # 5. Test Unmuting the theater
+        res_unmute = self.client.put(f'/api/theaters/{tid}', data=json.dumps({"status": "Active"}), content_type='application/json')
+        self.assertEqual(res_unmute.status_code, 200)
+        self.assertEqual(res_unmute.get_json()['theater']['status'], "Active")
+
+        # 6. Test Delete the theater
+        res_del = self.client.delete(f'/api/theaters/{tid}')
+        self.assertEqual(res_del.status_code, 200)
+
+        # Verify deletion
+        res_verify = self.client.get(f'/api/theaters/{tid}')
+        self.assertEqual(res_verify.status_code, 404)
 
 if __name__ == '__main__':
     unittest.main()

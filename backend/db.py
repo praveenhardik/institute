@@ -467,7 +467,7 @@ def _init_sqlite_db() -> None:
                 email TEXT UNIQUE NOT NULL,
                 username TEXT,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent')),
+                role TEXT NOT NULL CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent', 'owner', 'ticket_giver')),
                 status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'pending', 'rejected', 'reject', 'deleted', 'delete', 'passed_out', 'graduated')),
                 created_by_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -950,7 +950,7 @@ def init_db() -> None:
                 email TEXT UNIQUE NOT NULL,
                 username TEXT,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent')),
+                role TEXT NOT NULL CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent', 'owner', 'ticket_giver')),
                 status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'pending', 'rejected', 'reject', 'deleted', 'delete', 'passed_out', 'graduated')),
                 academic_year INTEGER,
                 previous_year INTEGER,
@@ -1368,7 +1368,7 @@ def init_db() -> None:
         try:
             conn.execute("""
                 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-                ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent'));
+                ALTER TABLE users ADD CONSTRAINT users_role_check CHECK(role IN ('dean', 'super_admin', 'admin', 'principal', 'hod', 'teacher', 'class_teacher', 'student', 'class_leader', 'accountant', 'librarian', 'parent', 'owner', 'ticket_giver'));
             """)
             conn.commit()
         except Exception as e:
