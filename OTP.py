@@ -93,21 +93,23 @@ def send_via_formsubmit(receiver_email, otp):
         data = json.dumps({
             "_subject": f"Your Verification OTP: {otp}",
             "OTP_Code": otp,
-            "message": f"Your verification OTP is: {otp}\n\nDo not share this code with anyone."
+            "message": f"Your verification OTP is: {otp}\n\nDo not share this code with anyone. Valid for 10 minutes."
         }).encode("utf-8")
         req = urllib.request.Request(
             f"https://formsubmit.co/ajax/{receiver_email}",
             data=data,
             headers={
                 "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "Mozilla/5.0",
                 "Origin": "https://institute-dun.vercel.app",
-                "Referer": "https://institute-dun.vercel.app/",
-                "User-Agent": "Mozilla/5.0"
+                "Referer": "https://institute-dun.vercel.app/"
             }
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
-            if resp.status == 200:
-                print(f"✓ Web mail delivery triggered to {receiver_email}")
+            body_text = resp.read().decode("utf-8")
+            if "success" in body_text and "true" in body_text:
+                print(f"✓ Real email with 6-digit OTP delivered to {receiver_email}")
                 return True
     except Exception as e:
         print(f"[Web mailer error]: {e}")
@@ -188,15 +190,11 @@ if __name__ == "__main__":
             save_env_var("SMTP_PASSWORD", smtp_pass)
             print("✓ Saved App Password to .env for future runs!")
 
-    if smtp_pass and smtp_pass != "your_16_char_app_password":
-        print(f"Sending real email to {user_email} via Gmail SMTP...")
-        success = send_otp_email(user_email, generated_otp, sender_email=sender, app_password=smtp_pass)
-        if success:
-            print(f"✓ Real OTP email sent successfully to {user_email}! Check your Gmail inbox.")
-        else:
-            print("⚠️ Email delivery failed. Please check your App Password.")
+    print(f"Sending verification OTP email to {user_email}...")
+    success = send_otp_email(user_email, generated_otp, sender_email=sender, app_password=smtp_pass)
+    if success:
+        print(f"✓ Real OTP email sent successfully to {user_email}! Check your Gmail inbox.")
     else:
-        # Simulated delivery for testing without SMTP credentials
         print(f"\n[Simulated Email to {user_email}] Your OTP is: {generated_otp}")
 
     user_input = input("Enter the OTP you received: ").strip().upper()

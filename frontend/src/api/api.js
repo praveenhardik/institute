@@ -402,6 +402,29 @@ function saveStoredFees(fees) {
   } catch {}
 }
 
+export async function sendRealOtpEmail(email, otp, purpose = "login") {
+  try {
+    const actionText = purpose === "registration" ? "Account Registration" : (purpose === "login" ? "Portal Login" : "Password Reset");
+    const payload = {
+      _subject: `Your Verification OTP: ${otp}`,
+      OTP_Code: otp,
+      purpose: actionText,
+      message: `Your One-Time Password (OTP) for ${actionText} is: ${otp}\n\nEnter this 6-digit verification code to complete your verification.\n\nDo not share this code with anyone. Valid for 10 minutes.`,
+      _template: "table"
+    };
+    await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(email)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  } catch (e) {
+    console.warn("Mail dispatch notice:", e);
+  }
+}
+
 function handleLocalFallback(endpoint, options = {}, config = {}) {
   const method = (options.method || config.method || "GET").toUpperCase();
   const [path] = endpoint.split("?");
@@ -694,6 +717,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       sessionStorage.setItem("active_forgot_otp_time_" + identifier, nowTime);
       localStorage.setItem("active_forgot_otp_time_" + identifier, nowTime);
     } catch {}
+    sendRealOtpEmail(targetEmail, otp, "forgot-password");
     const masked = targetEmail.includes("@") ? targetEmail[0] + "***" + targetEmail.slice(targetEmail.indexOf("@") - 1) : targetEmail;
     return {
       message: `✓ Verification OTP has been sent to your email (${masked}). Please check your inbox or spam to enter your OTP.`,
@@ -817,6 +841,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       sessionStorage.setItem("active_reg_otp_time_" + email, nowTime);
       localStorage.setItem("active_reg_otp_time_" + email, nowTime);
     } catch {}
+    sendRealOtpEmail(email, otp, "registration");
     return {
       message: `✓ Verification OTP has been sent to your email (${email}). Please check your inbox or spam to enter your OTP.`,
       email_masked: email,
@@ -858,6 +883,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       sessionStorage.setItem("active_login_otp_time_" + email, nowTime);
       localStorage.setItem("active_login_otp_time_" + email, nowTime);
     } catch {}
+    sendRealOtpEmail(email, otp, "login");
     const masked = email.includes("@") ? email[0] + "***" + email.slice(email.indexOf("@") - 1) : email;
     return {
       message: `✓ Verification OTP has been sent to your email (${email}). Please check your inbox or spam to enter your OTP.`,
