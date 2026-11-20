@@ -122,10 +122,19 @@ export const AuthView = () => {
     const email = loginIdentifier.trim();
     if (!email || !email.includes('@')) {
       showAlert('Please enter your registered email address first to receive OTP', 'danger');
-      return;
+      return false;
     }
     try {
       setLoginOtpLoading(true);
+      // Pre-check if email is registered before sending OTP
+      const checkRes = await API.checkEmail(email);
+      if (checkRes && !checkRes.registered) {
+        setLoginEmailError('This email is not registered. Please Create Account first.');
+        showAlert('❌ This email is not registered. Please Create Account first.', 'danger');
+        return false;
+      }
+      setLoginEmailError('');
+
       const res = await API.sendLoginOtp(email);
       setLoginOtpSent(true);
       setLoginCountdown(30);
@@ -133,7 +142,11 @@ export const AuthView = () => {
       showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
       return true;
     } catch (err) {
-      showAlert(err.message || 'Failed to send OTP. Please check your email.', 'danger');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no registered')) {
+        setLoginEmailError('This email is not registered. Please Create Account first.');
+      }
+      showAlert(msg || 'Failed to send OTP. Please check your email.', 'danger');
       return false;
     } finally {
       setLoginOtpLoading(false);
@@ -408,13 +421,51 @@ export const AuthView = () => {
                 className="form-input"
                 placeholder="Enter your registered email address"
                 value={loginIdentifier}
-                onChange={(e) => { setLoginIdentifier(e.target.value); setLoginEmailError(''); }}
-                onBlur={() => { setLoginEmailError(''); }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setLoginIdentifier(val);
+                  setLoginEmailError('');
+                  if (val.trim() && val.includes('@') && val.includes('.')) {
+                    API.checkEmail(val.trim()).then((res) => {
+                      if (!res.registered) {
+                        setLoginEmailError('This email is not registered. Please Create Account first.');
+                      } else {
+                        setLoginEmailError('');
+                      }
+                    }).catch(() => {});
+                  }
+                }}
+                onBlur={() => {
+                  const val = loginIdentifier.trim();
+                  if (val && val.includes('@') && val.includes('.')) {
+                    API.checkEmail(val).then((res) => {
+                      if (!res.registered) {
+                        setLoginEmailError('This email is not registered. Please Create Account first.');
+                      } else {
+                        setLoginEmailError('');
+                      }
+                    }).catch(() => {});
+                  }
+                }}
+                style={{
+                  borderColor: loginEmailError ? '#ef4444' : undefined,
+                  boxShadow: loginEmailError ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                }}
                 required
               />
               {loginEmailError ? (
-                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.80rem', fontWeight: 600 }}>
-                  ❌ {loginEmailError}
+                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.80rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>❌ {loginEmailError}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegContact(loginIdentifier.trim());
+                      setActiveTab('register');
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#4338ca', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                  >
+                    Create Account
+                  </button>
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>

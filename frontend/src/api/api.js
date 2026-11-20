@@ -769,7 +769,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     const exists = knownRegistered.includes(emailLower) || users.some(u => (u.email && u.email.toLowerCase().trim() === emailLower));
     return {
       registered: exists,
-      message: exists ? "This email address is already registered. Please sign in or use Forgot Password." : "Email is available"
+      message: exists ? "This email address is already registered. Please sign in or use Forgot Password." : "This email is not registered. Please Create Account first."
     };
   }
 
@@ -827,20 +827,9 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       "dean1@inpand.com",
       "principal1@inpand.com"
     ];
-    let user = knownRegistered.includes(email) || users.find(u => (u.email && u.email.toLowerCase().trim() === email));
+    const user = knownRegistered.includes(email) || users.find(u => (u.email && u.email.toLowerCase().trim() === email));
     if (!user) {
-      user = {
-        id: users.length ? Math.max(...users.map(u => u.id || 0)) + 1 : 400,
-        name: email.split("@")[0],
-        username: email.split("@")[0],
-        email: email,
-        password: "Admin@123",
-        role: "admin",
-        status: "active",
-        designation: "College Administrator"
-      };
-      users.push(user);
-      saveStoredUsers(users);
+      throw new Error("This email is not registered. Please Create Account first.");
     }
     const otp = generateBaseOtp(email, 36, 6);
     const nowTime = String(Date.now());

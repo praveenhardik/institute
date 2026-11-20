@@ -651,12 +651,14 @@ def create_app() -> Flask:
         if not email:
             return jsonify({"registered": False}), 200
         user = query_one("SELECT id, name, role, email FROM users WHERE lower(email) = lower(?)", (email,))
+        if not user:
+            user = find_user_by_email_or_username(email)
         if user:
             return jsonify({
                 "registered": True,
                 "message": "This email address is already registered. Please sign in or use Forgot Password."
             }), 200
-        return jsonify({"registered": False, "message": "Email is available"}), 200
+        return jsonify({"registered": False, "message": "This email is not registered. Please Create Account first."}), 200
 
     @app.route("/api/auth/register-send-otp", methods=["POST"])
     def register_send_otp():
@@ -1085,14 +1087,12 @@ def create_app() -> Flask:
 
         user = query_one("SELECT id, name, email FROM users WHERE lower(email) = ?", (email,))
         if not user:
-            # Auto-register test admin account if not found so login OTP flow never blocks the user
-            hashed = hash_password("Admin@123")
-            user_name = email.split("@")[0].capitalize()
-            new_id = execute_write(
-                "INSERT INTO users (name, email, password_hash, role, status, username) VALUES (?, ?, ?, ?, ?, ?)",
-                (user_name, email, hashed, "admin", "active", email.split("@")[0])
-            )
-            user = {"id": new_id, "name": user_name, "email": email}
+            user_found = find_user_by_email_or_username(email)
+            if user_found:
+                user = query_one("SELECT id, name, email FROM users WHERE id = ?", (user_found["id"],))
+
+        if not user:
+            return jsonify({"error": "This email is not registered. Please Create Account first."}), 404
 
         import random
         import datetime
