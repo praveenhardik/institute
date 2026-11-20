@@ -139,10 +139,10 @@ export const AuthView = () => {
 
       const res = await API.sendLoginOtp(email);
       setLoginOtpSent(true);
-      setLoginCountdown(30);
+      setLoginCountdown(120);
       setLoginOtp('');
       setLoginOtpError('');
-      showAlert(`✓ Verification OTP sent immediately without delay! Please check your email (${email}) within 2 minutes and enter the OTP.`, 'success');
+      showAlert(`✓ Verification OTP sent immediately! Please check your email (${email}) within 2 minutes and enter the OTP.`, 'success');
       return true;
     } catch (err) {
       const msg = err.message || '';
@@ -223,9 +223,9 @@ export const AuthView = () => {
 
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
       setRegOtpSent(true);
-      setRegCountdown(30);
+      setRegCountdown(120);
       setRegOtp('');
-      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please enter the 6-digit OTP received in your mail.`, 'success');
+      showAlert(`✓ Verification OTP sent immediately! Please check your entered email (${email}) within 2 minutes and enter the OTP.`, 'success');
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -519,7 +519,7 @@ export const AuthView = () => {
                     cursor: (loginCountdown > 0 || !loginIdentifier.trim() || !!loginEmailError) ? 'default' : 'pointer'
                   }}
                 >
-                  {loginOtpLoading ? 'Sending OTP to Mail...' : loginCountdown > 0 ? `Resend OTP in ${loginCountdown}s` : (loginOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                  {loginOtpLoading ? 'Sending OTP to Mail...' : loginCountdown > 0 ? `Resend OTP in ${Math.floor(loginCountdown / 60)}:${String(loginCountdown % 60).padStart(2, '0')}` : (loginOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
                 </button>
               </div>
 
@@ -543,14 +543,15 @@ export const AuthView = () => {
                     width: '100%',
                     boxSizing: 'border-box',
                     borderColor: loginOtpError ? '#ef4444' : undefined,
-                    boxShadow: loginOtpError ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                    borderWidth: loginOtpError ? '2px' : undefined,
+                    boxShadow: loginOtpError ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
                   }}
                 />
               </div>
 
               {loginOtpError ? (
-                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>❌ {loginOtpError}</span>
+                <div style={{ marginTop: '6px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.12)', border: '1.5px solid #ef4444', color: '#b91c1c', fontSize: '0.86rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>❌ {loginOtpError === 'Wrong OTP' ? 'Wrong OTP. Please enter the correct OTP sent to your mail.' : loginOtpError}</span>
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
@@ -781,7 +782,7 @@ export const AuthView = () => {
                       cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
                     }}
                   >
-                    {regOtpLoading ? 'Sending OTP to Mail...' : regCountdown > 0 ? `Resend OTP in ${regCountdown}s` : (regOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                    {regOtpLoading ? 'Sending OTP to Mail...' : regCountdown > 0 ? `Resend OTP in ${Math.floor(regCountdown / 60)}:${String(regCountdown % 60).padStart(2, '0')}` : (regOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
                   </button>
                 </div>
 
