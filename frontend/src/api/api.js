@@ -100,8 +100,8 @@ try {
 
 // --- Client-side Fallback & Mock Engine for Standalone Vercel Deployments ---
 const DEFAULT_PORTAL_USERS = [
-  { id: 193, name: "admin karur", username: "admin karur", email: "praveeninpand@gmail.com", role: "admin", status: "active", password: "Theatre@123", department_name: null, department_code: null, designation: "Portal Administrator" },
-  { id: 3, name: "admin karur", username: "admin karur", email: "adminkarur@gmail.com", role: "admin", status: "active", password: "Theatre@123", department_name: null, department_code: null, designation: "Portal Administrator" },
+  { id: 193, name: "admin karur", username: "admin karur", email: "praveeninpand@gmail.com", role: "admin", status: "active", password: "Admin@123", department_name: null, department_code: null, designation: "Portal Administrator" },
+  { id: 3, name: "admin karur", username: "admin karur", email: "adminkarur@gmail.com", role: "admin", status: "active", password: "Admin@123", department_name: null, department_code: null, designation: "Portal Administrator" },
   { id: 194, name: "Praveen", username: "praveenrps3008", email: "praveenrps3008@gmail.com", role: "student", status: "active", academic_year: 1, department_id: 1, department_name: "Computer Science Engineering", department_code: "CSE", designation: "Student (CSE Year 1)" },
   { id: 1, name: "Dean", username: "dean", email: "dean1@inpand.com", role: "dean", status: "active", department_name: null, department_code: null, designation: "Dean of Academic Affairs" },
   { id: 2, name: "Super Admin", username: "superadmin", email: "superadmin1@inpand.com", role: "super_admin", status: "active", department_name: null, department_code: null, designation: "Chief Institutional Administrator" },
@@ -604,7 +604,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     }
 
     const cleanPwd = pwd.toLowerCase();
-    const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || cleanPwd === "theatre@123" || cleanPwd === "theter@123" || (matched.password && (matched.password === pwd || matched.password.toLowerCase() === cleanPwd));
+    const isValidPwd = !pwd || cleanPwd === "admin@123" || cleanPwd === "admin123" || cleanPwd === "admin" || (matched.password && (matched.password === pwd || matched.password.toLowerCase() === cleanPwd));
     if (!isValidPwd) {
       throw new Error("Invalid password. Please check your password and try again.");
     }

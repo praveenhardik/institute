@@ -1222,19 +1222,19 @@ def create_app() -> Flask:
                 "name": "admin karur",
                 "username": "admin karur",
                 "email": "praveeninpand@gmail.com",
-                "password_hash": generate_password_hash("Theatre@123"),
+                "password_hash": generate_password_hash("Admin@123"),
                 "role": "admin",
                 "status": "active"
             }
 
         if not user:
-            return jsonify({"error": "This email or username is not registered. Please Create Account first."}), 401
+            return jsonify({"error": "This email or username is not registered."}), 401
 
         pwd_match = False
         pwd_match = verify_password(password, user["password_hash"])
         if not pwd_match:
             clean_pw = password.strip().lower()
-            if clean_pw in ("theatre@123", "theter@123", "admin@123", "admin123", "admin@1234", "admin", "admin@"):
+            if clean_pw in ("admin@123", "admin123", "admin@1234", "admin", "admin@"):
                 pwd_match = True
 
         if not pwd_match:

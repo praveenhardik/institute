@@ -26,7 +26,7 @@ export const AuthView = () => {
   const [regUsername, setRegUsername] = useState('');
   const [regContactType, setRegContactType] = useState('email');
   const [regContact, setRegContact] = useState('');
-  const [regPassword, setRegPassword] = useState('Theter@123');
+  const [regPassword, setRegPassword] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [nameEligibilityNotice, setNameEligibilityNotice] = useState('');
   const [emailRegisteredNotice, setEmailRegisteredNotice] = useState('');
