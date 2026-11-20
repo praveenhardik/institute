@@ -30,7 +30,7 @@ export const AuthView = () => {
   const [regLoading, setRegLoading] = useState(false);
   const [nameEligibilityNotice, setNameEligibilityNotice] = useState('');
   const [emailRegisteredNotice, setEmailRegisteredNotice] = useState('');
-  const [regRole, setRegRole] = useState('owner');
+  const [regRole, setRegRole] = useState('student');
   const [regOtp, setRegOtp] = useState('');
   const [regOtpSent, setRegOtpSent] = useState(false);
   const [regOtpLoading, setRegOtpLoading] = useState(false);
@@ -97,7 +97,7 @@ export const AuthView = () => {
         setForgotIdentifier(urlEmail);
       }
       if (urlTab === 'register' || urlTab === 'signUp') {
-        setActiveTab('login');
+        setActiveTab('register');
       } else if (urlTab === 'forgot' || urlTab === 'resetPassword') {
         setActiveTab('forgot');
         if (urlOtp) setForgotStep('verify');
@@ -120,28 +120,23 @@ export const AuthView = () => {
 
   // 1. Send OTP for Login
   const handleSendLoginOtp = async () => {
-    let raw = loginIdentifier.trim();
-    if (!raw) {
-      showAlert('Please enter your registered email address or admin username to receive OTP', 'danger');
-      return false;
+    let email = loginIdentifier.trim();
+    if (email.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || email.toLowerCase() === 'admin') {
+      email = 'praveeninpand@gmail.com';
     }
-    const isKarurAdmin = raw.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || raw.toLowerCase() === 'admin';
-    const email = isKarurAdmin ? 'praveeninpand@gmail.com' : raw;
-
-    if (!isKarurAdmin && (!email.includes('@') || !email.includes('.'))) {
-      showAlert('Please enter your registered email address or admin username to receive OTP', 'danger');
+    if (!email || !email.includes('@')) {
+      showAlert('Please enter your registered email address first to receive OTP', 'danger');
       return false;
     }
     try {
       setLoginOtpLoading(true);
       setLoginOtpError('');
-      if (!isKarurAdmin) {
-        const checkRes = await API.checkEmail(email);
-        if (checkRes && !checkRes.registered) {
-          setLoginEmailError('This email is not registered. Please contact administrator.');
-          showAlert('❌ This email is not registered. Please contact administrator.', 'danger');
-          return false;
-        }
+      // Pre-check if email is registered before sending OTP
+      const checkRes = await API.checkEmail(email);
+      if (checkRes && !checkRes.registered) {
+        setLoginEmailError('This email is not registered. Please Create Account first.');
+        showAlert('❌ This email is not registered. Please Create Account first.', 'danger');
+        return false;
       }
       setLoginEmailError('');
 
@@ -155,7 +150,7 @@ export const AuthView = () => {
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no registered')) {
-        setLoginEmailError('This email is not registered. Please contact administrator.');
+        setLoginEmailError('This email is not registered. Please Create Account first.');
       }
       showAlert(msg || 'Failed to send OTP. Please check your email.', 'danger');
       return false;
@@ -168,19 +163,19 @@ export const AuthView = () => {
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
     setLoginOtpError('');
-    const raw = loginIdentifier.trim();
-    if (!raw || !loginPassword.trim()) {
-      showAlert('Please enter your email or admin username and password', 'danger');
+    let email = loginIdentifier.trim();
+    if (!email || !loginPassword.trim()) {
+      showAlert('Please enter your email and password', 'danger');
       return;
     }
 
-    const isKarurAdmin = raw.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || raw.toLowerCase() === 'admin';
-    const email = isKarurAdmin ? 'praveeninpand@gmail.com' : raw;
-
-    if (!isKarurAdmin) {
+    const isKarurAdmin = email.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || email.toLowerCase() === 'admin';
+    if (isKarurAdmin) {
+      email = 'praveeninpand@gmail.com';
+    } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email.includes('@') || !emailRegex.test(email)) {
-        showAlert('Please enter a valid registered email address or admin username.', 'danger');
+        showAlert('Only email address is accepted for login. Full name, username, or phone number cannot be used.', 'danger');
         return;
       }
     }
@@ -216,7 +211,7 @@ export const AuthView = () => {
         setLoginOtpError('Wrong OTP');
         showAlert(msg.startsWith('❌') ? msg : '❌ Wrong OTP! The OTP code entered does not match. Please enter the correct OTP sent to your email.', 'danger');
       } else if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
-        showAlert(`❌ This email or username is not registered in the portal. Please Create Account first.`, 'danger');
+        showAlert(`❌ This email is not registered in the portal. Please Create Account first or check your email.`, 'danger');
       } else {
         showAlert(msg, 'danger');
       }
@@ -443,32 +438,31 @@ export const AuthView = () => {
           <form onSubmit={handleLoginSubmit} autoComplete="off">
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                🏛️ Campus Portal
+                College Portal Login
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                Institutional Management & Academic Portal
+                Sign in with your registered Email address
               </p>
             </div>
 
             <div className="form-group">
               <label className="form-label" htmlFor="login-email">
-                Email or Admin Username <span className="req">*</span>
+                Email <span className="req">*</span>
               </label>
               <input
                 id="login-email"
-                type="text"
+                type="email"
                 className="form-input"
-                placeholder="Enter email or admin username"
+                placeholder="Enter your registered email address"
                 value={loginIdentifier}
                 onChange={(e) => {
                   const val = e.target.value;
                   setLoginIdentifier(val);
                   setLoginEmailError('');
-                  const isAdm = val.trim().toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || val.trim().toLowerCase() === 'admin';
-                  if (val.trim() && val.includes('@') && val.includes('.') && !isAdm) {
+                  if (val.trim() && val.includes('@') && val.includes('.')) {
                     API.checkEmail(val.trim()).then((res) => {
                       if (!res.registered) {
-                        setLoginEmailError('This email is not registered. Please contact administrator.');
+                        setLoginEmailError('This email is not registered. Please Create Account first.');
                       } else {
                         setLoginEmailError('');
                       }
@@ -477,11 +471,10 @@ export const AuthView = () => {
                 }}
                 onBlur={() => {
                   const val = loginIdentifier.trim();
-                  const isAdm = val.toLowerCase().replace(/[^a-z0-9]/g, '') === 'adminkarur' || val.toLowerCase() === 'admin';
-                  if (val && val.includes('@') && val.includes('.') && !isAdm) {
+                  if (val && val.includes('@') && val.includes('.')) {
                     API.checkEmail(val).then((res) => {
                       if (!res.registered) {
-                        setLoginEmailError('This email is not registered. Please contact administrator.');
+                        setLoginEmailError('This email is not registered. Please Create Account first.');
                       } else {
                         setLoginEmailError('');
                       }
@@ -495,12 +488,22 @@ export const AuthView = () => {
                 required
               />
               {loginEmailError ? (
-                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.80rem', fontWeight: 600 }}>
+                <div style={{ marginTop: '5px', padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.80rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>❌ {loginEmailError}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegContact(loginIdentifier.trim());
+                      setActiveTab('register');
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#4338ca', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                  >
+                    Create Account
+                  </button>
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Enter your registered email address or admin username
+                  Only registered email address is accepted
                 </div>
               )}
             </div>
@@ -591,35 +594,288 @@ export const AuthView = () => {
               {loginLoading ? 'Signing in...' : 'Sign In to Portal'}
             </button>
 
-            {/* Forgot password button at the bottom of login form */}
-            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color, #e2e8f0)', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', fontSize: '0.85rem', paddingTop: '14px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('register')}
+                style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Create Account
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('forgot')}
-                style={{
-                  background: '#f8fafc',
-                  border: '1.5px solid #cbd5e1',
-                  color: '#0284c7',
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  width: '100%',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                }}
+                style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 700 }}
               >
-                <span>🔑</span> Forgot Password?
+                Forgot Password?
               </button>
             </div>
           </form>
         )}
 
-        {/* 2. FORGOT PASSWORD FORM WITH OTP FROM INPAND */}
+        {/* 2. CREATE ACCOUNT FORM */}
+        {activeTab === 'register' && (
+          <form onSubmit={handleRegisterSubmit}>
+            <div style={{ marginBottom: '18px', textAlign: 'center' }}>
+              <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Create Portal Account
+              </h1>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontWeight: 600, marginTop: '4px' }}>
+                Join the institutional portal for quizzes & academic management
+              </p>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="reg-role">
+                Account Role <span className="req">*</span>
+              </label>
+              <select
+                id="reg-role"
+                className="form-select"
+                value={regRole}
+                onChange={(e) => setRegRole(e.target.value)}
+                style={{
+                  color: '#0284c7',
+                  fontWeight: 700,
+                  background: '#ffffff',
+                  borderColor: '#cbd5e1'
+                }}
+              >
+                <option value="student">Student</option>
+                <option value="class_leader">Class Leader</option>
+                <option value="teacher">Teacher</option>
+                <option value="class_teacher">Class Teacher</option>
+                <option value="hod">HOD (Head of Department)</option>
+                <option value="dean">Dean</option>
+                <option value="principal">Principal</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="accountant">Accountant</option>
+                <option value="librarian">Librarian</option>
+                <option value="parent">Parent</option>
+              </select>
+            </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Full Name (Single Name) <span className="req">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter full name (e.g. John, Watson...)"
+                  value={regName}
+                  style={{
+                    borderColor: nameEligibilityNotice ? '#ef4444' : undefined,
+                    boxShadow: nameEligibilityNotice ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRegName(val);
+                    const uval = val.trim().toLowerCase().replace(/\s+/g, '');
+                    const prevUval = regName.trim().toLowerCase().replace(/\s+/g, '');
+                    if (!regUsername || regUsername === prevUval || !regUsername.trim()) {
+                      setRegUsername(uval);
+                    }
+                    if (val.trim()) {
+                      API.checkName(val.trim()).then((res) => {
+                        if (!res.eligible) {
+                          setNameEligibilityNotice(res.message);
+                        } else {
+                          setNameEligibilityNotice('');
+                        }
+                      }).catch(() => {});
+                    } else {
+                      setNameEligibilityNotice('');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (regName.trim()) {
+                      API.checkName(regName.trim()).then((res) => {
+                        if (!res.eligible) {
+                          setNameEligibilityNotice(res.message);
+                        } else {
+                          setNameEligibilityNotice('');
+                        }
+                      }).catch(() => {});
+                    }
+                  }}
+                  required
+                />
+                {nameEligibilityNotice && (
+                  <div style={{
+                    marginTop: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#f87171',
+                    fontSize: '0.82rem'
+                  }}>
+                    <span>{nameEligibilityNotice}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  User Name (Login ID) <span className="req">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. watson"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="reg-email">
+                  Email <span className="req">*</span>
+                </label>
+                <input
+                  id="reg-email"
+                  type="email"
+                  className="form-input"
+                  placeholder="Enter your email address (e.g. user@gmail.com)"
+                  value={regContact}
+                  style={{
+                    borderColor: emailRegisteredNotice ? '#ef4444' : undefined,
+                    boxShadow: emailRegisteredNotice ? '0 0 0 2px rgba(239, 68, 68, 0.25)' : undefined
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRegContact(val);
+                    if (emailRegisteredNotice) {
+                      setEmailRegisteredNotice('');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (regContact.trim() && regContact.includes('@')) {
+                      API.checkEmail(regContact.trim()).then((res) => {
+                        if (res && res.registered) {
+                          setEmailRegisteredNotice(res.message);
+                        } else {
+                          setEmailRegisteredNotice('');
+                        }
+                      }).catch(() => {});
+                    }
+                  }}
+                  maxLength={60}
+                  required
+                />
+
+                {emailRegisteredNotice && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    lineHeight: 1.4
+                  }}>
+                    <span>{emailRegisteredNotice}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Email Verification OTP Section - Always Visible */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>
+                    Email Verification OTP <span className="req">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={regCountdown > 0 || regOtpLoading || !regContact.trim() || !!emailRegisteredNotice}
+                    onClick={handleSendRegisterOtp}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'var(--text-muted)' : '#4338ca',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: (regCountdown > 0 || !regContact.trim() || !!emailRegisteredNotice) ? 'default' : 'pointer'
+                    }}
+                  >
+                    {regOtpLoading ? 'Sending OTP to Mail...' : regCountdown > 0 ? `Resend OTP in ${Math.floor(regCountdown / 60)}:${String(regCountdown % 60).padStart(2, '0')}` : (regOtpSent ? 'Resend OTP to Mail' : 'Send OTP to Mail')}
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  maxLength={6}
+                  className="form-input"
+                  placeholder="Enter 6-digit OTP"
+                  value={regOtp}
+                  onChange={(e) => setRegOtp(e.target.value)}
+                  style={{
+                    letterSpacing: regOtp ? '4px' : 'normal',
+                    fontSize: regOtp ? '1.15rem' : '0.95rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    fontFamily: regOtp ? 'monospace' : 'inherit',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                  {regOtpSent ? (
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({regContact})</span>
+                  ) : (
+                    <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Password <span className="req">*</span>
+                </label>
+                <PasswordInput
+                  placeholder="Minimum 6 characters"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '10px' }}
+                disabled={regLoading}
+              >
+                {regLoading ? 'Creating Account...' : 'Create Account'}
+              </button>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('login')}
+                  style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Already registered? Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('forgot')}
+                  style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            </form>
+        )}
+
+        {/* 3. FORGOT PASSWORD FORM WITH OTP FROM INPAND */}
         {activeTab === 'forgot' && (
           <div>
             <div style={{ marginBottom: '18px', textAlign: 'center' }}>
@@ -769,13 +1025,20 @@ export const AuthView = () => {
               </form>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.85rem', paddingTop: '12px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => { setActiveTab('login'); setForgotStep('request'); }}
                 style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 700 }}
               >
                 Remembered your password? Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('register'); setForgotStep('request'); }}
+                style={{ background: 'none', border: 'none', color: '#7e22ce', cursor: 'pointer', fontWeight: 700 }}
+              >
+                Need an account? Create Account
               </button>
             </div>
           </div>
