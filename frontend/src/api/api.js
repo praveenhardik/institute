@@ -402,6 +402,60 @@ function saveStoredFees(fees) {
   } catch {}
 }
 
+const DEFAULT_KARUR_THEATERS = [
+  { id: 1, name: "Ajantha Theatre", district: "Karur", location: "84 Kovai Road, Near Central Bus Stand, Karur - 639002", phone: "04324-260124", email: "info@ajanthatheatre.com", screens: 2, capacity: 780, sound_system: "Dolby Atmos 7.1", projection_type: "4K RGB Laser", owner_name: "R. Shanmugam", status: "Active" },
+  { id: 2, name: "Ellora Cinema", district: "Karur", location: "12 Jawahar Bazaar Road, Near Light House, Karur - 639001", phone: "04324-261555", email: "contact@elloracinema.com", screens: 2, capacity: 650, sound_system: "Dolby 7.1 Surround", projection_type: "Christie 4K Laser", owner_name: "K. Murugesan", status: "Active" },
+  { id: 3, name: "Thinnappa Theatre Complex", district: "Karur", location: "Dindigul Main Road, Thanthonimalai, Karur - 639005", phone: "04324-255888", email: "bookings@thinnappatheatre.com", screens: 3, capacity: 1100, sound_system: "Dolby Atmos 64-Channel", projection_type: "Barco 4K Laser", owner_name: "T. Senthil Kumar", status: "Active" },
+  { id: 4, name: "Amutha Theatre", district: "Karur", location: "Sengunthapuram 3rd Cross, Near Head Post Office, Karur - 639002", phone: "04324-232110", email: "amuthacinemas@gmail.com", screens: 1, capacity: 520, sound_system: "Dolby Surround 7.1", projection_type: "Qube 2K Digital", owner_name: "Mrs. S. Lakshmi", status: "Active" },
+  { id: 5, name: "Balaji Theatre", district: "Karur", location: "North Pradhakshanam Road, Old Karur, Karur - 639001", phone: "04324-240789", email: "balajitheatrekarur@gmail.com", screens: 1, capacity: 480, sound_system: "Dolby Digital 7.1", projection_type: "Sony 4K Digital", owner_name: "P. Balaji Rao", status: "Active" },
+  { id: 6, name: "Kavitha Theatre", district: "Karur", location: "Pasupathipalayam, Erode Main Road, Karur - 639004", phone: "04324-278450", email: "kavithatheatre@gmail.com", screens: 1, capacity: 450, sound_system: "DTS Surround Sound", projection_type: "Qube 2K", owner_name: "V. Rajendran", status: "Active" }
+];
+
+const DEFAULT_KARUR_OWNERS = [
+  { id: 1, name: "R. Shanmugam", phone: "+91 98424 12345", email: "shanmugam.ajantha@gmail.com", contact_location: "Ajantha Theatre Main Office Cabin, Karur", theater_id: 1, theater_name: "Ajantha Theatre", status: "Active" },
+  { id: 2, name: "K. Murugesan", phone: "+91 94433 55112", email: "murugesan.ellora@gmail.com", contact_location: "Ellora Cinema Management Cabin, Karur", theater_id: 2, theater_name: "Ellora Cinema", status: "Active" },
+  { id: 3, name: "T. Senthil Kumar", phone: "+91 98428 99881", email: "senthil.thinnappa@gmail.com", contact_location: "Thinnappa Complex Director Cabin A, Karur", theater_id: 3, theater_name: "Thinnappa Theatre Complex", status: "Active" },
+  { id: 4, name: "Mrs. S. Lakshmi", phone: "+91 97881 22334", email: "lakshmi.amutha@gmail.com", contact_location: "Amutha Theatre Admin Cabin, Karur", theater_id: 4, theater_name: "Amutha Theatre", status: "Active" },
+  { id: 5, name: "P. Balaji Rao", phone: "+91 99422 44778", email: "balaji.theatre.karur@gmail.com", contact_location: "Balaji Theatre Executive Cabin 2, Karur", theater_id: 5, theater_name: "Balaji Theatre", status: "Active" },
+  { id: 6, name: "V. Rajendran", phone: "+91 98430 77665", email: "rajendran.kavitha@gmail.com", contact_location: "Kavitha Theatre Accounts Cabin, Karur", theater_id: 6, theater_name: "Kavitha Theatre", status: "Active" }
+];
+
+function getStoredTheaters() {
+  try {
+    const raw = localStorage.getItem("portal_theaters_records");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  saveStoredTheaters(DEFAULT_KARUR_THEATERS);
+  return DEFAULT_KARUR_THEATERS;
+}
+
+function saveStoredTheaters(theaters) {
+  try {
+    localStorage.setItem("portal_theaters_records", JSON.stringify(theaters));
+  } catch {}
+}
+
+function getStoredTheaterOwners() {
+  try {
+    const raw = localStorage.getItem("portal_theater_owners_records");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  saveStoredTheaterOwners(DEFAULT_KARUR_OWNERS);
+  return DEFAULT_KARUR_OWNERS;
+}
+
+function saveStoredTheaterOwners(owners) {
+  try {
+    localStorage.setItem("portal_theater_owners_records", JSON.stringify(owners));
+  } catch {}
+}
+
 export async function sendRealOtpEmail(email, otp, purpose = "login") {
   try {
     const actionText = purpose === "registration" ? "Account Registration" : (purpose === "login" ? "Portal Login" : "Password Reset");
@@ -1761,6 +1815,107 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
     }
   }
 
+  // --- 28. /api/theaters (Karur District Theatres) ---
+  if (path === "/api/theaters") {
+    const list = getStoredTheaters();
+    if (method === "POST") {
+      const newTheater = {
+        id: Date.now(),
+        name: (body.name || "New Theater").trim(),
+        district: "Karur",
+        location: (body.location || "Karur").trim(),
+        phone: (body.phone || "").trim(),
+        email: (body.email || "").trim(),
+        screens: Number(body.screens || 1),
+        capacity: Number(body.capacity || 500),
+        sound_system: (body.sound_system || "Dolby Atmos 7.1").trim(),
+        projection_type: (body.projection_type || "4K RGB Laser").trim(),
+        owner_name: (body.owner_name || "").trim(),
+        status: "Active"
+      };
+      list.push(newTheater);
+      saveStoredTheaters(list);
+      return { theater: newTheater, message: "Theater added successfully!" };
+    }
+    return { theaters: list };
+  }
+
+  const theaterDetailMatch = path.match(/^\/api\/theaters\/(\d+)$/);
+  if (theaterDetailMatch) {
+    const thId = Number(theaterDetailMatch[1]);
+    const list = getStoredTheaters();
+    const idx = list.findIndex(t => Number(t.id) === thId);
+
+    if (method === "GET") {
+      const found = list[idx];
+      if (!found) throw new Error("Theater not found");
+      return { theater: found };
+    }
+    if (method === "PUT") {
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...body, id: thId };
+        saveStoredTheaters(list);
+        return { theater: list[idx], message: "Theater updated successfully" };
+      }
+      throw new Error("Theater not found");
+    }
+    if (method === "DELETE") {
+      const filtered = list.filter(t => Number(t.id) !== thId);
+      saveStoredTheaters(filtered);
+      return { message: "Theater removed successfully" };
+    }
+  }
+
+  // --- 29. /api/theater-owners ---
+  if (path === "/api/theater-owners") {
+    const list = getStoredTheaterOwners();
+    if (method === "POST") {
+      const newOwner = {
+        id: Date.now(),
+        name: (body.name || "New Owner").trim(),
+        phone: (body.phone || "").trim(),
+        email: (body.email || "").trim(),
+        contact_location: (body.contact_location || "Karur Office Cabin").trim(),
+        theater_id: body.theater_id || null,
+        theater_name: (body.theater_name || "").trim(),
+        status: "Active"
+      };
+      list.push(newOwner);
+      saveStoredTheaterOwners(list);
+      return { owner: newOwner, message: "Theater owner added successfully" };
+    }
+    return { owners: list };
+  }
+
+  const ownerDetailMatch = path.match(/^\/api\/theater-owners\/(\d+)$/);
+  if (ownerDetailMatch) {
+    const oId = Number(ownerDetailMatch[1]);
+    const list = getStoredTheaterOwners();
+    const idx = list.findIndex(o => Number(o.id) === oId);
+
+    if (method === "PUT") {
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
+          name: (body.name !== undefined ? body.name : list[idx].name).trim(),
+          phone: (body.phone !== undefined ? body.phone : list[idx].phone).trim(),
+          email: (body.email !== undefined ? body.email : list[idx].email).trim(),
+          contact_location: (body.contact_location !== undefined ? body.contact_location : list[idx].contact_location).trim(),
+          theater_name: (body.theater_name !== undefined ? body.theater_name : list[idx].theater_name).trim(),
+          id: oId
+        };
+        saveStoredTheaterOwners(list);
+        return { owner: list[idx], message: "Theater owner details updated successfully!" };
+      }
+      throw new Error("Theater owner not found");
+    }
+    if (method === "DELETE") {
+      const filtered = list.filter(o => Number(o.id) !== oId);
+      saveStoredTheaterOwners(filtered);
+      return { message: "Theater owner removed successfully" };
+    }
+  }
+
   return {};
 }
 
@@ -2786,6 +2941,59 @@ export const API = {
 
   async getMyLibraryBook() {
     return this.request("/api/library/my-book");
+  },
+
+  // Karur District Theatres & Owners Management
+  async getTheaters() {
+    return this.request("/api/theaters");
+  },
+
+  async addTheater(theater) {
+    return this.request("/api/theaters", {
+      method: "POST",
+      body: JSON.stringify(theater)
+    });
+  },
+
+  async getTheater(id) {
+    return this.request(`/api/theaters/${id}`);
+  },
+
+  async updateTheater(id, theater) {
+    return this.request(`/api/theaters/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(theater)
+    });
+  },
+
+  async deleteTheater(id) {
+    return this.request(`/api/theaters/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async getTheaterOwners() {
+    return this.request("/api/theater-owners");
+  },
+
+  async addTheaterOwner(owner) {
+    return this.request("/api/theater-owners", {
+      method: "POST",
+      body: JSON.stringify(owner)
+    });
+  },
+
+  async updateTheaterOwner(id, owner) {
+    return this.request(`/api/theater-owners/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(owner)
+    });
+  },
+
+  async deleteTheaterOwner(id) {
+    return this.request(`/api/theater-owners/${id}`, {
+      method: "DELETE"
+    });
   }
 };
 

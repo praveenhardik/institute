@@ -406,6 +406,55 @@ def release_request_connection(exception=None):
         pass
 
 
+def seed_karur_theaters(conn):
+    """Seed famous theaters and owners in Karur district."""
+    theaters_data = [
+        ("Ajantha Theatre", "Karur", "84 Kovai Road, Near Central Bus Stand, Karur - 639002", "04324-260124", "info@ajanthatheatre.com", 2, 780, "Dolby Atmos 7.1", "4K RGB Laser", "R. Shanmugam"),
+        ("Ellora Cinema", "Karur", "12 Jawahar Bazaar Road, Near Light House, Karur - 639001", "04324-261555", "contact@elloracinema.com", 2, 650, "Dolby 7.1 Surround", "Christie 4K Laser", "K. Murugesan"),
+        ("Thinnappa Theatre Complex", "Karur", "Dindigul Main Road, Thanthonimalai, Karur - 639005", "04324-255888", "bookings@thinnappatheatre.com", 3, 1100, "Dolby Atmos 64-Channel", "Barco 4K Laser", "T. Senthil Kumar"),
+        ("Amutha Theatre", "Karur", "Sengunthapuram 3rd Cross, Near Head Post Office, Karur - 639002", "04324-232110", "amuthacinemas@gmail.com", 1, 520, "Dolby Surround 7.1", "Qube 2K Digital", "Mrs. S. Lakshmi"),
+        ("Balaji Theatre", "Karur", "North Pradhakshanam Road, Old Karur, Karur - 639001", "04324-240789", "balajitheatrekarur@gmail.com", 1, 480, "Dolby Digital 7.1", "Sony 4K Digital", "P. Balaji Rao"),
+        ("Kavitha Theatre", "Karur", "Pasupathipalayam, Erode Main Road, Karur - 639004", "04324-278450", "kavithatheatre@gmail.com", 1, 450, "DTS Surround Sound", "Qube 2K", "V. Rajendran")
+    ]
+
+    owners_data = [
+        ("R. Shanmugam", "+91 98424 12345", "shanmugam.ajantha@gmail.com", "Ajantha Theatre Main Office Cabin, Karur", "Ajantha Theatre"),
+        ("K. Murugesan", "+91 94433 55112", "murugesan.ellora@gmail.com", "Ellora Cinema Management Cabin, Karur", "Ellora Cinema"),
+        ("T. Senthil Kumar", "+91 98428 99881", "senthil.thinnappa@gmail.com", "Thinnappa Complex Director Cabin A, Karur", "Thinnappa Theatre Complex"),
+        ("Mrs. S. Lakshmi", "+91 97881 22334", "lakshmi.amutha@gmail.com", "Amutha Theatre Admin Cabin, Karur", "Amutha Theatre"),
+        ("P. Balaji Rao", "+91 99422 44778", "balaji.theatre.karur@gmail.com", "Balaji Theatre Executive Cabin 2, Karur", "Balaji Theatre"),
+        ("V. Rajendran", "+91 98430 77665", "rajendran.kavitha@gmail.com", "Kavitha Theatre Accounts Cabin, Karur", "Kavitha Theatre")
+    ]
+
+    try:
+        cur = conn.execute("SELECT COUNT(*) FROM theaters")
+        row = cur.fetchone()
+        count = row[0] if row else 0
+        if count == 0:
+            for t in theaters_data:
+                conn.execute("""
+                    INSERT INTO theaters (name, district, location, phone, email, screens, capacity, sound_system, projection_type, owner_name, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
+                """, t)
+            conn.commit()
+
+        cur2 = conn.execute("SELECT COUNT(*) FROM theater_owners")
+        row2 = cur2.fetchone()
+        count2 = row2[0] if row2 else 0
+        if count2 == 0:
+            for o in owners_data:
+                t_cur = conn.execute("SELECT id FROM theaters WHERE name = ?", (o[4],))
+                t_row = t_cur.fetchone()
+                tid = t_row[0] if t_row else None
+                conn.execute("""
+                    INSERT INTO theater_owners (name, phone, email, contact_location, theater_id, theater_name, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 'Active')
+                """, (o[0], o[1], o[2], o[3], tid, o[4]))
+            conn.commit()
+    except Exception as e:
+        print(f"[THEATER SEED NOTICE] {e}")
+
+
 def _init_sqlite_db() -> None:
     """Initialize local SQLite database tables, views, and seed default departments."""
     conn = sqlite3.connect(SQLITE_DB_PATH, timeout=30.0)
@@ -722,6 +771,35 @@ def _init_sqlite_db() -> None:
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS theaters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                district TEXT DEFAULT 'Karur',
+                location TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                email TEXT,
+                screens INTEGER DEFAULT 1,
+                capacity INTEGER DEFAULT 500,
+                sound_system TEXT DEFAULT 'Dolby Atmos 7.1',
+                projection_type TEXT DEFAULT '4K RGB Laser',
+                owner_id INTEGER,
+                owner_name TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS theater_owners (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                email TEXT NOT NULL,
+                contact_location TEXT NOT NULL,
+                theater_id INTEGER,
+                theater_name TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
             CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
             CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -807,6 +885,7 @@ def _init_sqlite_db() -> None:
                 else:
                     conn.execute("UPDATE programs SET name = ?, degree = ?, duration_years = 4 WHERE id = ?", (prog_name, "B.Tech", p_exists[0]))
         conn.commit()
+        seed_karur_theaters(conn)
         print("[DB] SQLite schema & official departments initialized.")
     finally:
         conn.close()
@@ -1171,6 +1250,35 @@ def init_db() -> None:
                 expires_at TIMESTAMP NOT NULL,
                 used INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS theaters (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                district TEXT DEFAULT 'Karur',
+                location TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                email TEXT,
+                screens INTEGER DEFAULT 1,
+                capacity INTEGER DEFAULT 500,
+                sound_system TEXT DEFAULT 'Dolby Atmos 7.1',
+                projection_type TEXT DEFAULT '4K RGB Laser',
+                owner_id INTEGER,
+                owner_name TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS theater_owners (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                email TEXT NOT NULL,
+                contact_location TEXT NOT NULL,
+                theater_id INTEGER,
+                theater_name TEXT,
+                status TEXT DEFAULT 'Active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

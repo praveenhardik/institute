@@ -429,10 +429,10 @@ export const AuthView = () => {
           <form onSubmit={handleLoginSubmit} autoComplete="off">
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                College Portal Login
+                🎬 Karur District Theatres Portal
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                Sign in with your registered Email address
+                District Theater Management & Admin Portal
               </p>
             </div>
 

@@ -226,7 +226,7 @@ export const Navbar = ({ onOpenChangePassword }) => {
 
             <span className="brand-name" style={{ fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700 }}>
 
-              {collegeName || 'INPAND institute of Engineering and Technology'}
+              {collegeName || '🎬 Karur District Theatres Management System'}
 
             </span>
 
