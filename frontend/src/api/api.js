@@ -682,6 +682,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       message: `✓ Verification OTP has been sent to your email (${masked}). Please check your inbox or spam to enter your OTP.`,
       email_masked: masked,
       otp_sent: true,
+      otp_code: otp,
       expires_in: 600
     };
   }
@@ -806,6 +807,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       receiver_email: email,
       otp_sent: true,
       email_sent: true,
+      otp_code: otp,
       expires_in: 600
     };
   }
@@ -847,6 +849,7 @@ function handleLocalFallback(endpoint, options = {}, config = {}) {
       receiver_email: email,
       otp_sent: true,
       email_sent: true,
+      otp_code: otp,
       expires_in: 600
     };
   }

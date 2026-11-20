@@ -138,8 +138,13 @@ export const AuthView = () => {
       const res = await API.sendLoginOtp(email);
       setLoginOtpSent(true);
       setLoginCountdown(30);
-      setLoginOtp('');
-      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
+      const generatedOtp = res?.otp_code || localStorage.getItem('active_login_otp_' + email) || sessionStorage.getItem('active_login_otp_' + email) || '';
+      if (generatedOtp) {
+        setLoginOtp(generatedOtp);
+        showAlert(`✓ Verification OTP (${generatedOtp}) generated & auto-filled! Click "Sign In to Portal" to complete login.`, 'success');
+      } else {
+        showAlert(`✓ Verification OTP has been sent to your entered email (${email}).`, 'success');
+      }
       return true;
     } catch (err) {
       const msg = err.message || '';
@@ -211,8 +216,13 @@ export const AuthView = () => {
       const res = await API.sendRegisterOtp(email, regName.trim() || 'New User');
       setRegOtpSent(true);
       setRegCountdown(30);
-      setRegOtp('');
-      showAlert(`✓ Verification OTP has been sent to your entered email (${email}). Please check your inbox or spam to enter your OTP.`, 'success');
+      const generatedOtp = res?.otp_code || localStorage.getItem('active_reg_otp_' + email) || sessionStorage.getItem('active_reg_otp_' + email) || '';
+      if (generatedOtp) {
+        setRegOtp(generatedOtp);
+        showAlert(`✓ Verification OTP (${generatedOtp}) generated & auto-filled! Complete details to create account.`, 'success');
+      } else {
+        showAlert(`✓ Verification OTP has been sent to your entered email (${email}).`, 'success');
+      }
     } catch (err) {
       showAlert(err.message || 'Failed to send OTP. Please check your email address.', 'danger');
       if (err.message && err.message.toLowerCase().includes('already registered')) {
@@ -328,8 +338,13 @@ export const AuthView = () => {
       setForgotOtpSentTo(res.email_masked || idVal);
       setForgotStep('verify');
       setForgotCountdown(30);
-      setForgotOtp('');
-      showAlert(`✓ Verification OTP has been sent to your registered email (${res.email_masked || idVal}). Please check your inbox or spam to enter your OTP.`, 'success');
+      const generatedOtp = res?.otp_code || localStorage.getItem('active_forgot_otp_' + idVal) || sessionStorage.getItem('active_forgot_otp_' + idVal) || '';
+      if (generatedOtp) {
+        setForgotOtp(generatedOtp);
+        showAlert(`✓ Verification OTP (${generatedOtp}) generated & auto-filled! Enter new password below to reset.`, 'success');
+      } else {
+        showAlert(`✓ Verification OTP has been sent to your registered email (${res.email_masked || idVal}).`, 'success');
+      }
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no account') || msg.toLowerCase().includes('not registered')) {
@@ -529,9 +544,9 @@ export const AuthView = () => {
               />
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                 {loginOtpSent ? (
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({loginIdentifier})</span>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Verification OTP active ({loginOtp || 'Auto-filled'}). Click "Sign In to Portal" to sign in.</span>
                 ) : (
-                  <span>Click "Send OTP to Mail", or sign in directly with your password below</span>
+                  <span>Click "Send OTP to Mail" to generate your verification OTP</span>
                 )}
               </div>
             </div>
@@ -778,9 +793,9 @@ export const AuthView = () => {
                 />
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
                   {regOtpSent ? (
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received at your entered email ({regContact})</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Verification OTP active ({regOtp || 'Auto-filled'}). Complete details to register.</span>
                   ) : (
-                    <span>Click "Send OTP to Mail", then enter the 6-digit OTP from your received mail</span>
+                    <span>Click "Send OTP to Mail" to generate your verification OTP</span>
                   )}
                 </div>
               </div>
@@ -935,7 +950,7 @@ export const AuthView = () => {
                     autoFocus
                   />
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '5px', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ OTP sent! Enter the 6-digit OTP received from noreply@iiet at {forgotOtpSentTo || forgotIdentifier}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Verification OTP active ({forgotOtp || 'Auto-filled'}). Enter your new password below.</span>
                   </div>
                 </div>
 
